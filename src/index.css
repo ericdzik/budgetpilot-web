@@ -13,9 +13,13 @@
   }
 }
 
-/* Animation spinner splash screen */
-@keyframes spin {
-  to { transform: rotate(360deg); }
+/* Masquer la scrollbar sur le main layout */
+main::-webkit-scrollbar {
+  display: none;
+}
+main {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 @layer components {
@@ -49,4 +53,9 @@
   .badge-draft {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600;
   }
+}
+
+/* Animation spinner splash screen */
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

@@ -11,7 +11,11 @@ function SvgIcon({ src, size = 20, active = false, colored = false }) {
         width: size,
         height: size,
         objectFit: 'contain',
-        filter: colored ? 'none' : (active ? 'brightness(0) invert(1)' : 'brightness(0)'),
+        filter: colored
+          ? 'none'
+          : active
+            ? 'brightness(0) invert(1)'          // blanc quand actif
+            : 'brightness(0) invert(0.5)',        // gris quand inactif
         flexShrink: 0,
       }}
     />

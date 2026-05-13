@@ -89,7 +89,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Corps ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ flex: 1, padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
         {loading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px' }}>
@@ -104,6 +104,7 @@ export default function DashboardPage() {
               <div style={{
                 backgroundColor: '#1E88E5', borderRadius: '28px',
                 padding: '16px', color: '#fff', position: 'relative', overflow: 'hidden',
+                minHeight: '120px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
                   <div style={{
@@ -114,17 +115,28 @@ export default function DashboardPage() {
                   </div>
                   <span style={{ fontSize: '25px', opacity: 0.85 }}>XOF</span>
                 </div>
-                <div style={{ fontSize: '42px', fontWeight: '700', letterSpacing: '-1px', marginBottom: '12px' }}>
+                <div style={{ fontSize: '42px', fontWeight: '700', letterSpacing: '-1px' }}>
                   {fmt(caisse)}
                 </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
+
+                {/* Boutons superposés à droite, centrés verticalement */}
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  right: '20px',
+                  transform: 'translateY(-50%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}>
                   <button
                     onClick={() => navigate('/documents/new?type=invoice')}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: '6px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                       backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff',
-                      border: 'none', borderRadius: '20px', padding: '8px 16px',
+                      border: 'none', borderRadius: '20px', padding: '10px 20px',
                       fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     <Plus size={14} /> Créer une facture
@@ -132,10 +144,11 @@ export default function DashboardPage() {
                   <button
                     onClick={() => navigate('/stats')}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: '6px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                       backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff',
-                      border: 'none', borderRadius: '20px', padding: '8px 16px',
+                      border: 'none', borderRadius: '20px', padding: '10px 20px',
                       fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     Voir Statistiques
@@ -151,7 +164,7 @@ export default function DashboardPage() {
                 <div style={{
                   display: 'inline-flex', alignItems: 'center',
                   border: '1.5px solid #1E88E5', borderRadius: '20px',
-                  padding: '5px 16px', fontSize: '25px', fontWeight: '600', color: '#1E88E5',
+                  padding: '5px 16px', fontSize: '16px', fontWeight: '600', color: '#1E88E5',
                   alignSelf: 'flex-start',
                 }}>
                   Recettes
@@ -174,7 +187,7 @@ export default function DashboardPage() {
                 <div style={{
                   display: 'inline-flex', alignItems: 'center',
                   border: '1.5px solid #1E88E5', borderRadius: '20px',
-                  padding: '5px 16px', fontSize: '25px', fontWeight: '600', color: '#1E88E5',
+                  padding: '5px 16px', fontSize: '16px', fontWeight: '600', color: '#1E88E5',
                   alignSelf: 'flex-start',
                 }}>
                   Dépenses
@@ -203,7 +216,7 @@ export default function DashboardPage() {
                     <div style={{
                       backgroundColor: '#1E88E5', color: '#fff',
                       borderRadius: '20px', padding: '5px 16px',
-                      fontSize: '25px', fontWeight: '500',
+                      fontSize: '16px', fontWeight: '500',
                     }}>
                       Historique
                     </div>
@@ -241,13 +254,13 @@ export default function DashboardPage() {
                         }}
                         onClick={() => navigate('/documents')}
                       >
-                        <span style={{ fontSize: '25px', fontWeight: '700', color: '#111' }}>
+                        <span style={{ fontSize: '15px', fontWeight: '700', color: '#111' }}>
                           {inv.client_name}
                         </span>
-                        <span style={{ fontSize: '17px', color: '#110303ff' }}>
+                        <span style={{ fontSize: '14px', color: '#110303ff' }}>
                           {inv.created_at}
                         </span>
-                        <span style={{ fontSize: '23px', fontWeight: '600', color: '#111' }}>
+                        <span style={{ fontSize: '15px', fontWeight: '600', color: '#111' }}>
                           {fmt(inv.amount)}
                         </span>
                         <div style={{ display: 'flex', gap: '16px' }}>
@@ -299,7 +312,7 @@ export default function DashboardPage() {
                     <div style={{
                       border: '1.5px solid #1E88E5', color: '#1E88E5',
                       borderRadius: '20px', padding: '5px 16px',
-                      fontSize: '25px', fontWeight: '500',
+                      fontSize: '16px', fontWeight: '500',
                     }}>
                       Opérations
                     </div>
@@ -325,8 +338,8 @@ export default function DashboardPage() {
                       }}>
                         <img src={op.icon} alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} />
                         <div>
-                          <div style={{ fontSize: '22px', fontWeight: '800', color: '#111', lineHeight: 1.1 }}>{op.count}</div>
-                          <div style={{ fontSize: '13px', color: '#888', marginTop: '2px' }}>{op.label}</div>
+                          <div style={{ fontSize: '25px', fontWeight: '800', color: '#111', lineHeight: 1.1 }}>{op.count}</div>
+                          <div style={{ fontSize: '16px', color: '#888', marginTop: '2px' }}>{op.label}</div>
                         </div>
                       </div>
                     ))}

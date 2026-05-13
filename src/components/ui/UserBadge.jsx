@@ -60,7 +60,7 @@ export default function UserBadge({ size = 48 }) {
   }, [])
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '40px' }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: '8px',
