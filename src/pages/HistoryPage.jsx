@@ -35,7 +35,7 @@ function statusInfo(item, type) {
     const s = item.payment_status || item.status
     if (s === 'paid')                          return { label: 'Payée',    color: '#4CAF50', bg: '#E8F5E9' }
     if (s === 'partial' || s === 'partially_paid') return { label: 'Payée', color: '#FF9800', bg: '#FFF3E0' }
-    // Non payée (unpaid, sent, draft, overdue) → badge gris
+    // Non payéee(unpaid, sent, draft, overdue) → badge gris
     return { label: 'Payée', color: '#9E9E9E', bg: '#F5F5F5' }
   }
   return null
