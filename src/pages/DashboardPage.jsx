@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { Download, Eye, Plus } from 'lucide-react'
+import { Download, Eye, Plus, ChevronDown } from 'lucide-react'
 import { dashboardService } from '../services/dashboardService'
 import PdfPreviewModal from '../components/ui/PdfPreviewModal'
 import UserBadge from '../components/ui/UserBadge'
@@ -24,6 +24,26 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState('month')
   const [pdfPreview, setPdfPreview] = useState(null)
+  const [periodOpen, setPeriodOpen] = useState(false)
+  const periodRef = useRef(null)
+
+  const PERIOD_OPTIONS = [
+    { value: 'day',   label: "Aujourd'hui" },
+    { value: 'month', label: 'Ce mois' },
+    { value: 'year',  label: String(currentYear) },
+  ]
+  const currentPeriodLabel = PERIOD_OPTIONS.find(o => o.value === period)?.label || 'Ce mois'
+
+  // Fermer le dropdown au clic extérieur
+  useEffect(() => {
+    function handleClick(e) {
+      if (periodRef.current && !periodRef.current.contains(e.target)) {
+        setPeriodOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
 
   useEffect(() => {
     loadData()
@@ -67,31 +87,63 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <h1 style={{ fontSize: '32px', fontWeight: '700', color: '#111', margin: 0 }}>Dashboard</h1>
 
-          {/* Dropdown filtre période */}
-          <select
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            style={{
-              padding: '7px 36px 7px 14px',
-              borderRadius: '20px',
-              border: '1.5px solid #e0e0e0',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#333',
-              backgroundColor: '#fff',
-              cursor: 'pointer',
-              outline: 'none',
-              appearance: 'none',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%231E88E5' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right 12px center',
-              marginLeft: '8px',
-            }}
-          >
-            <option value="day">Aujourd'hui</option>
-            <option value="month">Ce mois</option>
-            <option value="year">{currentYear}</option>
-          </select>
+          {/* Dropdown filtre période — custom stylisé */}
+          <div ref={periodRef} style={{ position: 'relative', marginLeft: '8px' }}>
+            <button
+              onClick={() => setPeriodOpen(v => !v)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '8px 16px',
+                borderRadius: '20px',
+                border: '1.5px solid #e0e0e0',
+                fontSize: '15px', fontWeight: '600', color: '#333',
+                backgroundColor: '#fff',
+                cursor: 'pointer', outline: 'none',
+              }}
+            >
+              {currentPeriodLabel}
+              <ChevronDown size={15} color="#1E88E5" style={{ transition: 'transform 0.2s', transform: periodOpen ? 'rotate(180deg)' : 'none' }} />
+            </button>
+
+            {periodOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 200,
+                backgroundColor: '#fff', borderRadius: '16px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
+                padding: '8px', minWidth: '170px',
+              }}>
+                {PERIOD_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => { setPeriod(opt.value); setPeriodOpen(false) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      width: '100%', padding: '10px 16px',
+                      background: period === opt.value ? '#e8f4ff' : 'none',
+                      border: 'none', borderRadius: '10px',
+                      fontSize: '15px', fontWeight: period === opt.value ? '700' : '500',
+                      color: period === opt.value ? '#1E88E5' : '#333',
+                      cursor: 'pointer', textAlign: 'left',
+                    }}
+                  >
+                    {opt.label}
+                    {period === opt.value && (
+                      <span style={{
+                        width: 20, height: 20, borderRadius: '50%',
+                        backgroundColor: '#1E88E5',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Droite : badge Pro + avatar */}

@@ -52,7 +52,7 @@ function shortRef(ref) {
 }
 
 // Élément de menu contextuel
-function CtxItem({ icon, label, onClick, color }) {
+function CtxItem({ icon, label, onClick, color, danger }) {
   const [hovered, setHovered] = useState(false)
   return (
     <button
@@ -60,16 +60,25 @@ function CtxItem({ icon, label, onClick, color }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        display: 'flex', alignItems: 'center', gap: '10px',
-        width: '100%', padding: '9px 14px',
-        background: hovered ? '#f5f5f5' : 'none',
-        border: 'none', borderRadius: '8px',
+        display: 'flex', alignItems: 'center', gap: '12px',
+        width: '100%', padding: '11px 16px',
+        background: hovered ? (danger ? '#fff5f5' : '#f0f7ff') : 'none',
+        border: 'none', borderRadius: '10px',
         fontSize: '15px', fontWeight: '500',
-        color: color || '#333',
+        color: color || '#222',
         cursor: 'pointer', textAlign: 'left',
+        transition: 'background 0.12s',
       }}
     >
-      {icon}
+      {/* Icône dans un cercle coloré */}
+      <div style={{
+        width: 32, height: 32, borderRadius: '50%',
+        backgroundColor: danger ? '#ffebee' : '#e8f4ff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+      }}>
+        {icon}
+      </div>
       {label}
     </button>
   )
