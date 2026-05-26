@@ -14,11 +14,16 @@ const BG_BLUE_LIGHT = '#e8f4ff'
 const BG_WHITE      = '#ffffff'
 
 const PAYMENT_METHODS = [
-  { value: 'Espèces',          label: 'Espèces' },
-  { value: 'Mobile Money',     label: 'Mobile Money' },
-  { value: 'Carte bancaire',   label: 'Carte bancaire' },
-  { value: 'Virement bancaire',label: 'Virement bancaire' },
-  { value: 'Chèque',           label: 'Chèque' },
+  { value: 'cash',         label: 'Espèces' },
+  { value: 'mobile_money', label: 'Mobile Money' },
+  { value: 'card',         label: 'Carte bancaire' },
+  { value: 'transfer',     label: 'Virement bancaire' },
+  { value: 'check',        label: 'Chèque' },
+]
+
+const REVENUE_CATEGORIES = [
+  'Vente de produits', 'Prestation de services', 'Consultation', 'Location',
+  'Commission', 'Subvention', 'Remboursement', 'Autres',
 ]
 
 function newItem() {
@@ -47,7 +52,8 @@ export default function RevenueFormPage() {
   // ── Champs ──
   const [issueDate,      setIssueDate]      = useState(today)
   const [clientName,     setClientName]     = useState('')
-  const [paymentMethod,  setPaymentMethod]  = useState('Espèces')
+  const [category,       setCategory]       = useState(REVENUE_CATEGORIES[0])
+  const [paymentMethod,  setPaymentMethod]  = useState('cash')
   const [notes,          setNotes]          = useState('')
   const [items,          setItems]          = useState([newItem()])
 
@@ -93,7 +99,8 @@ export default function RevenueFormPage() {
       setRefLoading(false)
       setIssueDate(rev.date?.slice(0, 10) || today)
       setClientName(rev.client_name || '')
-      setPaymentMethod(rev.payment_method || 'Espèces')
+      setCategory(rev.category || REVENUE_CATEGORIES[0])
+      setPaymentMethod(rev.payment_method || 'cash')
       setNotes(rev.notes || '')
       // Si items stockés, les charger ; sinon créer un item par défaut
       if (rev.items && rev.items.length > 0) {
@@ -117,7 +124,8 @@ export default function RevenueFormPage() {
   // ── Réinitialisation ──
   const handleReset = () => {
     setClientName('')
-    setPaymentMethod('Espèces')
+    setCategory(REVENUE_CATEGORIES[0])
+    setPaymentMethod('cash')
     setNotes('')
     setItems([newItem()])
     if (!isEditing) {
@@ -140,23 +148,16 @@ export default function RevenueFormPage() {
 
     setSubmitting(true)
     try {
-      // Description = titres des items concaténés
       const description = items.map(it => it.title.trim()).filter(Boolean).join(', ') || 'Recette'
 
       const payload = {
         description,
-        amount: total,
-        date: issueDate,
+        amount:         total,
+        category,
+        date:           issueDate,
         payment_method: paymentMethod,
-        payment_status: 'paid',
-        client_name: clientName.trim() || null,
-        notes: notes.trim() || null,
-        items: items.map((it) => ({
-          description: it.title.trim(),
-          quantity: Number(it.quantity),
-          unit_price: Number(it.unitPrice),
-          total: itemTotal(it),
-        })),
+        client_name:    clientName.trim() || null,
+        notes:          notes.trim() || null,
       }
 
       if (isEditing) {
@@ -250,14 +251,17 @@ export default function RevenueFormPage() {
         {/* ── Informations client ── */}
         <div style={{ marginBottom: '28px' }}>
           <p style={sectionTitle}>Informations client</p>
-          <div>
-          <FloatInput
-            placeholder="Nom du client"
-            required
-            value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
-            style={inputStyle}
-          />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <FloatInput
+              placeholder="Nom du client"
+              required
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              style={inputStyle}
+            />
+            <select value={category} onChange={(e) => setCategory(e.target.value)} style={selectStyle}>
+              {REVENUE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
         </div>
 

@@ -226,7 +226,11 @@ export default function DocumentFormPage() {
   // ── Soumission ──
   const handleSubmit = async () => {
     if (!clientName.trim()) { toast.error('Le nom du client est obligatoire'); return }
-    if (!clientPhone.trim()) { toast.error('Le numéro de téléphone est obligatoire'); return }
+    // Téléphone requis seulement si le client n'est pas déjà sélectionné depuis la liste
+    if (!selectedClient && !clientPhone.trim()) {
+      toast.error('Le numéro de téléphone est obligatoire pour un nouveau client')
+      return
+    }
     for (const it of items) {
       if (!it.description.trim()) { toast.error('Chaque item doit avoir un intitulé'); return }
       if (!it.quantity || Number(it.quantity) <= 0) { toast.error('La quantité doit être > 0'); return }
@@ -240,7 +244,7 @@ export default function DocumentFormPage() {
       if (!clientId) {
         const clientRes = await api.post('/clients', {
           name: clientName.trim(),
-          phone: clientPhone.trim(),
+          phone: clientPhone.trim() || null,
           email: clientEmail.trim() || null,
           nif: clientNif.trim() || null,
           address: clientAddress.trim() || null,

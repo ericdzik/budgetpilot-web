@@ -19,6 +19,15 @@ import RevenueFormPage from './pages/RevenueFormPage'
 import ClientsPage from './pages/ClientsPage'
 import ExpensesPage from './pages/ExpensesPage'
 import HistoryPage from './pages/HistoryPage'
+import StatsPage from './pages/StatsPage'
+import SubscriptionPage from './pages/SubscriptionPage'
+import SettingsPage from './pages/SettingsPage'
+import ProfilePage from './pages/ProfilePage'
+import PersonalProfilePage from './pages/PersonalProfilePage'
+import CompanyProfilePage from './pages/CompanyProfilePage'
+import FaqPage from './pages/FaqPage'
+import TermsPage from './pages/TermsPage'
+import ContactPage from './pages/ContactPage'
 
 // Route protégée
 function ProtectedRoute({ children }) {
@@ -76,6 +85,15 @@ export const router = createBrowserRouter([
     children: [
       { path: 'dashboard', element: <DashboardPage /> },
       { path: 'history', element: <HistoryPage /> },
+      { path: 'stats', element: <StatsPage /> },
+      { path: 'subscription', element: <SubscriptionPage /> },
+      { path: 'settings', element: <SettingsPage /> },
+      { path: 'profile', element: <ProfilePage /> },
+      { path: 'profile/personal', element: <PersonalProfilePage /> },
+      { path: 'profile/company', element: <CompanyProfilePage /> },
+      { path: 'faq', element: <FaqPage /> },
+      { path: 'terms', element: <TermsPage /> },
+      { path: 'contact', element: <ContactPage /> },
       { path: 'documents', element: <DocumentsPage /> },
       { path: 'documents/new', element: <DocumentFormPage /> },
       { path: 'documents/:id/edit', element: <DocumentFormPage /> },

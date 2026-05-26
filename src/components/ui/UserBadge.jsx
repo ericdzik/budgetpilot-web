@@ -69,7 +69,7 @@ export default function UserBadge({ size = 48 }) {
           fontSize: '16px', fontWeight: '700',
         }}>
           <Zap size={16} fill="#fff" />
-          {isPro ? 'pro' : 'free'}
+          {isPro ? 'pro' : 'gratuit'}
         </div>
         {isPro && daysLeft !== null && (
           <span style={{ fontSize: '13px', color: '#888', marginTop: '4px' }}>

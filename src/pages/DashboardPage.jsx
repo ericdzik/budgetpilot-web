@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { Download, Eye, Plus, ChevronDown } from 'lucide-react'
+import { Download, Eye, Plus } from 'lucide-react'
 import { dashboardService } from '../services/dashboardService'
-import useAuthStore from '../store/authStore'
 import PdfPreviewModal from '../components/ui/PdfPreviewModal'
 import UserBadge from '../components/ui/UserBadge'
 
@@ -14,6 +13,8 @@ function fmt(amount) {
   return Number(amount).toLocaleString('fr-FR').replace(/\s/g, '.')
 }
 
+const currentYear = new Date().getFullYear()
+
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -21,18 +22,19 @@ export default function DashboardPage() {
   const [stats, setStats] = useState(null)
   const [treasury, setTreasury] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [year, setYear] = useState(new Date().getFullYear())
-  const [pdfPreview, setPdfPreview] = useState(null) // { docId, clientName }
+  const [period, setPeriod] = useState('month')
+  const [pdfPreview, setPdfPreview] = useState(null)
 
   useEffect(() => {
     loadData()
-  }, [year])
+  }, [period])
 
-  const loadData = async () => {    setLoading(true)
+  const loadData = async () => {
+    setLoading(true)
     try {
       const [statsRes, treasuryRes] = await Promise.all([
-        dashboardService.getStats('year'),
-        dashboardService.getTreasury(),
+        dashboardService.getStats(period),
+        dashboardService.getTreasury(period),
       ])
       setStats(statsRes.data)
       setTreasury(treasuryRes.data)
@@ -43,17 +45,15 @@ export default function DashboardPage() {
     }
   }
 
-  const isPro = stats?.plan?.current_plan === 'pro'
-
   const handleOpenPreview = (docId, clientName) => {
     setPdfPreview({ docId, clientName })
   }
 
-  const caisse = treasury?.available_balance ?? 0
+  const caisse   = treasury?.available_balance ?? 0
   const recettes = treasury?.total_income ?? 0
   const depenses = treasury?.total_expenses ?? 0
 
-  const operations = stats?.operations ?? {}
+  const operations    = stats?.operations ?? {}
   const recentInvoices = stats?.recent_invoices ?? []
 
   return (
@@ -64,22 +64,34 @@ export default function DashboardPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '18px 28px',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <h1 style={{ fontSize: '32px', fontWeight: '700', color: '#111', margin: 0 }}>Dashboard</h1>
-          {/* Sélecteur année */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '4px',
-            cursor: 'pointer', fontSize: '16px', color: '#333', fontWeight: '600',
-          }}>
-            {year} <ChevronDown size={16} color="#1E88E5" />
-          </div>
-          {/* Devise */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '4px',
-            cursor: 'pointer', fontSize: '16px', color: '#333', fontWeight: '600',
-          }}>
-            XOF <ChevronDown size={16} color="#1E88E5" />
-          </div>
+
+          {/* Dropdown filtre période */}
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            style={{
+              padding: '7px 36px 7px 14px',
+              borderRadius: '20px',
+              border: '1.5px solid #e0e0e0',
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#333',
+              backgroundColor: '#fff',
+              cursor: 'pointer',
+              outline: 'none',
+              appearance: 'none',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%231E88E5' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 12px center',
+              marginLeft: '8px',
+            }}
+          >
+            <option value="day">Aujourd'hui</option>
+            <option value="month">Ce mois</option>
+            <option value="year">{currentYear}</option>
+          </select>
         </div>
 
         {/* Droite : badge Pro + avatar */}
@@ -204,13 +216,13 @@ export default function DashboardPage() {
             </div>
 
             {/* ── Ligne 2 : Historique + Opérations ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '16px', alignItems: 'start' }}>
 
               {/* Historique */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{
                   backgroundColor: '#fff', borderRadius: '18px', padding: '20px',
-                  border: '2px solid #1E88E5',
+                  border: '2px solid #1E88E5', minHeight: '400px', display: 'flex', flexDirection: 'column',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                     <div style={{
@@ -221,7 +233,7 @@ export default function DashboardPage() {
                       Historique
                     </div>
                     <button
-                      onClick={() => navigate('/documents')}
+                      onClick={() => navigate('/history')}
                       style={{ fontSize: '17px', color: '#888', background: 'none', border: 'none', cursor: 'pointer' }}
                     >
                       Tout voir
@@ -231,16 +243,16 @@ export default function DashboardPage() {
                   {/* En-têtes */}
                   <div style={{
                     display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.5fr 80px',
-                    padding: '0 8px 8px', borderBottom: '1px solid #f0f0f0',
+                    padding: '0 8px 10px', borderBottom: '1px solid #f0f0f0',
                   }}>
                     {['Nom', 'Date', 'Montant', ''].map((h, i) => (
-                      <span key={i} style={{ fontSize: '16px', color: '#aaa', fontWeight: '500' }}>{h}</span>
+                      <span key={i} style={{ fontSize: '13px', color: '#aaa', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</span>
                     ))}
                   </div>
 
                   {/* Lignes */}
                   {recentInvoices.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '32px', color: '#bbb', fontSize: '14px' }}>
+                    <div style={{ textAlign: 'center', padding: '40px', color: '#bbb', fontSize: '15px' }}>
                       Aucune facture récente
                     </div>
                   ) : (
@@ -249,23 +261,23 @@ export default function DashboardPage() {
                         key={inv.id}
                         style={{
                           display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.5fr 80px',
-                          alignItems: 'center', padding: '12px 8px',
-                          borderBottom: '1px solid #f8f8f8', cursor: 'pointer',
+                          alignItems: 'center', padding: '16px 8px',
+                          borderBottom: '1px solid #f5f5f5', cursor: 'pointer',
                         }}
-                        onClick={() => navigate('/documents')}
+                        onClick={() => navigate('/history')}
                       >
-                        <span style={{ fontSize: '15px', fontWeight: '700', color: '#111' }}>
+                        <span style={{ fontSize: '17px', fontWeight: '700', color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {inv.client_name}
                         </span>
-                        <span style={{ fontSize: '14px', color: '#110303ff' }}>
+                        <span style={{ fontSize: '15px', color: '#555' }}>
                           {inv.created_at}
                         </span>
-                        <span style={{ fontSize: '15px', fontWeight: '600', color: '#111' }}>
+                        <span style={{ fontSize: '17px', fontWeight: '600', color: '#111' }}>
                           {fmt(inv.amount)}
                         </span>
-                        <div style={{ display: 'flex', gap: '16px' }}>
-                          <Download size={24} color="#aaa" style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); handleOpenPreview(inv.id, inv.client_name) }} />
-                          <Eye size={24} color="#aaa" style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigate('/documents') }} />
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                          <Download size={22} color="#aaa" style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); handleOpenPreview(inv.id, inv.client_name) }} />
+                          <Eye size={22} color="#aaa" style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigate('/history') }} />
                         </div>
                       </div>
                     ))
@@ -277,10 +289,10 @@ export default function DashboardPage() {
                   <button
                     onClick={() => navigate('/stats')}
                     style={{
-                      padding: '8px 20px',
+                      padding: '14px 32px',
                       backgroundColor: '#1E88E5', color: '#fff',
                       border: 'none', borderRadius: '20px',
-                      fontSize: '12px', fontWeight: '600', cursor: 'pointer',
+                      fontSize: '16px', fontWeight: '600', cursor: 'pointer',
                       whiteSpace: 'nowrap',
                     }}
                   >
@@ -288,10 +300,10 @@ export default function DashboardPage() {
                   </button>
                   <button
                     style={{
-                      padding: '8px 20px',
+                      padding: '14px 32px',
                       backgroundColor: '#fff', color: '#333',
                       border: '1.5px solid #e0e0e0', borderRadius: '20px',
-                      fontSize: '12px', fontWeight: '600', cursor: 'pointer',
+                      fontSize: '16px', fontWeight: '600', cursor: 'pointer',
                       whiteSpace: 'nowrap',
                     }}
                   >

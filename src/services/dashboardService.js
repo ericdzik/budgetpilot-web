@@ -1,8 +1,12 @@
 import api from '../config/api'
 
 export const dashboardService = {
-  getStats: (period = 'month') =>
-    api.get(`/dashboard/stats?period=${period}`),
+  getStats: (periodParam = 'month', year = null) => {
+    const params = new URLSearchParams({ period: periodParam })
+    if (year) params.append('year', year)
+    return api.get(`/dashboard/stats?${params.toString()}`)
+  },
 
-  getTreasury: () => api.get('/dashboard/treasury'),
+  getTreasury: (periodParam = 'month') =>
+    api.get(`/dashboard/treasury?period=${periodParam}`),
 }

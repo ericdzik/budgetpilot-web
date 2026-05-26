@@ -1,5 +1,4 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LogOut } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 
 function SvgIcon({ src, size = 20, active = false, colored = false }) {
@@ -90,7 +89,6 @@ function NavItemExact({ to, svgSrc, label, colored = false }) {
 }
 
 export default function Sidebar() {
-  const { logout } = useAuthStore()
 
   return (
     <aside style={{
@@ -169,22 +167,6 @@ export default function Sidebar() {
         <NavItem to="/profile"  svgSrc="/navbar_icon4.svg"   label="Profil" />
         {/* SERVICESICONE7 = Paramètres */}
         <NavItem to="/settings" svgSrc="/SERVICESICONE7.svg" label="Paramètres" colored />
-        <button
-          onClick={logout}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            width: '100%', padding: '10px 16px', borderRadius: '50px',
-            fontSize: '15px', fontWeight: '400', color: '#ef4444',
-            backgroundColor: 'transparent', border: 'none',
-            cursor: 'pointer', transition: 'background 0.15s',
-            marginBottom: '2px',
-          }}
-          onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fef2f2'}
-          onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-        >
-          <LogOut size={18} />
-          Déconnexion
-        </button>
       </div>
     </aside>
   )

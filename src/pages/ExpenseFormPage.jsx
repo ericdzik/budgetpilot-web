@@ -15,11 +15,11 @@ const BG_BLUE_LIGHT = '#e8f4ff'
 const BG_WHITE      = '#ffffff'
 
 const PAYMENT_METHODS = [
-  { value: 'Espèces',          label: 'Espèces' },
-  { value: 'Mobile Money',     label: 'Mobile Money' },
-  { value: 'Carte bancaire',   label: 'Carte bancaire' },
-  { value: 'Virement',         label: 'Virement' },
-  { value: 'Chèque',           label: 'Chèque' },
+  { value: 'cash',         label: 'Espèces' },
+  { value: 'mobile_money', label: 'Mobile Money' },
+  { value: 'card',         label: 'Carte bancaire' },
+  { value: 'transfer',     label: 'Virement' },
+  { value: 'check',        label: 'Chèque' },
 ]
 
 const SECTORS = [
@@ -74,7 +74,7 @@ export default function ExpenseFormPage() {
   const [installments,  setInstallments]  = useState(false)
   const [discount,      setDiscount]      = useState(0)
   const [taxPercent,    setTaxPercent]    = useState(0)
-  const [paymentMethod, setPaymentMethod] = useState('Espèces')
+  const [paymentMethod, setPaymentMethod] = useState('cash')
   const [notes,         setNotes]         = useState('')
 
   // ── UI ──
@@ -155,7 +155,7 @@ export default function ExpenseFormPage() {
       setClientPhone(exp.supplier_phone || '')
       setClientEmail(exp.supplier_email || '')
       setClientAddress(exp.supplier_address || '')
-      setPaymentMethod(exp.payment_method || 'Espèces')
+      setPaymentMethod(exp.payment_method || 'cash')
       setInstallments(exp.payment_status === 'unpaid')
       setNotes(exp.notes || '')
       if (exp.items && exp.items.length > 0) {
@@ -176,7 +176,7 @@ export default function ExpenseFormPage() {
     setClientNif(''); setClientAddress(''); setClientSector('')
     setItems([newItem()])
     setDiscount(0); setTaxPercent(0); setNotes('')
-    setPaymentMethod('Espèces'); setInstallments(false)
+    setPaymentMethod('cash'); setInstallments(false)
     if (!isEditing) {
       setRefLoading(true)
       api.get('/expenses/next-number')
@@ -189,7 +189,6 @@ export default function ExpenseFormPage() {
   // ── Soumission ──
   const handleSubmit = async () => {
     if (!clientName.trim()) { toast.error('Le nom du fournisseur est obligatoire'); return }
-    if (!clientPhone.trim()) { toast.error('Le numéro de téléphone est obligatoire'); return }
     for (const it of items) {
       if (!it.description.trim()) { toast.error('Chaque élément doit avoir un intitulé'); return }
       if (Number(it.quantity) <= 0) { toast.error('La quantité doit être > 0'); return }
