@@ -31,12 +31,22 @@ function getMonthKey(dateStr) {
 }
 
 function statusInfo(item, type) {
+  // Règle badge paiement : toujours "Payée", couleur selon état
+  // gris = non payé, orange = partiel, vert = payé
   if (type === 'invoices' || type === 'expenses') {
     const s = item.payment_status || item.status
     if (s === 'paid')                              return { label: 'Payée', color: '#4CAF50', bg: '#E8F5E9' }
     if (s === 'partial' || s === 'partially_paid') return { label: 'Payée', color: '#FF9800', bg: '#FFF3E0' }
-    // unpaid, sent, draft, overdue → aucune tranche enregistrée
+    // unpaid, sent, draft, overdue → gris
     return { label: 'Payée', color: '#9E9E9E', bg: '#F5F5F5' }
+  }
+  if (type === 'quotes') {
+    const s = item.status
+    if (s === 'accepted')  return { label: 'Accepté',  color: '#4CAF50', bg: '#E8F5E9' }
+    if (s === 'rejected')  return { label: 'Refusé',   color: '#e53935', bg: '#FFEBEE' }
+    if (s === 'sent')      return { label: 'Envoyé',   color: '#1E88E5', bg: '#E3F2FD' }
+    if (s === 'draft')     return { label: 'Brouillon',color: '#9E9E9E', bg: '#F5F5F5' }
+    return { label: 'Devis', color: '#9E9E9E', bg: '#F5F5F5' }
   }
   return null
 }

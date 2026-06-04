@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { Download, Eye, Plus, ChevronDown } from 'lucide-react'
+import { Download, Eye, Plus, ChevronDown, X } from 'lucide-react'
 import { dashboardService } from '../services/dashboardService'
+import { subscriptionService } from '../services/subscriptionService'
 import PdfPreviewModal from '../components/ui/PdfPreviewModal'
 import UserBadge from '../components/ui/UserBadge'
 
@@ -26,6 +27,10 @@ export default function DashboardPage() {
   const [pdfPreview, setPdfPreview] = useState(null)
   const [periodOpen, setPeriodOpen] = useState(false)
   const periodRef = useRef(null)
+  const [renewalBanner, setRenewalBanner] = useState(null) // { plan, daysLeft }
+
+  // Vérification rappel renouvellement — une seule fois par session
+  const renewalChecked = useRef(false)
 
   const PERIOD_OPTIONS = [
     { value: 'day',   label: "Aujourd'hui" },
@@ -43,6 +48,29 @@ export default function DashboardPage() {
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  useEffect(() => {
+    // Vérifier le rappel renouvellement au montage (une seule fois)
+    if (!renewalChecked.current) {
+      renewalChecked.current = true
+      subscriptionService.getStatus()
+        .then(res => {
+          const data = res.data
+          if (
+            data?.status === 'active' &&
+            data?.plan !== 'freemium' &&
+            data?.billing_cycle !== 'welcome' &&
+            data?.next_billing_at
+          ) {
+            const diff = Math.ceil((new Date(data.next_billing_at) - new Date()) / (1000 * 60 * 60 * 24))
+            if (diff >= 0 && diff <= 5) {
+              setRenewalBanner({ plan: data.plan, daysLeft: diff })
+            }
+          }
+        })
+        .catch(() => {})
+    }
   }, [])
 
   useEffect(() => {
@@ -152,6 +180,52 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* ── Bannière rappel renouvellement (≤ 5 jours) ── */}
+      {renewalBanner && (
+        <div style={{
+          margin: '0 28px 8px',
+          backgroundColor: '#fff8e1',
+          border: '1.5px solid #FFC107',
+          borderRadius: '16px',
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '20px' }}>⚠️</span>
+            <div>
+              <p style={{ margin: 0, fontWeight: '700', fontSize: '15px', color: '#111' }}>
+                Votre abonnement expire bientôt
+              </p>
+              <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#555' }}>
+                Il vous reste {renewalBanner.daysLeft} jour{renewalBanner.daysLeft !== 1 ? 's' : ''}. Renouvelez pour conserver l'accès.
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+            <button
+              onClick={() => navigate('/subscription')}
+              style={{
+                backgroundColor: '#FFC107', color: '#111',
+                border: 'none', borderRadius: '20px',
+                padding: '8px 18px', fontSize: '13px', fontWeight: '700',
+                cursor: 'pointer',
+              }}
+            >
+              Renouveler
+            </button>
+            <button
+              onClick={() => setRenewalBanner(null)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#888' }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Corps ── */}
       <div style={{ flex: 1, padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
@@ -179,8 +253,23 @@ export default function DashboardPage() {
                   </div>
                   <span style={{ fontSize: '25px', opacity: 0.85 }}>XOF</span>
                 </div>
-                <div style={{ fontSize: '42px', fontWeight: '700', letterSpacing: '-1px' }}>
-                  {fmt(caisse)}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: '42px', fontWeight: '700', letterSpacing: '-1px' }}>
+                    {fmt(caisse)}
+                  </div>
+                </div>
+                <div style={{ fontSize: '13px', opacity: 0.8, marginTop: '4px', marginBottom: '10px' }}>
+                  Solde disponible
+                </div>
+                <div style={{ display: 'flex', gap: '24px' }}>
+                  <div>
+                    <div style={{ fontSize: '12px', opacity: 0.75, marginBottom: '2px' }}>● Revenus</div>
+                    <div style={{ fontSize: '16px', fontWeight: '700' }}>{fmt(recettes)}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '12px', opacity: 0.75, marginBottom: '2px' }}>● Dépenses</div>
+                    <div style={{ fontSize: '16px', fontWeight: '700' }}>{fmt(depenses)}</div>
+                  </div>
                 </div>
 
                 {/* Boutons superposés à droite, centrés verticalement */}
@@ -390,16 +479,23 @@ export default function DashboardPage() {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px' }}>
                     {[
-                      { icon: '/devisicone.svg',  count: operations.quotes ?? 0,   label: 'Devis' },
-                      { icon: '/operation2.svg',  count: operations.invoices ?? 0, label: 'Factures' },
-                      { icon: '/operation3.svg',  count: operations.unpaid ?? 0,   label: 'Impayés' },
-                      { icon: '/operation4.svg',  count: operations.clients ?? 0,  label: 'Clients' },
+                      { icon: '/devisicone.svg',  count: operations.quotes ?? 0,   label: 'Devis',     href: '/history?tab=quotes' },
+                      { icon: '/operation2.svg',  count: operations.invoices ?? 0, label: 'Factures',  href: '/history?tab=invoices' },
+                      { icon: '/operation3.svg',  count: operations.unpaid ?? 0,   label: 'Impayés',   href: '/history?tab=invoices&filter=unpaid' },
+                      { icon: '/operation4.svg',  count: operations.clients ?? 0,  label: 'Clients',   href: '/clients' },
                     ].map((op, i) => (
-                      <div key={i} style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                        backgroundColor: '#e8f4ff', borderRadius: '16px', padding: '14px 12px 16px',
-                        minHeight: '150px', justifyContent: 'space-between',
-                      }}>
+                      <div
+                        key={i}
+                        onClick={() => navigate(op.href)}
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                          backgroundColor: '#e8f4ff', borderRadius: '16px', padding: '14px 12px 16px',
+                          minHeight: '150px', justifyContent: 'space-between',
+                          cursor: 'pointer', transition: 'background-color 0.15s, transform 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#d0e8ff'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#e8f4ff'; e.currentTarget.style.transform = 'none' }}
+                      >
                         <img src={op.icon} alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} />
                         <div>
                           <div style={{ fontSize: '25px', fontWeight: '800', color: '#111', lineHeight: 1.1 }}>{op.count}</div>

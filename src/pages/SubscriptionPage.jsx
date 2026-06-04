@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
-import { Zap, Check, Circle } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Zap, Check, Circle, X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { subscriptionService } from '../services/subscriptionService'
 import UserBadge from '../components/ui/UserBadge'
 import useAuthStore from '../store/authStore'
+import { useNavigate } from 'react-router-dom'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -93,19 +94,34 @@ function CycleButton({ label, price, perMonth, selected, onSelect }) {
 
 export default function SubscriptionPage() {
   const { user, setUser } = useAuthStore()
+  const navigate = useNavigate()
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedPro, setSelectedPro]     = useState('trimestrial')
   const [selectedBasic, setSelectedBasic] = useState('annual')
   const [paying, setPaying] = useState(false)
+  const [showRenewalBanner, setShowRenewalBanner] = useState(false)
 
   useEffect(() => {
     subscriptionService.getStatus()
       .then(res => {
-        setStatus(res.data)
+        const data = res.data
+        setStatus(data)
         // Synchroniser le plan dans le store si différent
-        if (user && res.data?.plan && res.data.plan !== user.plan) {
-          setUser({ ...user, plan: res.data.plan })
+        if (user && data?.plan && data.plan !== user.plan) {
+          setUser({ ...user, plan: data.plan })
+        }
+        // Vérifier rappel renouvellement (≤ 5 jours, abonnement payant actif)
+        if (
+          data?.status === 'active' &&
+          data?.plan !== 'freemium' &&
+          data?.billing_cycle !== 'welcome' &&
+          data?.next_billing_at
+        ) {
+          const diff = Math.ceil((new Date(data.next_billing_at) - new Date()) / (1000 * 60 * 60 * 24))
+          if (diff >= 0 && diff <= 5) {
+            setShowRenewalBanner(true)
+          }
         }
       })
       .catch(() => {})
@@ -118,8 +134,28 @@ export default function SubscriptionPage() {
     return diff > 0 ? diff : 0
   })()
   const currentPlan = status?.plan ?? user?.plan ?? 'freemium'
-  const isPro = currentPlan === 'pro' || currentPlan === 'basic'
-  const planLabel = isPro ? currentPlan : 'gratuit'
+  const isPremium = currentPlan === 'pro' || currentPlan === 'basic'
+
+  // Badge colors — cohérence mobile
+  const badgeBg = currentPlan === 'pro'
+    ? '#1E88E5'
+    : currentPlan === 'basic'
+      ? '#E3F2FD'
+      : '#f5f5f5'
+  const badgeTextColor = currentPlan === 'pro'
+    ? '#fff'
+    : currentPlan === 'basic'
+      ? '#1E88E5'
+      : '#9e9e9e'
+
+  const planLabel = currentPlan === 'pro' ? 'pro' : currentPlan === 'basic' ? 'basic' : 'gratuit'
+
+  // Conversion jours → mois si > 30 (comme mobile)
+  const daysDisplay = daysLeft !== null
+    ? daysLeft > 30
+      ? `${Math.floor(daysLeft / 30)} mois restants`
+      : `${daysLeft} jour${daysLeft !== 1 ? 's' : ''} restant${daysLeft !== 1 ? 's' : ''}`
+    : null
 
   const handleSubscribe = async (plan, billing) => {
     setPaying(true)
@@ -180,6 +216,55 @@ export default function SubscriptionPage() {
         <UserBadge size={48} />
       </div>
 
+      {/* ── Bannière rappel renouvellement (≤ 5 jours) ── */}
+      {showRenewalBanner && (
+        <div style={{
+          margin: '0 28px 8px',
+          backgroundColor: '#fff8e1',
+          border: '1.5px solid #FFC107',
+          borderRadius: '16px',
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '20px' }}>⚠️</span>
+            <div>
+              <p style={{ margin: 0, fontWeight: '700', fontSize: '15px', color: '#111' }}>
+                Votre abonnement expire bientôt
+              </p>
+              <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#555' }}>
+                Il vous reste {daysLeft} jour{daysLeft !== 1 ? 's' : ''}. Renouvelez pour ne pas perdre l'accès.
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+            <button
+              onClick={() => {
+                const plan = currentPlan !== 'freemium' ? currentPlan : 'pro'
+                handleSubscribe(plan, plan === 'pro' ? selectedPro : selectedBasic)
+              }}
+              style={{
+                backgroundColor: '#FFC107', color: '#111',
+                border: 'none', borderRadius: '20px',
+                padding: '8px 18px', fontSize: '13px', fontWeight: '700',
+                cursor: 'pointer',
+              }}
+            >
+              Renouveler
+            </button>
+            <button
+              onClick={() => setShowRenewalBanner(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#888' }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Corps ── */}
       <div style={{ flex: 1, padding: '0 28px 28px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
@@ -193,24 +278,24 @@ export default function SubscriptionPage() {
             backgroundColor: '#fff', borderRadius: '20px',
             border: '1.5px solid #e0e0e0', padding: '20px 24px',
           }}>
-            {/* Badge Pro */}
+            {/* Badge plan — couleurs cohérentes avec mobile */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: '8px',
-              backgroundColor: '#1E88E5', color: '#fff',
+              backgroundColor: badgeBg, color: badgeTextColor,
               borderRadius: '20px', padding: '10px 22px',
               fontSize: '18px', fontWeight: '700', flexShrink: 0,
             }}>
-              <Zap size={18} fill="#fff" /> {planLabel}
+              <Zap size={18} fill={badgeTextColor} color={badgeTextColor} /> {planLabel}
             </div>
 
-            {/* Jours restants — seulement en mode pro */}
-            {isPro && daysLeft !== null && (
+            {/* Jours/mois restants — seulement en mode premium actif */}
+            {isPremium && daysDisplay !== null && (
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexShrink: 0 }}>
                 <span style={{ fontSize: '40px', fontWeight: '800', color: '#1E88E5', lineHeight: 1 }}>
-                  {daysLeft}
+                  {daysLeft > 30 ? Math.floor(daysLeft / 30) : daysLeft}
                 </span>
                 <span style={{ fontSize: '14px', color: '#888', lineHeight: 1.3 }}>
-                  jours<br />restants
+                  {daysLeft > 30 ? 'mois' : 'jours'}<br />restants
                 </span>
               </div>
             )}
@@ -222,7 +307,7 @@ export default function SubscriptionPage() {
               flex: 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              {isPro ? (
+              {isPremium ? (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 48px' }}>
                   {[
                     'Opérations illimitées',

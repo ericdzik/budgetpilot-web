@@ -37,16 +37,40 @@ function Avatar({ user, size = 48 }) {
 export default function UserBadge({ size = 48 }) {
   const { user } = useAuthStore()
   const [daysLeft, setDaysLeft] = useState(null)
-  const [isPro, setIsPro] = useState(user?.plan === 'pro')
+  const [plan, setPlan] = useState(user?.plan ?? 'freemium')
+
+  const isPremium = plan === 'pro' || plan === 'basic'
+
+  // Couleurs selon le plan — identiques au mobile
+  const badgeBg = plan === 'pro'
+    ? '#1E88E5'
+    : plan === 'basic'
+      ? '#E3F2FD'
+      : '#f5f5f5'
+  const badgeTextColor = plan === 'pro'
+    ? '#fff'
+    : plan === 'basic'
+      ? '#1E88E5'
+      : '#9e9e9e'
+
+  // Label affiché
+  const label = plan === 'pro' ? 'pro' : plan === 'basic' ? 'basic' : 'gratuit'
+
+  // Conversion jours → mois si > 30 jours (comme sur mobile)
+  const daysDisplay = daysLeft !== null
+    ? daysLeft > 30
+      ? `${Math.floor(daysLeft / 30)} mois restants`
+      : `${daysLeft} jour${daysLeft !== 1 ? 's' : ''} restant${daysLeft !== 1 ? 's' : ''}`
+    : null
 
   useEffect(() => {
     subscriptionService.getStatus()
       .then((res) => {
         const data = res.data
-        setIsPro(data.plan === 'pro' || data.plan === 'basic')
+        setPlan(data.plan ?? 'freemium')
 
         // Calculer les jours restants depuis next_billing_at
-        if (data.next_billing_at) {
+        if (data.next_billing_at && data.status === 'active') {
           const end  = new Date(data.next_billing_at)
           const now  = new Date()
           const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24))
@@ -55,7 +79,7 @@ export default function UserBadge({ size = 48 }) {
       })
       .catch(() => {
         // Fallback sur les données du store
-        setIsPro(user?.plan === 'pro')
+        setPlan(user?.plan ?? 'freemium')
       })
   }, [])
 
@@ -63,17 +87,17 @@ export default function UserBadge({ size = 48 }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: '40px' }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{
-          display: 'flex', alignItems: 'center', gap: '8px',
-          backgroundColor: '#1E88E5', color: '#fff',
+          display: 'flex', alignItems: 'center', gap: '6px',
+          backgroundColor: badgeBg, color: badgeTextColor,
           borderRadius: '20px', padding: '8px 20px',
           fontSize: '16px', fontWeight: '700',
         }}>
-          <Zap size={16} fill="#fff" />
-          {isPro ? 'pro' : 'gratuit'}
+          <Zap size={16} fill={badgeTextColor} color={badgeTextColor} />
+          {label}
         </div>
-        {isPro && daysLeft !== null && (
+        {isPremium && daysDisplay !== null && (
           <span style={{ fontSize: '13px', color: '#888', marginTop: '4px' }}>
-            {daysLeft} jour{daysLeft !== 1 ? 's' : ''} restant{daysLeft !== 1 ? 's' : ''}
+            {daysDisplay}
           </span>
         )}
       </div>

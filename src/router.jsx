@@ -18,6 +18,7 @@ import ExpenseFormPage from './pages/ExpenseFormPage'
 import RevenueFormPage from './pages/RevenueFormPage'
 import ClientsPage from './pages/ClientsPage'
 import ExpensesPage from './pages/ExpensesPage'
+import RevenuePage from './pages/RevenuePage'
 import HistoryPage from './pages/HistoryPage'
 import StatsPage from './pages/StatsPage'
 import SubscriptionPage from './pages/SubscriptionPage'
@@ -103,6 +104,7 @@ export const router = createBrowserRouter([
       { path: 'expenses/:id/edit', element: <ExpenseFormPage /> },
       { path: 'revenues/new', element: <RevenueFormPage /> },
       { path: 'revenues/:id/edit', element: <RevenueFormPage /> },
+      { path: 'revenues', element: <RevenuePage /> },
       // TODO: Ajouter les autres routes (revenues, stats, settings, etc.)
     ],
   },

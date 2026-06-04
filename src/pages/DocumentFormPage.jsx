@@ -29,10 +29,12 @@ function newItem() {
     category: 'Produits/Services',
     forfait: false,
     unit: 'unité',
-    quantity: 1,
+    quantity: '',
     unit_price: 0,
+    total_price: 0,       // champ éditable — comme mobile
     discount_percent: 0,
     tax_percent: 0,
+    _manualFields: [],    // ["qty","price","total"] — 2 derniers champs saisis
   }
 }
 
@@ -57,7 +59,9 @@ export default function DocumentFormPage() {
       const urlType = searchParams.get('type') === 'invoice' ? 'invoice' : 'quote'
       setType(urlType)
     }
-  }, [searchParams, isEditing])  // ── Référence document ──
+  }, [searchParams, isEditing])
+
+  // ── Référence document ──
   const [refNumber, setRefNumber] = useState('')
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10))
 
@@ -113,21 +117,37 @@ export default function DocumentFormPage() {
         }
         // Items
         if (doc.items && doc.items.length > 0) {
-          setItems(doc.items.map(it => ({
-            id: it.id || Date.now() + Math.random(),
-            description: it.description || '',
-            category: it.category || 'Produits/Services',
-            forfait: false,
-            unit: it.unit || 'unité',
-            quantity: it.quantity || 1,
-            unit_price: it.unit_price || 0,
-            discount_percent: it.discount_percent || 0,
-            tax_percent: it.tax_percent || 0,
-          })))
+          setItems(doc.items.map(it => {
+            const qty   = Number(it.quantity)   || 1
+            const price = Number(it.unit_price)  || 0
+            const baseHT = qty * price
+
+            // Le backend ne stocke pas discount_percent par item — on le recalcule
+            // depuis discount_amount (qui lui est bien stocké)
+            const discAmt = Number(it.discount_amount) || 0
+            const discPct = baseHT > 0 ? Math.round((discAmt / baseHT) * 100 * 100) / 100 : 0
+
+            // tax_percent n'est pas stocké par item — on l'initialise à 0
+            const taxPct = Number(it.tax_percent) || 0
+
+            return {
+              id: it.id || Date.now() + Math.random(),
+              description: it.description || '',
+              category: it.category || 'Produits/Services',
+              forfait: false,
+              unit: it.unit || 'unité',
+              quantity: qty,
+              unit_price: price,
+              total_price: baseHT,
+              discount_percent: discPct,
+              tax_percent: taxPct,
+              _manualFields: ['qty', 'price'],
+            }
+          }))
         }
       }).catch(() => toast.error('Impossible de charger le document'))
     } else {
-      // Mode création : réinitialiser le formulaire et charger le prochain numéro
+      // Mode création : réinitialiser le formulaire une seule fois au montage
       setRefNumber('')
       setIssueDate(new Date().toISOString().slice(0, 10))
       setClientName(''); setClientPhone(''); setClientEmail('')
@@ -136,11 +156,17 @@ export default function DocumentFormPage() {
       setItems([newItem()])
       setDiscount(0); setTaxPercent(0); setNotes('')
       setPaymentMethod('Espèces'); setDiscountType('percentage')
+    }
+  }, [id, isEditing]) // ← type retiré des dépendances pour éviter le reset au changement de type
+
+  // ── Chargement du numéro de référence quand le type change (création uniquement) ──
+  useEffect(() => {
+    if (!isEditing) {
       api.get(`/documents/next-number?type=${type}`)
         .then((res) => setRefNumber(res.data?.number ?? res.data?.next_number ?? ''))
         .catch(() => {})
     }
-  }, [id, isEditing, type])
+  }, [type, isEditing])
 
   // ── Fermer suggestions au clic extérieur ──
   useEffect(() => {
@@ -153,17 +179,29 @@ export default function DocumentFormPage() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  // ── Autocomplétion client ──
-  const searchClients = useCallback(async (q) => {
-    if (!q || q.length < 2) { setSuggestions([]); return }
-    try {
-      const res = await api.get(`/contacts/search?q=${encodeURIComponent(q)}`)
-      setSuggestions(res.data?.data ?? res.data ?? [])
-      setShowSuggestions(true)
-    } catch {
-      setSuggestions([])
-    }
+  // ── Autocomplétion client — logique identique au mobile ──
+  // Charge tous les contacts unifiés au montage, filtre localement à chaque frappe
+  const [allClients, setAllClients] = useState([])
+
+  useEffect(() => {
+    api.get('/contacts')
+      .then(res => {
+        // /contacts retourne { contacts: [...] }
+        const list = res.data?.contacts ?? res.data?.data ?? res.data ?? []
+        setAllClients(Array.isArray(list) ? list : [])
+      })
+      .catch(() => {})
   }, [])
+
+  const searchClients = useCallback((q) => {
+    if (!q || q.length < 1) { setSuggestions([]); setShowSuggestions(false); return }
+    const lower = q.toLowerCase()
+    const filtered = allClients
+      .filter(c => (c.name || '').toLowerCase().includes(lower))
+      .slice(0, 5)
+    setSuggestions(filtered)
+    setShowSuggestions(filtered.length > 0)
+  }, [allClients])
 
   const handleClientNameChange = (e) => {
     const val = e.target.value
@@ -177,7 +215,7 @@ export default function DocumentFormPage() {
     setClientName(c.name ?? '')
     setClientPhone(c.phone ?? '')
     setClientEmail(c.email ?? '')
-    setClientNif(c.nif ?? c.tax_number ?? '')
+    setClientNif(c.registration_number ?? c.nif ?? c.registration ?? c.tax_number ?? '')
     setClientAddress(c.address ?? '')
     setClientSector(c.sector ?? '')
     setShowSuggestions(false)
@@ -186,7 +224,82 @@ export default function DocumentFormPage() {
 
   // ── Gestion des items ──
   const updateItem = (id, field, value) => {
-    setItems((prev) => prev.map((it) => it.id === id ? { ...it, [field]: value } : it))
+    setItems((prev) => prev.map((it) => {
+      if (it.id !== id) return it
+
+      let updated = { ...it, [field]: value }
+
+      // ── Logique FORFAIT toggle ──
+      if (field === 'forfait') {
+        if (value) {
+          updated.quantity   = 1
+          updated._manualFields = []
+          // Si un prix existe déjà, synchroniser le total
+          if (Number(updated.unit_price) > 0) {
+            updated.total_price = Number(updated.unit_price)
+          }
+        } else {
+          updated.quantity   = 0
+          updated.total_price = 0
+          updated._manualFields = []
+        }
+        return updated
+      }
+
+      // ── MODE FORFAIT actif : Prix ↔ Total se synchronisent 1:1 ──
+      if (updated.forfait) {
+        if (field === 'unit_price') {
+          updated.total_price = Number(value)
+        } else if (field === 'total_price') {
+          updated.unit_price = Number(value)
+        }
+        return updated
+      }
+
+      // ── MODE NORMAL : Système des 2 champs actifs ──
+      if (field === 'quantity' || field === 'unit_price' || field === 'total_price') {
+        // 1. Enregistrer le champ comme saisi manuellement
+        const fieldKey = field === 'unit_price' ? 'price'
+                       : field === 'total_price' ? 'total'
+                       : 'qty'
+        const manual = updated._manualFields.filter(f => f !== fieldKey)
+        manual.push(fieldKey)
+        if (manual.length > 2) manual.shift()
+        updated._manualFields = manual
+
+        // 2. Lire les valeurs courantes (après mise à jour du champ actif)
+        const qty   = Number(updated.quantity)
+        const price = Number(updated.unit_price)
+        const total = Number(updated.total_price)
+
+        // 3. Calculer le 3ème champ à partir des 2 saisis
+        if (manual.length === 2) {
+          const hasQty   = manual.includes('qty')
+          const hasPrice = manual.includes('price')
+          const hasTotal = manual.includes('total')
+
+          if (hasQty && hasPrice) {
+            // Total = Qté × Prix
+            updated.total_price = qty * price
+          } else if (hasQty && hasTotal) {
+            // Prix = Total / Qté
+            updated.unit_price = qty > 0 ? Math.round((total / qty) * 100) / 100 : 0
+          } else if (hasPrice && hasTotal) {
+            // Qté = Total / Prix
+            updated.quantity = price > 0 ? Math.round((total / price) * 100) / 100 : 0
+          }
+        } else {
+          // 1 seul champ saisi : calculer le total si possible
+          if (fieldKey !== 'total') {
+            const q = Number(updated.quantity)
+            const p = Number(updated.unit_price)
+            if (q > 0 && p > 0) updated.total_price = q * p
+          }
+        }
+      }
+
+      return updated
+    }))
   }
 
   const removeItem = (id) => {
@@ -195,20 +308,53 @@ export default function DocumentFormPage() {
 
   const addItem = () => setItems((prev) => [...prev, newItem()])
 
-  // ── Calculs ──
-  const itemTotal = (it) => {
-    const base = Number(it.quantity) * Number(it.unit_price)
-    const disc = base * (Number(it.discount_percent) / 100)
-    const taxed = (base - disc) * (1 + Number(it.tax_percent) / 100)
-    return taxed
+  // ── Calculs — logique identique au mobile ──
+
+  // base HT par item (qty × prix, synchronisé par updateItem)
+  const itemBase = (it) =>
+    Number(it.total_price) || (Number(it.quantity) * Number(it.unit_price))
+
+  // Remise par item : appliquée sur la base HT
+  const itemDiscountAmount = (it) =>
+    itemBase(it) * (Number(it.discount_percent) / 100)
+
+  // Taxe par item : appliquée sur (base - remise item)
+  const itemTaxAmount = (it) => {
+    const afterDisc = itemBase(it) - itemDiscountAmount(it)
+    return afterDisc * (Number(it.tax_percent) / 100)
   }
 
-  const subtotal = items.reduce((acc, it) => acc + Number(it.quantity) * Number(it.unit_price), 0)
-  const discountAmount = discountType === 'percentage'
-    ? subtotal * (Number(discount) / 100)
+  // Total net par item (après remise et taxe item)
+  const itemTotal = (it) => {
+    const base = itemBase(it)
+    const disc = itemDiscountAmount(it)
+    const tax  = itemTaxAmount(it)
+    return Math.round((base - disc + tax) * 100) / 100
+  }
+
+  // Sous-total = somme des bases HT brutes (avant remise/taxe)
+  const subtotal = items.reduce((acc, it) => acc + itemBase(it), 0)
+
+  // Somme des remises par item
+  const totalItemDiscounts = items.reduce((acc, it) => acc + itemDiscountAmount(it), 0)
+
+  // Somme des taxes par item
+  const totalItemTaxes = items.reduce((acc, it) => acc + itemTaxAmount(it), 0)
+
+  // Remise globale — appliquée sur (subtotal - totalItemDiscounts), comme mobile
+  const subtotalAfterItemDiscounts = subtotal - totalItemDiscounts
+  const globalDiscountAmount = discountType === 'percentage'
+    ? subtotalAfterItemDiscounts * (Number(discount) / 100)
     : Number(discount)
-  const taxAmount = (subtotal - discountAmount) * (Number(taxPercent) / 100)
-  const total = subtotal - discountAmount + taxAmount
+
+  // Taxe globale — appliquée sur (subtotal - totalItemDiscounts - globalDiscount), comme mobile
+  const globalTaxAmount =
+    (subtotalAfterItemDiscounts - globalDiscountAmount) * (Number(taxPercent) / 100)
+
+  // Totaux affichés dans le récap
+  const discountAmount = globalDiscountAmount + totalItemDiscounts
+  const taxAmount      = globalTaxAmount + totalItemTaxes
+  const total          = subtotal - discountAmount + taxAmount
 
   const fmt = (n) => Number(n).toLocaleString('fr-FR').replace(/\s/g, '.')
 
@@ -226,14 +372,13 @@ export default function DocumentFormPage() {
   // ── Soumission ──
   const handleSubmit = async () => {
     if (!clientName.trim()) { toast.error('Le nom du client est obligatoire'); return }
-    // Téléphone requis seulement si le client n'est pas déjà sélectionné depuis la liste
     if (!selectedClient && !clientPhone.trim()) {
-      toast.error('Le numéro de téléphone est obligatoire pour un nouveau client')
+      toast.error('Le numéro de téléphone est obligatoire')
       return
     }
     for (const it of items) {
       if (!it.description.trim()) { toast.error('Chaque item doit avoir un intitulé'); return }
-      if (!it.quantity || Number(it.quantity) <= 0) { toast.error('La quantité doit être > 0'); return }
+      if (!it.forfait && (!it.quantity || Number(it.quantity) <= 0)) { toast.error('La quantité doit être > 0'); return }
       if (it.unit_price === '' || Number(it.unit_price) < 0) { toast.error('Le prix unitaire est invalide'); return }
     }
 
@@ -244,13 +389,14 @@ export default function DocumentFormPage() {
       if (!clientId) {
         const clientRes = await api.post('/clients', {
           name: clientName.trim(),
-          phone: clientPhone.trim() || null,
+          phone: clientPhone.trim() || '',           // jamais null — le backend l'exige
           email: clientEmail.trim() || null,
-          nif: clientNif.trim() || null,
+          registration_number: clientNif.trim() || null,  // nif → registration_number
           address: clientAddress.trim() || null,
           sector: clientSector || null,
         })
-        clientId = clientRes.data?.data?.id ?? clientRes.data?.id
+        clientId = clientRes.data?.client?.id ?? clientRes.data?.data?.id ?? clientRes.data?.id
+        if (!clientId) throw new Error('Impossible de récupérer l\'ID du client créé')
       }
 
       const payload = {
@@ -266,12 +412,15 @@ export default function DocumentFormPage() {
         items: items.map((it) => ({
           description: it.description.trim(),
           category: it.category,
-          quantity: Number(it.quantity),
+          forfait: it.forfait,
+          quantity: it.forfait ? 1 : Number(it.quantity),
           unit: it.unit,
           unit_price: Number(it.unit_price),
           discount_percent: Number(it.discount_percent),
           discount_type: 'percentage',
-          discount_amount: Number(it.quantity) * Number(it.unit_price) * (Number(it.discount_percent) / 100),
+          discount_amount: itemDiscountAmount(it),
+          tax_percent: Number(it.tax_percent),
+          tax_amount: itemTaxAmount(it),
           total: itemTotal(it),
         })),
       }
@@ -361,10 +510,10 @@ export default function DocumentFormPage() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px 40px', backgroundColor: BG_PAGE, borderRadius: '16px 16px 0 0', margin: '0 16px' }}>
 
         {/* Informations client */}
-        <div style={{ marginBottom: '28px' }}>
+        <div style={{ marginBottom: '28px', overflow: 'visible' }}>
           <p style={sectionTitle}>Informations client</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ position: 'relative' }} ref={suggestionsRef}>
+            <div style={{ position: 'relative', zIndex: 50 }} ref={suggestionsRef}>
               <FloatInput
                 placeholder="Nom du client"
                 required
@@ -374,9 +523,15 @@ export default function DocumentFormPage() {
                 style={inputStyle}
               />
               {showSuggestions && suggestions.length > 0 && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto', marginTop: '4px' }}>
-                  {suggestions.map((c) => (
-                    <div key={c.id} onMouseDown={() => handleSelectSuggestion(c)}
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0,
+                  zIndex: 9999,
+                  backgroundColor: '#fff', border: '1px solid #e0e0e0',
+                  borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+                  maxHeight: '200px', overflowY: 'auto', marginTop: '4px',
+                }}>
+                  {suggestions.map((c, idx) => (
+                    <div key={c.id ?? idx} onMouseDown={() => handleSelectSuggestion(c)}
                       style={{ padding: '10px 14px', cursor: 'pointer', fontSize: '14px', borderBottom: '1px solid #f5f5f5' }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = BG_BLUE_LIGHT}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}>
@@ -416,7 +571,7 @@ export default function DocumentFormPage() {
               </div>
 
               {/* Ligne 1 : Intitulé | Catégorie | Forfait */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '12px', marginBottom: '12px', alignItems: 'end' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 120px', gap: '12px', marginBottom: '12px', alignItems: 'end' }}>
                 <div>
                   <label style={labelStyle}>Intitulé <span style={{ color: 'red' }}>*</span></label>
                   <input type="text" placeholder="Description du produit/service"
@@ -430,11 +585,32 @@ export default function DocumentFormPage() {
                 </div>
                 <div>
                   <label style={labelStyle}>Forfait</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 0' }}>
-                    <input type="radio" name={'forfait-' + it.id} checked={it.forfait}
-                      onChange={() => updateItem(it.id, 'forfait', true)}
-                      style={{ accentColor: PRIMARY, width: 16, height: 16 }} />
-                    <span style={{ fontSize: '13px', color: '#555' }}>Oui</span>
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 0', cursor: 'pointer' }}
+                    onClick={() => updateItem(it.id, 'forfait', !it.forfait)}
+                  >
+                    {/* Checkbox personnalisée bleue — comme mobile */}
+                    <div style={{
+                      width: 20, height: 20, borderRadius: '50%',
+                      border: `2px solid ${it.forfait ? PRIMARY : '#aaa'}`,
+                      backgroundColor: it.forfait ? PRIMARY : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0, transition: 'all 0.15s',
+                    }}>
+                      {it.forfait && (
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                          <path d="M2 6l3 3 5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </div>
+                    <span style={{
+                      fontSize: '14px',
+                      color: it.forfait ? PRIMARY : '#555',
+                      fontWeight: it.forfait ? '600' : 'normal',
+                      userSelect: 'none',
+                    }}>
+                      Oui
+                    </span>
                   </div>
                 </div>
               </div>
@@ -449,19 +625,32 @@ export default function DocumentFormPage() {
                 </div>
                 <div>
                   <label style={labelStyle}>Quantité <span style={{ color: 'red' }}>*</span></label>
-                  <input type="number" min="0" placeholder="0" value={it.quantity}
-                    onChange={(e) => updateItem(it.id, 'quantity', e.target.value)} style={inputStyle} />
+                  <input
+                    type="number" min="0" placeholder="0"
+                    value={it.forfait ? 1 : (Number(it.quantity) || '')}
+                    disabled={it.forfait}
+                    onChange={(e) => updateItem(it.id, 'quantity', e.target.value)}
+                    style={{
+                      ...inputStyle,
+                      backgroundColor: it.forfait ? '#f0f0f0' : inputStyle.backgroundColor,
+                      color: it.forfait ? '#aaa' : inputStyle.color,
+                      cursor: it.forfait ? 'not-allowed' : 'text',
+                    }}
+                  />
                 </div>
                 <div>
                   <label style={labelStyle}>Prix <span style={{ color: 'red' }}>*</span></label>
-                  <input type="number" min="0" placeholder="0" value={it.unit_price}
+                  <input type="number" min="0" placeholder="0" value={Number(it.unit_price) || ''}
                     onChange={(e) => updateItem(it.id, 'unit_price', e.target.value)} style={inputStyle} />
                 </div>
                 <div>
                   <label style={labelStyle}>Montant <span style={{ color: 'red' }}>*</span></label>
-                  <div style={{ ...inputStyle, fontWeight: '700', color: '#111', display: 'flex', alignItems: 'center' }}>
-                    {fmt(itemTotal(it))}
-                  </div>
+                  <input
+                    type="number" min="0" placeholder="0"
+                    value={Number(it.total_price) || ''}
+                    onChange={(e) => updateItem(it.id, 'total_price', e.target.value)}
+                    style={{ ...inputStyle, fontWeight: '600' }}
+                  />
                 </div>
               </div>
 
@@ -469,15 +658,51 @@ export default function DocumentFormPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '120px 120px', gap: '12px' }}>
                 <div>
                   <label style={labelStyle}>Remise (%)</label>
-                  <input type="number" min="0" max="100" placeholder="0" value={it.discount_percent}
+                  <input type="number" min="0" max="100" placeholder="0" value={Number(it.discount_percent) || ''}
                     onChange={(e) => updateItem(it.id, 'discount_percent', e.target.value)} style={inputStyle} />
                 </div>
                 <div>
                   <label style={labelStyle}>Taxe (%)</label>
-                  <input type="number" min="0" max="100" placeholder="0" value={it.tax_percent}
+                  <input type="number" min="0" max="100" placeholder="0" value={Number(it.tax_percent) || ''}
                     onChange={(e) => updateItem(it.id, 'tax_percent', e.target.value)} style={inputStyle} />
                 </div>
               </div>
+
+              {/* Mini-récap par article — visible seulement si remise ou taxe > 0 */}
+              {(Number(it.discount_percent) > 0 || Number(it.tax_percent) > 0) && (() => {
+                const base = itemBase(it)
+                const disc = itemDiscountAmount(it)
+                const tax  = itemTaxAmount(it)
+                const net  = itemTotal(it)
+                return (
+                  <div style={{
+                    marginTop: '10px',
+                    backgroundColor: BG_BLUE_LIGHT,
+                    borderRadius: '10px',
+                    padding: '10px 14px',
+                    display: 'flex',
+                    gap: '20px',
+                    flexWrap: 'wrap',
+                    fontSize: '12px',
+                    color: '#555',
+                  }}>
+                    <span>Base HT : <strong style={{ color: '#111' }}>{fmt(base)}</strong></span>
+                    {disc > 0 && (
+                      <span style={{ color: '#2196F3' }}>
+                        Remise : <strong>- {fmt(Math.round(disc * 100) / 100)}</strong>
+                      </span>
+                    )}
+                    {tax > 0 && (
+                      <span style={{ color: '#2196F3' }}>
+                        Taxe : <strong>+ {fmt(Math.round(tax * 100) / 100)}</strong>
+                      </span>
+                    )}
+                    <span style={{ marginLeft: 'auto', fontWeight: '700', color: '#111', fontSize: '13px' }}>
+                      Net : {fmt(net)}
+                    </span>
+                  </div>
+                )
+              })()}
             </div>
           ))}
 
@@ -494,27 +719,50 @@ export default function DocumentFormPage() {
           <p style={sectionTitle}>Détails</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
 
-            {/* Col 1 */}
+            {/* Col 1 — remise globale, taxe globale, paiement */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Sélecteur type remise — vide la valeur si on change, comme mobile */}
               <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
                 {[{ value: 'percentage', label: '%' }, { value: 'fixed', label: 'XOF' }].map((opt) => (
                   <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px' }}>
                     <input type="radio" name="discountType" value={opt.value}
-                      checked={discountType === opt.value} onChange={() => setDiscountType(opt.value)}
+                      checked={discountType === opt.value}
+                      onChange={() => { setDiscountType(opt.value); setDiscount(0) }}
                       style={{ accentColor: PRIMARY, width: 16, height: 16 }} />
                     {opt.label}
                   </label>
                 ))}
               </div>
               <div>
-                <label style={labelStyle}>Remise</label>
-                <input type="number" min="0" placeholder="0" value={discount}
-                  onChange={(e) => setDiscount(e.target.value)} style={inputStyle} />
+                <label style={labelStyle}>
+                  Remise globale {discountType === 'percentage' ? '(%)' : '(XOF)'}
+                </label>
+                <input
+                  type="number" min="0"
+                  max={discountType === 'percentage' ? 100 : undefined}
+                  placeholder={discountType === 'percentage' ? 'ex: 10' : 'ex: 5000'}
+                  value={Number(discount) || ''}
+                  onChange={(e) => {
+                    let val = Number(e.target.value)
+                    if (discountType === 'percentage' && val > 100) val = 100
+                    setDiscount(val)
+                  }}
+                  style={inputStyle}
+                />
               </div>
               <div>
-                <label style={labelStyle}>Taxe</label>
-                <input type="number" min="0" max="100" placeholder="0" value={taxPercent}
-                  onChange={(e) => setTaxPercent(e.target.value)} style={inputStyle} />
+                <label style={labelStyle}>Taxe globale (%)</label>
+                <input
+                  type="number" min="0" max="100"
+                  placeholder="ex: 18"
+                  value={Number(taxPercent) || ''}
+                  onChange={(e) => {
+                    let val = Number(e.target.value)
+                    if (val > 100) val = 100
+                    setTaxPercent(val)
+                  }}
+                  style={inputStyle}
+                />
               </div>
               {isInvoice && (
                 <div>
@@ -526,18 +774,55 @@ export default function DocumentFormPage() {
               )}
             </div>
 
-            {/* Col 2 : Récapitulatif */}
+            {/* Col 2 — Récapitulatif avec même structure que mobile */}
             <div style={{ backgroundColor: BG_BLUE_LIGHT, borderRadius: '14px', padding: '16px 20px' }}>
-              {[
-                { label: 'Sous-total', value: fmt(subtotal) },
-                { label: 'Remise', value: fmt(discountAmount) },
-                { label: 'Taxe', value: fmt(taxAmount) },
-              ].map((row) => (
-                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #d0e8ff', fontSize: '14px', color: '#444' }}>
-                  <span>{row.label}</span>
-                  <span>{row.value}</span>
+              {/* Sous-total brut */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #d0e8ff', fontSize: '14px', color: '#444' }}>
+                <span>Sous-total</span>
+                <span>{fmt(subtotal)}</span>
+              </div>
+              {/* Remises par item — affichées seulement si > 0 */}
+              {totalItemDiscounts > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #d0e8ff', fontSize: '13px', color: '#888' }}>
+                  <span>Remise(s) article</span>
+                  <span>- {fmt(totalItemDiscounts)}</span>
                 </div>
-              ))}
+              )}
+              {/* Remise globale — affichée seulement si > 0 */}
+              {globalDiscountAmount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #d0e8ff', fontSize: '13px', color: '#888' }}>
+                  <span>Remise globale</span>
+                  <span>- {fmt(globalDiscountAmount)}</span>
+                </div>
+              )}
+              {/* Total remises */}
+              {discountAmount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #d0e8ff', fontSize: '14px', color: '#444' }}>
+                  <span>Total remises</span>
+                  <span>- {fmt(discountAmount)}</span>
+                </div>
+              )}
+              {/* Taxes par item — affichées seulement si > 0 */}
+              {totalItemTaxes > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #d0e8ff', fontSize: '13px', color: '#888' }}>
+                  <span>Taxe(s) article</span>
+                  <span>+ {fmt(totalItemTaxes)}</span>
+                </div>
+              )}
+              {/* Taxe globale — affichée seulement si > 0 */}
+              {globalTaxAmount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #d0e8ff', fontSize: '13px', color: '#888' }}>
+                  <span>Taxe globale</span>
+                  <span>+ {fmt(globalTaxAmount)}</span>
+                </div>
+              )}
+              {/* Total taxes */}
+              {taxAmount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #d0e8ff', fontSize: '14px', color: '#444' }}>
+                  <span>Total taxes</span>
+                  <span>+ {fmt(taxAmount)}</span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', fontSize: '16px', fontWeight: '800', color: '#111' }}>
                 <span>Total (XOF)</span>
                 <span>{fmt(total)}</span>

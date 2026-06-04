@@ -32,8 +32,10 @@ function newItem() {
     id: Date.now() + Math.random(),
     description: '',
     category: EXPENSE_CATEGORIES[0],
-    quantity: 1,
-    unit_price: 0,
+    quantity: '',
+    unit_price: '',
+    total_price: 0,
+    _manualFields: [],
   }
 }
 
@@ -81,7 +83,8 @@ export default function ExpenseFormPage() {
   const [submitting, setSubmitting] = useState(false)
 
   // ── Calculs ──
-  const itemTotal = (it) => Number(it.quantity) * Number(it.unit_price)
+  const itemTotal = (it) =>
+    Number(it.total_price) || (Number(it.quantity) * Number(it.unit_price))
   const subtotal       = items.reduce((acc, it) => acc + itemTotal(it), 0)
   const discountAmount = subtotal * (Number(discount) / 100)
   const taxAmount      = (subtotal - discountAmount) * (Number(taxPercent) / 100)
@@ -89,9 +92,41 @@ export default function ExpenseFormPage() {
 
   const fmt = (n) => Number(n).toLocaleString('fr-FR').replace(/\s/g, '.')
 
-  // ── Gestion des items ──
-  const updateItem = (itemId, field, value) =>
-    setItems((prev) => prev.map((it) => it.id === itemId ? { ...it, [field]: value } : it))
+  // ── Gestion des items — système 2 champs actifs (comme DocumentFormPage) ──
+  const updateItem = (itemId, field, value) => {
+    setItems((prev) => prev.map((it) => {
+      if (it.id !== itemId) return it
+      let updated = { ...it, [field]: value }
+
+      if (field === 'quantity' || field === 'unit_price' || field === 'total_price') {
+        const fieldKey = field === 'unit_price' ? 'price'
+                       : field === 'total_price' ? 'total'
+                       : 'qty'
+        const manual = updated._manualFields.filter(f => f !== fieldKey)
+        manual.push(fieldKey)
+        if (manual.length > 2) manual.shift()
+        updated._manualFields = manual
+
+        const qty   = Number(updated.quantity)
+        const price = Number(updated.unit_price)
+        const total = Number(updated.total_price)
+
+        if (manual.length === 2) {
+          const hasQty   = manual.includes('qty')
+          const hasPrice = manual.includes('price')
+          const hasTotal = manual.includes('total')
+          if (hasQty && hasPrice)   updated.total_price = qty * price
+          else if (hasQty && hasTotal)  updated.unit_price  = qty > 0 ? Math.round((total / qty) * 100) / 100 : 0
+          else if (hasPrice && hasTotal) updated.quantity   = price > 0 ? Math.round((total / price) * 100) / 100 : 0
+        } else {
+          const q = Number(updated.quantity)
+          const p = Number(updated.unit_price)
+          if (fieldKey !== 'total' && q > 0 && p > 0) updated.total_price = q * p
+        }
+      }
+      return updated
+    }))
+  }
   const removeItem = (itemId) =>
     setItems((prev) => prev.filter((it) => it.id !== itemId))
   const addItem = () => setItems((prev) => [...prev, newItem()])
@@ -107,15 +142,27 @@ export default function ExpenseFormPage() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  // ── Autocomplétion ──
-  const searchContacts = useCallback(async (q) => {
-    if (!q || q.length < 2) { setSuggestions([]); return }
-    try {
-      const res = await api.get(`/contacts/search?q=${encodeURIComponent(q)}`)
-      setSuggestions(res.data?.data ?? res.data ?? [])
-      setShowSuggestions(true)
-    } catch { setSuggestions([]) }
+  // ── Autocomplétion — logique identique au mobile ──
+  const [allClients, setAllClients] = useState([])
+
+  useEffect(() => {
+    api.get('/contacts')
+      .then(res => {
+        const list = res.data?.contacts ?? res.data?.data ?? res.data ?? []
+        setAllClients(Array.isArray(list) ? list : [])
+      })
+      .catch(() => {})
   }, [])
+
+  const searchContacts = useCallback((q) => {
+    if (!q || q.length < 1) { setSuggestions([]); setShowSuggestions(false); return }
+    const lower = q.toLowerCase()
+    const filtered = allClients
+      .filter(c => (c.name || '').toLowerCase().includes(lower))
+      .slice(0, 5)
+    setSuggestions(filtered)
+    setShowSuggestions(filtered.length > 0)
+  }, [allClients])
 
   const handleClientNameChange = (e) => {
     setClientName(e.target.value)
@@ -126,7 +173,7 @@ export default function ExpenseFormPage() {
     setClientName(c.name ?? '')
     setClientEmail(c.email ?? '')
     setClientPhone(c.phone ?? '')
-    setClientNif(c.nif ?? c.tax_number ?? '')
+    setClientNif(c.registration_number ?? c.nif ?? c.registration ?? c.tax_number ?? '')
     setClientAddress(c.address ?? '')
     setClientSector(c.sector ?? '')
     setShowSuggestions(false)
@@ -155,17 +202,25 @@ export default function ExpenseFormPage() {
       setClientPhone(exp.supplier_phone || '')
       setClientEmail(exp.supplier_email || '')
       setClientAddress(exp.supplier_address || '')
+      setClientNif(exp.supplier_registration || '')
+      setClientSector(exp.supplier_sector || '')
       setPaymentMethod(exp.payment_method || 'cash')
       setInstallments(exp.payment_status === 'unpaid')
       setNotes(exp.notes || '')
       if (exp.items && exp.items.length > 0) {
-        setItems(exp.items.map(it => ({
-          id: it.id || Date.now() + Math.random(),
-          description: it.description || '',
-          category: it.category || EXPENSE_CATEGORIES[0],
-          quantity: it.quantity || 1,
-          unit_price: it.unit_price || 0,
-        })))
+        setItems(exp.items.map(it => {
+          const qty   = Number(it.quantity)   || 0
+          const price = Number(it.unit_price)  || 0
+          return {
+            id: it.id || Date.now() + Math.random(),
+            description: it.description || '',
+            category: it.category || EXPENSE_CATEGORIES[0],
+            quantity: qty,
+            unit_price: price,
+            total_price: qty * price,
+            _manualFields: ['qty', 'price'],
+          }
+        }))
       }
     }).catch(() => toast.error('Impossible de charger la dépense'))
   }, [id, isEditing])
@@ -191,7 +246,7 @@ export default function ExpenseFormPage() {
     if (!clientName.trim()) { toast.error('Le nom du fournisseur est obligatoire'); return }
     for (const it of items) {
       if (!it.description.trim()) { toast.error('Chaque élément doit avoir un intitulé'); return }
-      if (Number(it.quantity) <= 0) { toast.error('La quantité doit être > 0'); return }
+      if (!it.total_price && Number(it.quantity) <= 0) { toast.error('La quantité ou le montant doit être renseigné'); return }
       if (Number(it.unit_price) < 0) { toast.error('Le prix est invalide'); return }
     }
 
@@ -212,11 +267,13 @@ export default function ExpenseFormPage() {
         supplier_phone:   clientPhone.trim() || null,
         supplier_email:   clientEmail.trim() || null,
         supplier_address: clientAddress.trim() || null,
+        supplier_registration: clientNif.trim() || null,
+        supplier_sector:  clientSector || null,
         items: items.map((it) => ({
           description: it.description.trim(),
           category:    it.category,
-          quantity:    Number(it.quantity),
-          unit_price:  Number(it.unit_price),
+          quantity:    Number(it.quantity) || 1,
+          unit_price:  Number(it.unit_price) || (itemTotal(it) / (Number(it.quantity) || 1)),
           total:       itemTotal(it),
         })),
       }
@@ -310,11 +367,11 @@ export default function ExpenseFormPage() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px 40px', backgroundColor: BG_PAGE, borderRadius: '16px 16px 0 0', margin: '0 16px' }}>
 
         {/* ── Informations client ── */}
-        <div style={{ marginBottom: '28px' }}>
+        <div style={{ marginBottom: '28px', overflow: 'visible' }}>
           <p style={sectionTitle}>Informations client</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             {/* Nom avec autocomplétion */}
-            <div style={{ position: 'relative' }} ref={suggestionsRef}>
+            <div style={{ position: 'relative', zIndex: 50 }} ref={suggestionsRef}>
               <FloatInput
                 placeholder="Nom du client"
                 required
@@ -324,9 +381,9 @@ export default function ExpenseFormPage() {
                 style={inputStyle}
               />
               {showSuggestions && suggestions.length > 0 && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto', marginTop: '4px' }}>
-                  {suggestions.map((c) => (
-                    <div key={c.id} onMouseDown={() => handleSelectSuggestion(c)}
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999, backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto', marginTop: '4px' }}>
+                  {suggestions.map((c, idx) => (
+                    <div key={c.id ?? idx} onMouseDown={() => handleSelectSuggestion(c)}
                       style={{ padding: '10px 14px', cursor: 'pointer', fontSize: '14px', borderBottom: '1px solid #f5f5f5' }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = BG_BLUE_LIGHT}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}>
@@ -394,19 +451,22 @@ export default function ExpenseFormPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '12px' }}>
                 <div>
                   <label style={labelStyle}>Quantité <span style={{ color: 'red' }}>*</span></label>
-                  <input type="number" min="0" placeholder="0" value={it.quantity}
+                  <input type="number" min="0" placeholder="0" value={Number(it.quantity) || ''}
                     onChange={(e) => updateItem(it.id, 'quantity', e.target.value)} style={inputStyle} />
                 </div>
                 <div>
                   <label style={labelStyle}>Prix <span style={{ color: 'red' }}>*</span></label>
-                  <input type="number" min="0" placeholder="0" value={it.unit_price}
+                  <input type="number" min="0" placeholder="0" value={Number(it.unit_price) || ''}
                     onChange={(e) => updateItem(it.id, 'unit_price', e.target.value)} style={inputStyle} />
                 </div>
                 <div>
                   <label style={labelStyle}>Montant <span style={{ color: 'red' }}>*</span></label>
-                  <div style={{ ...inputStyle, fontWeight: '700', color: '#111', display: 'flex', alignItems: 'center' }}>
-                    {fmt(itemTotal(it))}
-                  </div>
+                  <input
+                    type="number" min="0" placeholder="0"
+                    value={Number(it.total_price) || ''}
+                    onChange={(e) => updateItem(it.id, 'total_price', e.target.value)}
+                    style={{ ...inputStyle, fontWeight: '600' }}
+                  />
                 </div>
               </div>
             </div>

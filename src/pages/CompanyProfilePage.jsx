@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { toast } from 'react-hot-toast'
 import useAuthStore from '../store/authStore'
 import UserBadge from '../components/ui/UserBadge'
@@ -254,7 +254,6 @@ export default function CompanyProfilePage() {
   const [sigFile,      setSigFile]      = useState(null)
   const [sigPreview,   setSigPreview]   = useState(null)
   const [saving,       setSaving]       = useState(false)
-  const [loaded,       setLoaded]       = useState(false)  // ← nouveau
 
   const logoInputRef = useRef()
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X, Download } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import html2pdf from 'html2pdf.js'
+import QRCode from 'qrcode'
 import api from '../../config/api'
 import { STORAGE_BASE_URL } from '../../config/constants'
 
@@ -26,7 +27,7 @@ function statusLabel(s) {
 
 // ─── Template Minimal ────────────────────────────────────────────────────────
 
-function MinimalTemplate({ doc, profile }) {
+function MinimalTemplate({ doc, profile, qrDataUrl }) {
   const company = {
     name:    profile?.company_name    || profile?.name    || 'Mon Entreprise',
     address: profile?.company_address || '',
@@ -222,43 +223,75 @@ function MinimalTemplate({ doc, profile }) {
       <div style={{
         position: 'absolute',
         bottom: 0, left: 0, right: 0,
-        padding: '0 24px 16px',
+        padding: '0 32px 24px',
       }}>
-        {/* Signatures */}
-        <div style={{ display: 'flex', gap: 20, marginBottom: 16 }}>
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            {signatureUrl
-              ? <img src={signatureUrl} alt="Signature" style={{ maxHeight: 40, maxWidth: 120, display: 'block', margin: '0 auto 4px' }} />
-              : <div style={{ height: 40 }} />
-            }
-            <div style={{ borderTop: '1px solid #000', paddingTop: 4, fontSize: 9, color: '#555' }}>
-              Signature autorisée
+
+        {/* ── Ligne signatures ── */}
+        <div style={{ display: 'flex', justifyContent: 'space-evenly', marginBottom: 28, paddingTop: 12 }}>
+
+          {/* Signature émetteur */}
+          <div style={{ width: 190, textAlign: 'center' }}>
+            <div style={{ fontSize: 10, color: '#000', marginBottom: 6 }}>Signature émetteur</div>
+            <div style={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+              {signatureUrl
+                ? <img src={signatureUrl} alt="Signature" style={{ maxHeight: 48, maxWidth: 170, objectFit: 'contain' }} />
+                : null
+              }
             </div>
           </div>
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ height: 40 }} />
-            <div style={{ borderTop: '1px solid #000', paddingTop: 4, fontSize: 9, color: '#555' }}>
-              Cachet &amp; Tampon
-            </div>
+
+          {/* Signature destinataire */}
+          <div style={{ width: 190, textAlign: 'center' }}>
+            <div style={{ fontSize: 10, color: '#000', marginBottom: 6 }}>Signature destinataire</div>
+            <div style={{ height: 48, marginBottom: 6 }} />
           </div>
+
         </div>
 
-        {/* Barre footer */}
+        {/* ── Barre branding ── */}
         <div style={{
-          borderTop: '1px solid #ddd', paddingTop: 6,
-          display: 'flex', alignItems: 'center', gap: 8,
-          fontSize: 8, color: '#888',
+          borderTop: '1px solid #ddd',
+          paddingTop: 14,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 24,
         }}>
-          <span style={{ fontWeight: 'bold', color: '#000', fontSize: 9 }}>⚡ Pilot</span>
-          <div style={{
-            width: 28, height: 28, background: '#f0f0f0',
-            border: '1px solid #ccc',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 6, color: '#999', flexShrink: 0,
-          }}>QR</div>
-          <span style={{ color: '#1E88E5', textDecoration: 'underline' }}>www.budgetpilot.app</span>
-          <span style={{ marginLeft: 4 }}>{doc.reference_number}</span>
-          <span style={{ marginLeft: 'auto' }}>Page 1</span>
+
+          {/* Conçu par + logo Pilot */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 11, color: '#000' }}>Conçu par</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <img src="/logo_bb.svg" alt="Budget Pilot"
+                style={{ width: 26, height: 26, objectFit: 'contain', filter: 'brightness(0) saturate(100%)' }} />
+              <span style={{ fontWeight: 'bold', fontSize: 16, color: '#000' }}>Pilot</span>
+            </div>
+          </div>
+
+          {/* Séparateur */}
+          <div style={{ width: 1, height: 52, background: '#e0e0e0', flexShrink: 0 }} />
+
+          {/* QR + lien */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
+            <div style={{ width: 70, height: 70, flexShrink: 0 }}>
+              {qrDataUrl
+                ? <img src={qrDataUrl} alt="QR" style={{ width: 70, height: 70, display: 'block' }} />
+                : <div style={{ width: 70, height: 70, background: '#f0f0f0', border: '1px solid #ccc' }} />
+              }
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <a href="https://www.getbudgetpilot.com" target="_blank" rel="noreferrer"
+                style={{ color: '#1E88E5', textDecoration: 'underline', fontSize: 12, cursor: 'pointer' }}>
+                www.getbudgetpilot.com
+              </a>
+              {company.nif && (
+                <span style={{ fontSize: 14, color: '#555', fontWeight: '500' }}>NIF : {company.nif}</span>
+              )}
+            </div>
+          </div>
+
+          {/* Numéro de page à droite */}
+          <div style={{ marginLeft: 'auto', fontSize: 11, color: '#888' }}>Page 1</div>
+
         </div>
       </div>
     </div>
@@ -272,9 +305,24 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
+  const [qrDataUrl, setQrDataUrl] = useState(null)
   const templateRef = useRef(null)
 
   useEffect(() => { loadData() }, [docId])
+
+  // Générer le QR code une seule fois au montage
+  useEffect(() => {
+    QRCode.toDataURL('https://www.getbudgetpilot.com', {
+      width: 280,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+      color: { dark: '#000000', light: '#ffffff' },
+    }).then(url => {
+      setQrDataUrl(url)
+    }).catch(() => {
+      // fallback silencieux
+    })
+  }, [])
 
   const loadData = async () => {
     setLoading(true)
@@ -377,7 +425,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
             </div>
           ) : doc ? (
             <div ref={templateRef} style={{ background: '#fff', boxShadow: '0 4px 24px rgba(0,0,0,0.15)', borderRadius: 4 }}>
-              <MinimalTemplate doc={doc} profile={profile} />
+              <MinimalTemplate doc={doc} profile={profile} qrDataUrl={qrDataUrl || ''} />
             </div>
           ) : null}
         </div>
