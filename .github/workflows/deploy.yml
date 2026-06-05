@@ -30,12 +30,13 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: 147.93.95.204
-          username: root
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "dist/*"
-          target: "/var/www/budget_pilot_web/"
-          strip_components: 1
+      - name: Create archive
+        run: tar -czf /tmp/dist.tar.gz -C dist .
+
+      - name: Deploy via webhook on port 3000
+        run: |
+          curl -X POST http://147.93.95.204:3000/deploy \
+            -H "x-deploy-token: ${{ secrets.WEBHOOK_SECRET }}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @/tmp/dist.tar.gz \
+            --max-time 120
