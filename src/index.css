@@ -12,6 +12,7 @@
     zoom: 0.75;
   }
   body {
+    min-height: 133.33vh;
     @apply bg-gray-50 text-gray-900 font-sans;
   }
 }

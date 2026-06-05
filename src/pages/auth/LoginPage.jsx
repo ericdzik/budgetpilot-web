@@ -101,7 +101,7 @@ export default function LoginPage() {
 
   return (
     <div style={{
-      minHeight: '100vh', backgroundColor: '#1E88E5',
+      minHeight: '133.33vh', backgroundColor: '#1E88E5',
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', padding: '32px 16px',
     }}>
