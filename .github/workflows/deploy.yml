@@ -30,12 +30,13 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Create archive and deploy via webhook
+      - name: Create archive
+        run: tar -czf /tmp/dist.tar.gz -C dist .
+
+      - name: Deploy via webhook
         run: |
-          tar -czf /tmp/dist.tar.gz -C dist .
-          B64=$(base64 -w 0 /tmp/dist.tar.gz)
           curl -X POST http://147.93.95.204:4000/deploy \
-            -H "Content-Type: application/json" \
             -H "x-deploy-token: ${{ secrets.WEBHOOK_SECRET }}" \
-            -d "{\"archive\": \"$B64\"}" \
-            --max-time 60
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @/tmp/dist.tar.gz \
+            --max-time 120
