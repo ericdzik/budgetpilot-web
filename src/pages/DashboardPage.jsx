@@ -258,18 +258,8 @@ export default function DashboardPage() {
                     {fmt(caisse)}
                   </div>
                 </div>
-                <div style={{ fontSize: '13px', opacity: 0.8, marginTop: '4px', marginBottom: '10px' }}>
+                <div style={{ fontSize: '13px', opacity: 0.8, marginTop: '4px', marginBottom: '6px' }}>
                   Solde disponible
-                </div>
-                <div style={{ display: 'flex', gap: '24px' }}>
-                  <div>
-                    <div style={{ fontSize: '12px', opacity: 0.75, marginBottom: '2px' }}>● Revenus</div>
-                    <div style={{ fontSize: '16px', fontWeight: '700' }}>{fmt(recettes)}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '12px', opacity: 0.75, marginBottom: '2px' }}>● Dépenses</div>
-                    <div style={{ fontSize: '16px', fontWeight: '700' }}>{fmt(depenses)}</div>
-                  </div>
                 </div>
 
                 {/* Boutons superposés à droite, centrés verticalement */}
@@ -426,7 +416,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Boutons bas — en dehors du conteneur bordé */}
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '32px' }}>
                   <button
                     onClick={() => navigate('/stats')}
                     style={{
