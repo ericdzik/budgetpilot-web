@@ -33,9 +33,9 @@ jobs:
       - name: Create archive
         run: tar -czf /tmp/dist.tar.gz -C dist .
 
-      - name: Deploy via webhook on port 3000
+      - name: Deploy via webhook on port 80
         run: |
-          curl -X POST http://147.93.95.204:3000/deploy \
+          curl -X POST http://147.93.95.204/deploy \
             -H "x-deploy-token: ${{ secrets.WEBHOOK_SECRET }}" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @/tmp/dist.tar.gz \
