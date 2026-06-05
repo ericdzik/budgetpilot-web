@@ -6,37 +6,13 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Create .env.production
-        run: |
-          echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > .env.production
-          echo "VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }}" >> .env.production
-
-      - name: Build
-        run: npm run build
-
-      - name: Create archive
-        run: tar -czf /tmp/dist.tar.gz -C dist .
-
-      - name: Deploy via webhook on port 80
+      - name: Trigger VPS deploy
         run: |
           curl -X POST http://147.93.95.204/deploy \
             -H "x-deploy-token: ${{ secrets.WEBHOOK_SECRET }}" \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary @/tmp/dist.tar.gz \
-            --max-time 120
+            -H "Content-Length: 0" \
+            --max-time 10 || true
