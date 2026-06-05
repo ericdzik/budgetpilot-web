@@ -97,8 +97,8 @@ export default function SubscriptionPage() {
   const navigate = useNavigate()
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [selectedPro, setSelectedPro]     = useState('trimestrial')
-  const [selectedBasic, setSelectedBasic] = useState('annual')
+  const [selectedPro, setSelectedPro]     = useState('3months')
+  const [selectedBasic, setSelectedBasic] = useState('yearly')
   const [paying, setPaying] = useState(false)
   const [showRenewalBanner, setShowRenewalBanner] = useState(false)
 
@@ -161,8 +161,8 @@ export default function SubscriptionPage() {
     setPaying(true)
     try {
       const res = await subscriptionService.initiate({ plan, billing_cycle: billing })
-      if (res.data?.payment_url) {
-        window.location.href = res.data.payment_url
+      if (res.data?.bill_url) {
+        window.open(res.data.bill_url, '_blank')
       } else {
         toast.success('Abonnement initié avec succès')
       }
@@ -179,27 +179,27 @@ export default function SubscriptionPage() {
 
   const savingsMessage = {
     pro: {
-      monthly:    'Débloque toutes les fonctionnalités',
-      annual:     'Économise 10.000F\n2 mois offerts',
-      trimestrial:`Économise ${proTrimSavings.toLocaleString('fr-FR')}F immédiatement`,
+      monthly:   'Débloque toutes les fonctionnalités',
+      yearly:    'Économise 10.000F\n2 mois offerts',
+      '3months': `Économise ${proTrimSavings.toLocaleString('fr-FR')}F immédiatement`,
     },
     basic: {
-      monthly:    'Débloque toutes les fonctionnalités',
-      annual:     'Économise 6.000F\n2 mois offerts',
-      trimestrial:`Économise ${basicTrimSavings.toLocaleString('fr-FR')}F immédiatement`,
+      monthly:   'Débloque toutes les fonctionnalités',
+      yearly:    'Économise 6.000F\n2 mois offerts',
+      '3months': `Économise ${basicTrimSavings.toLocaleString('fr-FR')}F immédiatement`,
     },
   }
   const proPrices = [
-    { key: 'monthly',    label: 'Mensuel',     price: '5.000 F',  sub: null },
-    { key: 'annual',     label: 'Annuel',      price: '50.000 F', sub: '4.200 F par mois' },
-    { key: 'trimestrial',label: 'Trimestriel', price: '13.500 F', sub: '4.500 F par mois' },
+    { key: 'monthly',  label: 'Mensuel',     price: '5.000 F',  sub: null },
+    { key: 'yearly',   label: 'Annuel',      price: '50.000 F', sub: '4.200 F par mois' },
+    { key: '3months',  label: 'Trimestriel', price: '13.500 F', sub: '4.500 F par mois' },
   ]
 
   // Plans Basic
   const basicPrices = [
-    { key: 'monthly',    label: 'Mensuel',     price: '3.000 F',  sub: null },
-    { key: 'annual',     label: 'Annuel',      price: '30.000 F', sub: '2.500 F par mois' },
-    { key: 'trimestrial',label: 'Trimestriel', price: '8.000 F',  sub: '2.667 F par mois' },
+    { key: 'monthly',  label: 'Mensuel',     price: '3.000 F',  sub: null },
+    { key: 'yearly',   label: 'Annuel',      price: '30.000 F', sub: '2.500 F par mois' },
+    { key: '3months',  label: 'Trimestriel', price: '8.000 F',  sub: '2.667 F par mois' },
   ]
 
   return (

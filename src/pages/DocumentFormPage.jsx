@@ -6,6 +6,7 @@ import api from '../config/api'
 import useAuthStore from '../store/authStore'
 import UserBadge from '../components/ui/UserBadge'
 import FloatInput from '../components/ui/FloatInput'
+import CustomSelect from '../components/ui/CustomSelect'
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -546,10 +547,12 @@ export default function DocumentFormPage() {
             <FloatInput placeholder="Numéro de téléphone" required value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} style={inputStyle} type="tel" />
             <input type="text" placeholder="NIF (Numéro d'immatriculation)" value={clientNif} onChange={(e) => setClientNif(e.target.value)} style={inputStyle} />
             <input type="text" placeholder="Adresse" value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} style={inputStyle} />
-            <select value={clientSector} onChange={(e) => setClientSector(e.target.value)} style={selectStyle}>
-              <option value="">Secteur d'activité</option>
-              {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <CustomSelect
+              value={clientSector}
+              onChange={setClientSector}
+              options={[...SECTORS.map(s => ({ value: s, label: s }))]}
+              placeholder="Secteur d'activité"
+            />
           </div>
         </div>
 
@@ -579,9 +582,11 @@ export default function DocumentFormPage() {
                 </div>
                 <div>
                   <label style={labelStyle}>Catégorie</label>
-                  <select value={it.category} onChange={(e) => updateItem(it.id, 'category', e.target.value)} style={selectStyle}>
-                    {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  <CustomSelect
+                    value={it.category}
+                    onChange={(val) => updateItem(it.id, 'category', val)}
+                    options={CATEGORIES.map(c => ({ value: c, label: c }))}
+                  />
                 </div>
                 <div>
                   <label style={labelStyle}>Forfait</label>
@@ -619,9 +624,11 @@ export default function DocumentFormPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr 1.5fr', gap: '12px', marginBottom: '12px' }}>
                 <div>
                   <label style={labelStyle}>Unité</label>
-                  <select value={it.unit} onChange={(e) => updateItem(it.id, 'unit', e.target.value)} style={selectStyle}>
-                    {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                  </select>
+                  <CustomSelect
+                    value={it.unit}
+                    onChange={(val) => updateItem(it.id, 'unit', val)}
+                    options={UNITS.map(u => ({ value: u, label: u }))}
+                  />
                 </div>
                 <div>
                   <label style={labelStyle}>Quantité <span style={{ color: 'red' }}>*</span></label>
@@ -767,9 +774,11 @@ export default function DocumentFormPage() {
               {isInvoice && (
                 <div>
                   <label style={labelStyle}>Méthode de paiement</label>
-                  <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={selectStyle}>
-                    {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                  <CustomSelect
+                    value={paymentMethod}
+                    onChange={setPaymentMethod}
+                    options={PAYMENT_METHODS.map(m => ({ value: m, label: m }))}
+                  />
                 </div>
               )}
             </div>

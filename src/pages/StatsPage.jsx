@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
+import { ChevronDown } from 'lucide-react'
 import { dashboardService } from '../services/dashboardService'
 import UserBadge from '../components/ui/UserBadge'
 import useAuthStore from '../store/authStore'
@@ -65,6 +66,25 @@ export default function StatsPage() {
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState('year')
   const [year] = useState(currentYear)
+  const [periodOpen, setPeriodOpen] = useState(false)
+  const periodRef = useRef(null)
+
+  const PERIOD_OPTIONS = [
+    { value: 'day',   label: "Aujourd'hui" },
+    { value: 'month', label: 'Ce mois' },
+    { value: 'year',  label: String(currentYear) },
+  ]
+  const currentPeriodLabel = PERIOD_OPTIONS.find(o => o.value === period)?.label || 'Cette année'
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (periodRef.current && !periodRef.current.contains(e.target)) {
+        setPeriodOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
 
   // Calcul des jours depuis l'inscription
   const memberDays = user?.created_at
@@ -113,44 +133,63 @@ export default function StatsPage() {
             Statistiques
           </h1>
 
-          {/* Boutons période */}
-          {[
-            { label: "Aujourd'hui", value: 'day' },
-            { label: 'Ce mois',     value: 'month' },
-            { label: 'Cette année', value: 'year' },
-          ].map(({ label, value }) => (
+          {/* Dropdown filtre période — même style que Dashboard */}
+          <div ref={periodRef} style={{ position: 'relative', marginLeft: '8px' }}>
             <button
-              key={value}
-              onClick={() => setPeriod(value)}
+              onClick={() => setPeriodOpen(v => !v)}
               style={{
-                padding: '7px 18px',
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '8px 16px',
                 borderRadius: '20px',
-                border: period === value ? 'none' : '1.5px solid #e0e0e0',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: period === value ? '#fff' : '#333',
-                backgroundColor: period === value ? '#1E88E5' : '#fff',
-                cursor: 'pointer',
-                outline: 'none',
-                transition: 'all 0.15s',
+                border: '1.5px solid #e0e0e0',
+                fontSize: '15px', fontWeight: '600', color: '#333',
+                backgroundColor: '#fff',
+                cursor: 'pointer', outline: 'none',
               }}
             >
-              {label}
+              {currentPeriodLabel}
+              <ChevronDown size={15} color="#1E88E5" style={{ transition: 'transform 0.2s', transform: periodOpen ? 'rotate(180deg)' : 'none' }} />
             </button>
-          ))}
 
-          {/* Sélecteur devise */}
-          <span style={{
-            padding: '7px 14px',
-            borderRadius: '20px',
-            border: '1.5px solid #e0e0e0',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#333',
-            backgroundColor: '#fff',
-          }}>
-            XOF
-          </span>
+            {periodOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 200,
+                backgroundColor: '#fff', borderRadius: '16px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
+                padding: '8px', minWidth: '170px',
+              }}>
+                {PERIOD_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => { setPeriod(opt.value); setPeriodOpen(false) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      width: '100%', padding: '10px 16px',
+                      background: period === opt.value ? '#e8f4ff' : 'none',
+                      border: 'none', borderRadius: '10px',
+                      fontSize: '15px', fontWeight: period === opt.value ? '700' : '500',
+                      color: period === opt.value ? '#1E88E5' : '#333',
+                      cursor: 'pointer', textAlign: 'left',
+                    }}
+                  >
+                    {opt.label}
+                    {period === opt.value && (
+                      <span style={{
+                        width: 20, height: 20, borderRadius: '50%',
+                        backgroundColor: '#1E88E5',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Badge Pro + Avatar */}
@@ -306,12 +345,12 @@ export default function StatsPage() {
                   marginBottom: '4px',
                 }}>
                   {['Nom', 'Nombre', 'Montant (XOF)'].map((h, i) => (
-                    <span key={i} style={{ fontSize: '13px', color: '#aaa', fontWeight: '500' }}>{h}</span>
+                    <span key={i} style={{ fontSize: '24px', color: '#aaa', fontWeight: '500' }}>{h}</span>
                   ))}
                 </div>
 
                 {topClients.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '24px', color: '#bbb', fontSize: '14px' }}>
+                  <div style={{ textAlign: 'center', padding: '24px', color: '#bbb', fontSize: '16px' }}>
                     Aucun client pour cette période
                   </div>
                 ) : (
@@ -320,12 +359,12 @@ export default function StatsPage() {
                       display: 'grid',
                       gridTemplateColumns: '1.5fr 1fr 1.2fr',
                       alignItems: 'center',
-                      padding: '10px 4px',
+                      padding: '12px 4px',
                       borderBottom: i < topClients.length - 1 ? '1px solid #f8f8f8' : 'none',
                     }}>
-                      <span style={{ fontSize: '16px', fontWeight: '700', color: '#111' }}>{client.name}</span>
-                      <span style={{ fontSize: '13px', color: '#666' }}>{client.invoices_count} Facture{client.invoices_count !== 1 ? 's' : ''}</span>
-                      <span style={{ fontSize: '15px', fontWeight: '700', color: '#111' }}>{fmt(client.total_amount)}</span>
+                      <span style={{ fontSize: '32px', fontWeight: '700', color: '#111' }}>{client.name}</span>
+                      <span style={{ fontSize: '28px', color: '#666' }}>{client.invoices_count} Facture{client.invoices_count !== 1 ? 's' : ''}</span>
+                      <span style={{ fontSize: '30px', fontWeight: '700', color: '#111' }}>{fmt(client.total_amount)}</span>
                     </div>
                   ))
                 )}

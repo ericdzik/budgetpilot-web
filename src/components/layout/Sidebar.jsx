@@ -165,8 +165,8 @@ export default function Sidebar() {
       }}>
         {/* navbar_icon4 = Profil */}
         <NavItem to="/profile"  svgSrc="/navbar_icon4.svg"   label="Profil" />
-        {/* SERVICESICONE7 = Paramètres */}
-        <NavItem to="/settings" svgSrc="/SERVICESICONE7.svg" label="Paramètres" colored />
+        {/* SERVICESICONE10 = Paramètres */}
+        <NavItem to="/settings" svgSrc="/SERVICESICONE10.svg" label="Paramètres" />
       </div>
     </aside>
   )

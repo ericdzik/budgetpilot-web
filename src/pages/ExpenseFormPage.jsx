@@ -6,6 +6,7 @@ import api from '../config/api'
 import { EXPENSE_CATEGORIES } from '../config/constants'
 import UserBadge from '../components/ui/UserBadge'
 import FloatInput from '../components/ui/FloatInput'
+import CustomSelect from '../components/ui/CustomSelect'
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -490,7 +491,7 @@ export default function ExpenseFormPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
                 <input
-                  type="radio"
+                  type="checkbox"
                   checked={installments}
                   onChange={() => setInstallments(v => !v)}
                   style={{ accentColor: PRIMARY, width: 16, height: 16, marginTop: '2px', flexShrink: 0 }}
@@ -502,11 +503,11 @@ export default function ExpenseFormPage() {
               </label>
               <div>
                 <label style={labelStyle}>Méthode de paiement <span style={{ color: 'red' }}>*</span></label>
-                <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={selectStyle}>
-                  {PAYMENT_METHODS.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
+                <CustomSelect
+                  value={paymentMethod}
+                  onChange={setPaymentMethod}
+                  options={PAYMENT_METHODS}
+                />
               </div>
             </div>
 

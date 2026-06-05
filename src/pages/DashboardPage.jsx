@@ -416,7 +416,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Boutons bas — en dehors du conteneur bordé */}
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '32px' }}>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '20px' }}>
                   <button
                     onClick={() => navigate('/stats')}
                     style={{
