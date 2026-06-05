@@ -98,7 +98,7 @@ export default function Sidebar() {
       borderRight: 'none',
       display: 'flex',
       flexDirection: 'column',
-      height: '100vh',
+      height: '125vh',
       position: 'sticky',
       top: 0,
     }}>
