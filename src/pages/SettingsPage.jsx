@@ -9,11 +9,18 @@ import ConfirmDialog from '../components/ui/ConfirmDialog'
 // ─── Avatar utilisateur ───────────────────────────────────────────────────────
 
 function Avatar({ user, size = 52 }) {
-  if (user?.avatar_url) {
+  const avatarUrl = (() => {
+    const url = user?.avatar_url
+    if (!url) return null
+    if (url.startsWith('http')) return url
+    return `/avatars/${url.split('/').pop()}`
+  })()
+
+  if (avatarUrl) {
     return (
       <img
-        src={user.avatar_url}
-        alt={user.name}
+        src={avatarUrl}
+        alt={user?.name}
         style={{
           width: size, height: size, borderRadius: '50%',
           objectFit: 'cover', border: '2px solid rgba(255,255,255,0.4)',
