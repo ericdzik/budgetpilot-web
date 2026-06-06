@@ -399,10 +399,12 @@ export default function ExpenseFormPage() {
             <FloatInput placeholder="Numéro de téléphone" required value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} style={inputStyle} type="tel" />
             <input type="text" placeholder="NIF (Numéro d'immatriculation)" value={clientNif} onChange={(e) => setClientNif(e.target.value)} style={inputStyle} />
             <input type="text" placeholder="Adresse" value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} style={inputStyle} />
-            <select value={clientSector} onChange={(e) => setClientSector(e.target.value)} style={selectStyle}>
-              <option value="">Secteur d'activité</option>
-              {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <CustomSelect
+              value={clientSector}
+              onChange={setClientSector}
+              options={SECTORS.map(s => ({ value: s, label: s }))}
+              placeholder="Secteur d'activité"
+            />
           </div>
         </div>
 
@@ -442,9 +444,11 @@ export default function ExpenseFormPage() {
                 </div>
                 <div>
                   <label style={labelStyle}>Catégorie</label>
-                  <select value={it.category} onChange={(e) => updateItem(it.id, 'category', e.target.value)} style={selectStyle}>
-                    {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  <CustomSelect
+                    value={it.category}
+                    onChange={(val) => updateItem(it.id, 'category', val)}
+                    options={EXPENSE_CATEGORIES.map(c => ({ value: c, label: c }))}
+                  />
                 </div>
               </div>
 

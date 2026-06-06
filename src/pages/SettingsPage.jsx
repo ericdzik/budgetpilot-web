@@ -4,6 +4,7 @@ import { ChevronRight, LogOut } from 'lucide-react'
 import useAuthStore from '../store/authStore'
 import UserBadge from '../components/ui/UserBadge'
 import { authService } from '../services/authService'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 
 // ─── Avatar utilisateur ───────────────────────────────────────────────────────
 
@@ -79,6 +80,7 @@ export default function SettingsPage() {
   const navigate = useNavigate()
   const { user, setUser, logout } = useAuthStore()
   const [profile, setProfile] = useState(user)
+  const [confirmLogout, setConfirmLogout] = useState(false)
 
   // Charger les données fraîches du profil
   useEffect(() => {
@@ -91,11 +93,14 @@ export default function SettingsPage() {
       .catch(() => {})
   }, [])
 
-  const handleLogout = async () => {
-    if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
-      await logout()
-      navigate('/login')
-    }
+  const handleLogout = () => {
+    setConfirmLogout(true)
+  }
+
+  const doLogout = async () => {
+    setConfirmLogout(false)
+    await logout()
+    navigate('/login')
   }
 
   const handleContact = () => {
@@ -262,6 +267,18 @@ export default function SettingsPage() {
 
         </div>
       </div>
+
+      {/* Dialog déconnexion */}
+      <ConfirmDialog
+        open={confirmLogout}
+        title="Se déconnecter ?"
+        message="Vous serez redirigé vers la page de connexion."
+        icon="warning"
+        confirmLabel="Se déconnecter"
+        confirmColor="#1E88E5"
+        onConfirm={doLogout}
+        onCancel={() => setConfirmLogout(false)}
+      />
     </div>
   )
 }

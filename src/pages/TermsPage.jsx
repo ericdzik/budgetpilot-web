@@ -2,109 +2,201 @@ import { useState } from 'react'
 import UserBadge from '../components/ui/UserBadge'
 
 const CGU = `CONDITIONS GÉNÉRALES D'UTILISATION
+Application Budget Pilot
+Date de dernière mise à jour : 25/02/2026
 
-Dernière mise à jour : Janvier 2025
+1. Identification de l'Éditeur
+L'Application Budget Pilot (ci-après « l'Application ») est éditée par : ses propriétaires.
 
-1. OBJET
-Les présentes Conditions Générales d'Utilisation (CGU) régissent l'utilisation de l'application Budget Pilot, éditée par Webkory. En utilisant l'application, vous acceptez sans réserve les présentes CGU.
+2. Objet
+Les présentes Conditions Générales d'Utilisation (ci-après « CGU ») ont pour objet de définir les conditions d'accès et d'utilisation de l'Application.
 
-2. DESCRIPTION DU SERVICE
-Budget Pilot est une application de gestion financière destinée aux entrepreneurs et petites entreprises. Elle permet de créer des factures, devis, suivre les dépenses et recettes, et visualiser des statistiques financières.
+L'Application propose des services numériques de gestion comptable et financière, incluant notamment :
+• La saisie et le suivi d'opérations comptables
+• L'édition de factures et devis
+• La génération de documents financiers
+• Des tableaux de bord et indicateurs de performance
+• L'archivage numérique de documents
 
-3. ACCÈS AU SERVICE
-L'accès à Budget Pilot nécessite la création d'un compte utilisateur. Vous êtes responsable de la confidentialité de vos identifiants de connexion. Toute utilisation de votre compte est sous votre responsabilité.
+3. Acceptation des CGU
+Toute utilisation de l'Application implique l'acceptation sans réserve des présentes CGU.
+L'Utilisateur reconnaît avoir pris connaissance des CGU et les accepter avant toute utilisation.
 
-4. UTILISATION ACCEPTABLE
-Vous vous engagez à utiliser Budget Pilot uniquement à des fins légales et conformément aux présentes CGU. Il est interdit de :
-• Utiliser le service à des fins frauduleuses ou illégales
-• Tenter d'accéder aux données d'autres utilisateurs
-• Reproduire ou distribuer le contenu de l'application sans autorisation
-• Perturber le fonctionnement du service
+4. Création de compte
+L'accès aux services nécessite la création d'un compte.
+L'Utilisateur s'engage à :
+• Fournir des informations exactes et complètes
+• Maintenir ces informations à jour
+• Garantir la confidentialité de ses identifiants
+Toute utilisation effectuée via ses identifiants est réputée effectuée par l'Utilisateur.
 
-5. PROPRIÉTÉ INTELLECTUELLE
-L'application Budget Pilot, son contenu, son design et ses fonctionnalités sont la propriété exclusive de Webkory. Toute reproduction, modification ou distribution sans autorisation écrite est interdite.
+5. Description des services
+L'Application met à disposition des outils d'aide à la gestion comptable.
+Les informations fournies ne constituent ni un conseil juridique, fiscal ou comptable personnalisé.
+L'Utilisateur demeure seul responsable :
+• De la conformité légale de sa comptabilité
+• De ses déclarations fiscales et sociales
+• De l'exactitude et de la sincérité des données saisies
 
-6. DONNÉES PERSONNELLES
-Le traitement de vos données personnelles est régi par notre Politique de Confidentialité. En utilisant Budget Pilot, vous consentez à ce traitement.
+6. Obligations de l'Utilisateur
+L'Utilisateur s'engage à :
+• Respecter la législation en vigueur
+• Ne pas utiliser l'Application à des fins frauduleuses
+• Ne pas porter atteinte aux droits de tiers
+• Ne pas tenter d'accéder frauduleusement aux systèmes
+Il est seul responsable :
+• Des données qu'il enregistre
+• Des conséquences financières ou fiscales résultant de leur utilisation
 
-7. ABONNEMENTS ET PAIEMENTS
-Les abonnements Premium sont payants et non remboursables sauf disposition légale contraire. Les tarifs sont affichés dans l'application et peuvent être modifiés avec un préavis de 30 jours.
+7. Responsabilité de l'Éditeur
+L'Éditeur met en œuvre tous moyens raisonnables pour assurer :
+• La disponibilité du service
+• La sécurité des données
+• La maintenance et les mises à jour
+Toutefois, l'Éditeur ne peut être tenu responsable :
+• Des erreurs issues des données saisies par l'Utilisateur
+• D'une mauvaise utilisation du service
+• De pertes indirectes (perte de chiffre d'affaires, perte de données non sauvegardées, etc.)
+• D'interruptions temporaires liées à la maintenance
 
-8. LIMITATION DE RESPONSABILITÉ
-Budget Pilot est fourni "tel quel". Webkory ne garantit pas l'absence d'interruptions ou d'erreurs. Notre responsabilité est limitée au montant payé pour l'abonnement en cours.
+8. Hébergement
+Les données sont hébergées par Hostinger, situé en France.
+L'Éditeur s'engage à choisir un prestataire garantissant un niveau de sécurité conforme aux standards du marché.
 
-9. RÉSILIATION
-Vous pouvez supprimer votre compte à tout moment depuis les paramètres. Webkory se réserve le droit de suspendre ou supprimer un compte en cas de violation des CGU.
+9. Données personnelles
 
-10. MODIFICATIONS
-Webkory se réserve le droit de modifier les présentes CGU. Les modifications entrent en vigueur dès leur publication dans l'application.
+Partage et valorisation des données
+Les données des Utilisateurs peuvent être utilisées dans les cas suivants :
 
-11. DROIT APPLICABLE
-Les présentes CGU sont soumises au droit togolais. Tout litige sera soumis aux tribunaux compétents de Lomé, Togo.
+Partage avec des prestataires
+Les données peuvent être partagées avec des prestataires techniques (hébergement, paiement, maintenance) dans le strict cadre de l'exécution des services.
 
-Contact : admin@getbudgetpilot.com`
+Données agrégées et anonymisées
+L'Éditeur se réserve le droit d'utiliser et de valoriser des données agrégées, anonymisées et non identifiables, notamment à des fins :
+• Statistiques
+• Analyse de marché
+• Études sectorielles
+• Amélioration des services
+• Partenariats commerciaux
+Ces données ne permettent en aucun cas d'identifier directement ou indirectement un Utilisateur.
+
+Données à caractère commercial
+Sous réserve du consentement de l'Utilisateur lorsque requis, certaines données peuvent être utilisées à des fins :
+• De prospection commerciale
+• De mise en relation avec des partenaires
+• D'offres personnalisées
+L'Utilisateur peut à tout moment s'opposer à ces utilisations.
+
+Évolution des usages des données
+L'Éditeur pourra être amené à développer de nouveaux services ou modèles économiques impliquant l'utilisation des données, dans le respect des réglementations applicables.
+
+10. Sécurité
+L'Éditeur met en œuvre des mesures techniques et organisationnelles appropriées afin de protéger les données.
+Toutefois, l'Utilisateur reconnaît que la sécurité absolue ne peut être garantie sur Internet.
+
+11. Propriété intellectuelle
+L'Application, son code source, ses bases de données, ses interfaces, sa marque et ses contenus sont protégés par le droit de la propriété intellectuelle.
+Toute reproduction ou exploitation non autorisée est interdite.
+
+12. Conditions financières
+L'Application peut proposer :
+• Une version gratuite limitée
+• Une ou plusieurs offres payantes par abonnement
+Les prix sont indiqués en CFA et toutes taxes comprises.
+Les abonnements sont :
+• Payables à la souscription
+• Renouvelés automatiquement sauf résiliation avant l'échéance
+Tout défaut de paiement pourra entraîner la suspension du service.
+
+13. Résiliation
+L'Utilisateur peut résilier son compte à tout moment depuis son espace personnel.
+En cas de manquement aux CGU, l'Éditeur pourra suspendre ou supprimer le compte après notification.
+
+14. Modification des CGU
+L'Éditeur se réserve le droit de modifier les CGU à tout moment.
+Les modifications entreront en vigueur dès leur publication sur l'Application.
+
+15. Droit applicable et juridiction compétente
+Les présentes CGU sont régies par le droit togolais.
+En cas de litige, les tribunaux compétents seront ceux du ressort du siège social de l'Éditeur, sauf disposition légale contraire.`
 
 const PRIVACY = `POLITIQUE DE CONFIDENTIALITÉ
+Application Budget Pilot
+Date de dernière mise à jour : 25/02/2026
 
-Dernière mise à jour : Janvier 2025
+1. Introduction
+La présente Politique de Confidentialité a pour objet d'informer les utilisateurs de l'application Budget Pilot (ci-après « l'Application ») sur la manière dont leurs données personnelles sont collectées, traitées et protégées.
 
-1. RESPONSABLE DU TRAITEMENT
-Webkory, éditeur de Budget Pilot, est responsable du traitement de vos données personnelles.
-Contact : admin@getbudgetpilot.com
+2. Sécurité des données
+L'Éditeur met en œuvre des mesures de sécurité adaptées :
+• Chiffrement des données sensibles
+• Connexion sécurisée (HTTPS)
+• Contrôle des accès
+• Sauvegardes régulières
+Malgré ces mesures, aucun système n'est totalement invulnérable.
 
-2. DONNÉES COLLECTÉES
-Nous collectons les données suivantes :
-• Informations de compte : nom, email, numéro de téléphone
-• Données d'entreprise : nom de l'entreprise, adresse, NIF, logo, signature
-• Données financières : factures, devis, dépenses, recettes
-• Données techniques : adresse IP, type d'appareil, logs d'utilisation
+3. Données collectées
+Nous pouvons collecter les catégories de données suivantes :
 
-3. FINALITÉS DU TRAITEMENT
-Vos données sont utilisées pour :
-• Fournir et améliorer le service Budget Pilot
-• Gérer votre compte et votre abonnement
-• Vous envoyer des notifications importantes
-• Assurer la sécurité du service
-• Respecter nos obligations légales
+Données d'identification
+• Nom, prénom
+• Adresse email
+• Numéro de téléphone
+• Nom de l'entreprise
+• Adresse professionnelle
 
-4. BASE LÉGALE
-Le traitement est fondé sur :
-• L'exécution du contrat (fourniture du service)
-• Votre consentement (communications marketing)
-• Nos intérêts légitimes (sécurité, amélioration du service)
+Données comptables et financières
+• Factures émises et reçues
+• Informations bancaires (IBAN si saisi)
+• Transactions
+• Données fiscales
 
-5. CONSERVATION DES DONNÉES
-Vos données sont conservées pendant la durée de votre abonnement actif, plus 3 ans après la résiliation pour les obligations légales. Les données financières sont conservées 10 ans conformément aux obligations comptables.
+Données techniques
+• Adresse IP
+• Type d'appareil
+• Système d'exploitation
+• Logs de connexion
 
-6. PARTAGE DES DONNÉES
-Nous ne vendons jamais vos données. Elles peuvent être partagées avec :
-• Nos prestataires techniques (hébergement : Hostinger, France)
-• Les autorités compétentes sur demande légale
+Données de paiement
+• Informations liées aux abonnements
+• Historique de facturation
+Les données bancaires sont traitées par un prestataire de paiement sécurisé lorsque applicable.
 
-7. SÉCURITÉ
-Vos données sont protégées par :
-• Chiffrement HTTPS pour toutes les communications
-• Authentification sécurisée (tokens JWT)
-• Serveurs hébergés en France (Hostinger)
-• Accès restreint aux données
+4. Base légale du traitement
+Les traitements reposent sur :
+• L'exécution du contrat (fourniture des services)
+• Le respect d'obligations légales
+• L'intérêt légitime (sécurité, amélioration du service)
+• Le consentement (communication marketing, si applicable)
 
-8. VOS DROITS
-Conformément à la réglementation applicable, vous disposez des droits suivants :
-• Droit d'accès à vos données
-• Droit de rectification
-• Droit à l'effacement ("droit à l'oubli")
-• Droit à la portabilité
-• Droit d'opposition
+5. Sécurité des données
+L'Éditeur met en œuvre des mesures de sécurité adaptées :
+• Chiffrement des données sensibles
+• Connexion sécurisée (HTTPS)
+• Contrôle des accès
+• Sauvegardes régulières
+Malgré ces mesures, aucun système n'est totalement invulnérable.
 
-Pour exercer ces droits : admin@getbudgetpilot.com
+6. Modification de la politique
+L'Éditeur se réserve le droit de modifier la présente Politique de Confidentialité à tout moment.
+La version en vigueur est celle publiée sur l'Application.
 
-9. COOKIES
-L'application utilise des tokens d'authentification stockés localement. Aucun cookie de tracking tiers n'est utilisé.
+7. Programme de parrainage
+Dans le cadre du programme de parrainage proposé par Budget Pilot, l'utilisateur parrain peut avoir accès à certaines informations relatives aux abonnements souscrits par les utilisateurs filleuls qu'il a parrainés.
 
-10. MODIFICATIONS
-Cette politique peut être mise à jour. Vous serez informé de tout changement significatif via l'application.
+Ces informations se limitent strictement à des données commerciales agrégées ou indicatives, telles que :
+• Le type d'abonnement souscrit (ex : Basic, Pro, Premium)
+• La durée de l'abonnement (mensuel, trimestriel, annuel)
+• Le statut de l'abonnement (actif, expiré, en attente de paiement)
 
-Contact : admin@getbudgetpilot.com`
+En aucun cas le parrain n'a accès :
+• Aux factures, devis ou tout document généré par le filleul
+• Aux données financières détaillées ou au tableau de bord du filleul
+• Aux informations personnelles sensibles du filleul non nécessaires au fonctionnement du programme
+
+L'utilisateur filleul est informé et accepte, lors de son inscription ou de l'activation d'un code de parrainage, que certaines informations relatives à son abonnement puissent être visibles par son parrain dans ce cadre strict.
+
+Budget Pilot s'engage à limiter cet accès au strict nécessaire et à respecter la confidentialité des données conformément à sa politique de protection des données.`
 
 export default function TermsPage() {
   const [tab, setTab] = useState(0)

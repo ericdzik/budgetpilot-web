@@ -499,7 +499,7 @@ export default function DashboardPage() {
                 {/* Bannière promo */}
                 <div style={{
                   borderRadius: '18px', overflow: 'hidden',
-                  minHeight: '100px',
+                  height: '200px',
                 }}>
                   <img
                     src="/pub5.png"

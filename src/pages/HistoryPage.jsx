@@ -8,6 +8,7 @@ import {
 import api from '../config/api'
 import PdfPreviewModal from '../components/ui/PdfPreviewModal'
 import UserBadge from '../components/ui/UserBadge'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -105,6 +106,9 @@ function HistoryCard({ item, type, onRefresh }) {
   const [showDownloadMenu, setShowDownloadMenu] = useState(false)
   const [showContextMenu, setShowContextMenu] = useState(false)
 
+  // Dialog de confirmation custom
+  const [confirmDialog, setConfirmDialog] = useState(null) // { title, message, icon, confirmLabel, confirmColor, onConfirm }
+
   // Paiement rapide
   const [payDate, setPayDate]     = useState(new Date().toISOString().split('T')[0])
   const [payAmount, setPayAmount] = useState('')
@@ -134,21 +138,67 @@ function HistoryCard({ item, type, onRefresh }) {
 
   const toggle = () => {
     if (!expanded) {
-      setDetail(null) // Force reload à chaque ouverture pour avoir le statut à jour
-      loadDetail()
+      setDetail(null)
+      setLoadingDetail(true)
+      // On force le rechargement en utilisant une ref pour éviter le stale closure
+      const endpoint = type === 'invoices' || type === 'quotes'
+        ? `/documents/${item.id}`
+        : type === 'expenses'
+          ? `/expenses/${item.id}`
+          : `/revenues/${item.id}`
+      api.get(endpoint)
+        .then(res => {
+          if (type === 'invoices' || type === 'quotes') {
+            setDetail(res.data)
+          } else if (type === 'expenses') {
+            setDetail(res.data.expense || res.data)
+          } else {
+            setDetail(res.data.revenue || res.data)
+          }
+        })
+        .catch(() => toast.error('Impossible de charger le détail'))
+        .finally(() => setLoadingDetail(false))
     }
     setExpanded(v => !v)
   }
 
   const handleDelete = async () => {
-    if (!window.confirm('Supprimer cet élément ?')) return
+    setConfirmDialog({
+      title: 'Supprimer cet élément ?',
+      message: 'Cette action est irréversible.',
+      icon: 'delete',
+      confirmLabel: 'Supprimer',
+      confirmColor: '#e53935',
+      onConfirm: async () => {
+        setConfirmDialog(null)
+        try {
+          if (type === 'invoices' || type === 'quotes') await api.delete(`/documents/${item.id}`)
+          else if (type === 'expenses') await api.delete(`/expenses/${item.id}`)
+          else await api.delete(`/revenues/${item.id}`)
+          toast.success('Supprimé')
+          onRefresh()
+        } catch { toast.error('Erreur lors de la suppression') }
+      }
+    })
+  }
+
+  // Recharger le détail sans fermer la carte
+  const reloadDetail = async () => {
+    setLoadingDetail(true)
     try {
-      if (type === 'invoices' || type === 'quotes') await api.delete(`/documents/${item.id}`)
-      else if (type === 'expenses') await api.delete(`/expenses/${item.id}`)
-      else await api.delete(`/revenues/${item.id}`)
-      toast.success('Supprimé')
-      onRefresh()
-    } catch { toast.error('Erreur lors de la suppression') }
+      let res
+      if (type === 'invoices' || type === 'quotes') {
+        res = await api.get(`/documents/${item.id}`)
+        setDetail(res.data)
+      } else if (type === 'expenses') {
+        res = await api.get(`/expenses/${item.id}`)
+        setDetail(res.data.expense || res.data)
+      } else {
+        res = await api.get(`/revenues/${item.id}`)
+        setDetail(res.data.revenue || res.data)
+      }
+    } catch { toast.error('Impossible de recharger le détail') }
+    finally { setLoadingDetail(false) }
   }
 
   const handleAddPayment = async () => {
@@ -162,8 +212,8 @@ function HistoryCard({ item, type, onRefresh }) {
       await api.post(endpoint, { amount, payment_date: payDate, payment_method: 'cash' })
       toast.success('Paiement ajouté')
       setPayAmount('')
-      setDetail(null) // Force reload
-      onRefresh()
+      await reloadDetail() // Recharge sans fermer la carte
+      // Ne pas appeler onRefresh() pour éviter de fermer la carte
     } catch { toast.error('Erreur lors de l\'ajout du paiement') }
     finally { setAddingPay(false) }
   }
@@ -176,19 +226,28 @@ function HistoryCard({ item, type, onRefresh }) {
         : `/documents/${item.id}/payments/${payId}`
       await api.delete(endpoint)
       toast.success('Paiement supprimé')
-      setDetail(null)
-      onRefresh()
+      await reloadDetail() // Recharge sans fermer la carte
+      // Ne pas appeler onRefresh() pour éviter de fermer la carte
     } catch { toast.error('Erreur') }
     finally { setDeletingPay(null) }
   }
 
   const handleConvertToInvoice = async () => {
-    if (!window.confirm('Convertir ce devis en facture ?')) return
-    try {
-      await api.post(`/documents/${item.id}/convert-to-invoice`)
-      toast.success('Devis converti en facture')
-      onRefresh()
-    } catch { toast.error('Erreur lors de la conversion') }
+    setConfirmDialog({
+      title: 'Convertir en facture ?',
+      message: 'Ce devis sera converti en facture.',
+      icon: 'warning',
+      confirmLabel: 'Convertir',
+      confirmColor: '#1E88E5',
+      onConfirm: async () => {
+        setConfirmDialog(null)
+        try {
+          await api.post(`/documents/${item.id}/convert-to-invoice`)
+          toast.success('Devis converti en facture')
+          onRefresh()
+        } catch { toast.error('Erreur lors de la conversion') }
+      }
+    })
   }
 
   const handleDuplicate = async () => {
@@ -200,43 +259,57 @@ function HistoryCard({ item, type, onRefresh }) {
   }
 
   const handleMarkAsUnpaid = async () => {
-    try {
-      const endpoint = type === 'expenses'
-        ? `/expenses/${item.id}/mark-as-unpaid`
-        : `/documents/${item.id}/mark-as-unpaid`
-      await api.post(endpoint)
-      toast.success('Marqué comme non payé')
-      setDetail(null)
-      onRefresh()
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Erreur')
-    }
+    setConfirmDialog({
+      title: 'Marquer comme non payée ?',
+      message: 'Tous les paiements enregistrés seront supprimés.',
+      icon: 'warning',
+      confirmLabel: 'Confirmer',
+      confirmColor: '#FF9800',
+      onConfirm: async () => {
+        setConfirmDialog(null)
+        try {
+          const endpoint = type === 'expenses'
+            ? `/expenses/${item.id}/mark-as-unpaid`
+            : `/documents/${item.id}/mark-as-unpaid`
+          await api.post(endpoint)
+          toast.success('Marqué comme non payé')
+          setDetail(null)
+          onRefresh()
+        } catch (err) {
+          toast.error(err.response?.data?.message || 'Erreur')
+        }
+      }
+    })
   }
 
   const handleMarkAsPaid = async () => {
-    if (!window.confirm('Marquer comme entièrement payée ?')) return
-    try {
-      const today = new Date().toISOString().split('T')[0]
-      if (type === 'expenses') {
-        await api.post(`/expenses/${item.id}/mark-as-paid`, {
-          payment_method: 'cash',
-          payment_date: today,
-          notes: 'Paiement automatique',
-        })
-      } else {
-        await api.post(`/documents/${item.id}/mark-as-paid`, {
-          payment_method: 'cash',
-          payment_date: today,
-          notes: 'Paiement automatique',
-        })
+    setConfirmDialog({
+      title: 'Marquer comme payée ?',
+      message: 'Le statut sera mis à jour immédiatement.',
+      icon: 'pay',
+      confirmLabel: 'Confirmer',
+      confirmColor: '#1E88E5',
+      onConfirm: async () => {
+        setConfirmDialog(null)
+        try {
+          const today = new Date().toISOString().split('T')[0]
+          if (type === 'expenses') {
+            await api.post(`/expenses/${item.id}/mark-as-paid`, {
+              payment_method: 'cash', payment_date: today, notes: 'Paiement automatique',
+            })
+          } else {
+            await api.post(`/documents/${item.id}/mark-as-paid`, {
+              payment_method: 'cash', payment_date: today, notes: 'Paiement automatique',
+            })
+          }
+          toast.success('Marquée comme payée ✓')
+          setDetail(null)
+          onRefresh()
+        } catch (err) {
+          toast.error(err.response?.data?.message || 'Erreur lors du marquage')
+        }
       }
-      toast.success('Marquée comme payée ✓')
-      setDetail(null)
-      onRefresh()
-    } catch (err) {
-      const msg = err.response?.data?.message || 'Erreur lors du marquage'
-      toast.error(msg)
-    }
+    })
   }
 
   const handleDownloadCsv = async () => {
@@ -308,7 +381,7 @@ function HistoryCard({ item, type, onRefresh }) {
 
           {/* Statut */}
           <div>
-            {status ? (
+            {status && type !== 'quotes' ? (
               <span style={{
                 display: 'inline-block',
                 padding: '5px 16px', borderRadius: '20px',
@@ -415,7 +488,7 @@ function HistoryCard({ item, type, onRefresh }) {
                       <CtxItem icon={<FileText size={16}/>} label="Dupliquer"
                         onClick={() => { handleDuplicate(); setShowContextMenu(false) }} />
                       {item.payment_status !== 'paid'
-                        ? <CtxItem icon={<CircleDollarSign size={16} color="#4CAF50"/>} label="Marquer comme payée" color="#4CAF50"
+                        ? <CtxItem icon={<CircleDollarSign size={16} color="#9E9E9E"/>} label="Marquer comme payée"
                             onClick={() => { handleMarkAsPaid(); setShowContextMenu(false) }} />
                         : <CtxItem icon={<CircleDollarSign size={16} color="#FF9800"/>} label="Marquer comme non payée" color="#FF9800"
                             onClick={() => { handleMarkAsUnpaid(); setShowContextMenu(false) }} />
@@ -451,7 +524,7 @@ function HistoryCard({ item, type, onRefresh }) {
                       <CtxItem icon={<Pencil size={16}/>} label="Modifier"
                         onClick={() => { navigate(`/expenses/${item.id}/edit`); setShowContextMenu(false) }} />
                       {item.payment_status !== 'paid'
-                        ? <CtxItem icon={<CircleDollarSign size={16} color="#4CAF50"/>} label="Marquer comme payée" color="#4CAF50"
+                        ? <CtxItem icon={<CircleDollarSign size={16} color="#9E9E9E"/>} label="Marquer comme payée"
                             onClick={() => { handleMarkAsPaid(); setShowContextMenu(false) }} />
                         : <CtxItem icon={<CircleDollarSign size={16} color="#FF9800"/>} label="Marquer comme non payée" color="#FF9800"
                             onClick={() => { handleMarkAsUnpaid(); setShowContextMenu(false) }} />
@@ -583,35 +656,54 @@ function HistoryCard({ item, type, onRefresh }) {
                 gap: '24px', flexWrap: 'wrap', paddingTop: '10px',
                 borderTop: detail.notes ? 'none' : '1px solid #f0f0f0',
               }}>
-                {(detail.subtotal || detail.sub_total) > 0 && (
-                  <span style={{ fontSize: '17px', color: '#555' }}>
-                    Sous-Total <strong style={{ fontSize: '19px', color: '#111', marginLeft: '6px' }}>
-                      {fmt(detail.subtotal || detail.sub_total)}
-                    </strong>
-                  </span>
-                )}
-                {(detail.discount_amount > 0 || detail.discount_percent > 0) && (
-                  <span style={{ fontSize: '17px', color: '#888' }}>
-                    Remise ({detail.discount_type === 'percentage' ? `${detail.discount_percent}%` : 'fixe'})
-                    <strong style={{ fontSize: '19px', color: '#111', marginLeft: '6px' }}>
-                      {fmt(detail.discount_amount)}
-                    </strong>
-                  </span>
-                )}
-                {detail.has_tva && (detail.tax_amount > 0) && (
-                  <span style={{ fontSize: '17px', color: '#888' }}>
-                    Taxe (18%)
-                    <strong style={{ fontSize: '19px', color: '#111', marginLeft: '6px' }}>
-                      {fmt(detail.tax_amount)}
-                    </strong>
-                  </span>
-                )}
-                <span style={{ fontSize: '18px', color: '#333', fontWeight: '600' }}>
-                  Total
-                  <strong style={{ fontSize: '28px', color: '#111', marginLeft: '8px' }}>
-                    {fmt(itemTotalAmount)}
-                  </strong>
-                </span>
+                {(() => {
+                  // Calculer le sous-total depuis les items
+                  const itemsSubtotal = (detail.items || []).reduce((acc, it) => {
+                    const total = Number(it.total_price ?? it.total ?? (it.quantity * it.unit_price) ?? 0)
+                    return acc + total
+                  }, 0)
+
+                  const discountPct = Number(detail.discount_percent || 0)
+                  const discountAmt = discountPct > 0 ? itemsSubtotal * discountPct / 100 : 0
+                  const afterDiscount = itemsSubtotal - discountAmt
+
+                  const taxAmt = Number(detail.tax_amount || 0)
+                  const total = Number(itemTotalAmount)
+
+                  return (
+                    <>
+                      {itemsSubtotal > 0 && (
+                        <span style={{ fontSize: '17px', color: '#555' }}>
+                          Sous-Total <strong style={{ fontSize: '19px', color: '#111', marginLeft: '6px' }}>
+                            {fmt(itemsSubtotal)}
+                          </strong>
+                        </span>
+                      )}
+                      {discountPct > 0 && (
+                        <span style={{ fontSize: '17px', color: '#888' }}>
+                          Remise ({discountPct.toFixed(2)}%)
+                          <strong style={{ fontSize: '19px', color: '#111', marginLeft: '6px' }}>
+                            {fmt(discountAmt)}
+                          </strong>
+                        </span>
+                      )}
+                      {taxAmt > 0 && (
+                        <span style={{ fontSize: '17px', color: '#888' }}>
+                          Taxe
+                          <strong style={{ fontSize: '19px', color: '#111', marginLeft: '6px' }}>
+                            {fmt(taxAmt)}
+                          </strong>
+                        </span>
+                      )}
+                      <span style={{ fontSize: '18px', color: '#333', fontWeight: '600' }}>
+                        Total
+                        <strong style={{ fontSize: '28px', color: '#111', marginLeft: '8px' }}>
+                          {fmt(total)}
+                        </strong>
+                      </span>
+                    </>
+                  )
+                })()}
               </div>
             </>
           ) : null}
@@ -624,6 +716,20 @@ function HistoryCard({ item, type, onRefresh }) {
           docId={pdfPreview.docId}
           clientName={pdfPreview.clientName}
           onClose={() => setPdfPreview(null)}
+        />
+      )}
+
+      {/* Dialog de confirmation custom */}
+      {confirmDialog && (
+        <ConfirmDialog
+          open={true}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          icon={confirmDialog.icon}
+          confirmLabel={confirmDialog.confirmLabel}
+          confirmColor={confirmDialog.confirmColor}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
         />
       )}
     </div>
@@ -903,7 +1009,7 @@ export default function HistoryPage() {
               padding: COL_PADDING,
               marginBottom: '4px',
             }}>
-              {['Nom', 'Référence', 'Date', 'Montant', 'Statut', ''].map((h, i) => (
+              {['Nom', 'Référence', 'Date', 'Montant', activeTab === 'quotes' ? '' : 'Statut', ''].map((h, i) => (
                 <span key={i} style={{
                   fontSize: '14px', fontWeight: '700', color: '#aaa',
                   textTransform: 'uppercase', letterSpacing: '0.6px',

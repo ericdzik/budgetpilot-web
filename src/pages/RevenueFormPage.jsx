@@ -5,6 +5,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import api from '../config/api'
 import UserBadge from '../components/ui/UserBadge'
 import FloatInput from '../components/ui/FloatInput'
+import CustomSelect from '../components/ui/CustomSelect'
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -376,9 +377,12 @@ export default function RevenueFormPage() {
                 </div>
               )}
             </div>
-            <select value={category} onChange={(e) => setCategory(e.target.value)} style={selectStyle}>
-              {REVENUE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <CustomSelect
+              value={category}
+              onChange={setCategory}
+              options={REVENUE_CATEGORIES.map(c => ({ value: c, label: c }))}
+              placeholder="Catégorie"
+            />
           </div>
         </div>
 
@@ -469,11 +473,11 @@ export default function RevenueFormPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label style={labelStyle}>Méthode de paiement <span style={{ color: 'red' }}>*</span></label>
-                <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={selectStyle}>
-                  {PAYMENT_METHODS.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
+                <CustomSelect
+                  value={paymentMethod}
+                  onChange={setPaymentMethod}
+                  options={PAYMENT_METHODS}
+                />
               </div>
             </div>
 

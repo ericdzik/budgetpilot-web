@@ -154,7 +154,7 @@ export default function Sidebar() {
         {/* depenseicone = Dépense */}
         <NavItem to="/expenses/new"               svgSrc="/depenseicone.svg" label="Dépense"  colored />
         {/* entreeicone = Recette/Entrée */}
-        <NavItem to="/revenues/new"               svgSrc="/entreeicone.svg"  label="Entrée"   colored />
+        <NavItem to="/revenues/new"               svgSrc="/entreeicone.svg"  label="Recette"   colored />
 
       </div>
 
