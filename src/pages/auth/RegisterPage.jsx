@@ -220,7 +220,7 @@ function Step2({ data, onChange, onSubmit, onBack, loading }) {
   const handleSubmit = () => { if (validate()) onSubmit() }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#1E88E5', position: 'relative', overflowX: 'hidden' }}>
+    <div style={{ minHeight: '142.86vh', backgroundColor: '#1E88E5', position: 'relative', overflowX: 'hidden' }}>
 
       {/* ── Décorations SVG aux coins ── */}
       {/* Haut gauche */}
@@ -409,7 +409,7 @@ export default function RegisterPage() {
   // Étape 1 — fond bleu + carte blanche centrée
   return (
     <div style={{
-      minHeight: '100vh', backgroundColor: '#1E88E5',
+      minHeight: '142.86vh', backgroundColor: '#1E88E5',
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', padding: '32px 16px',
     }}>
