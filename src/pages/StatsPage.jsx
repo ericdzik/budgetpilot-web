@@ -345,7 +345,7 @@ export default function StatsPage() {
                   marginBottom: '4px',
                 }}>
                   {['Nom', 'Nombre', 'Montant (XOF)'].map((h, i) => (
-                    <span key={i} style={{ fontSize: '24px', color: '#aaa', fontWeight: '500' }}>{h}</span>
+                    <span key={i} style={{ fontSize: '14px', color: '#aaa', fontWeight: '500' }}>{h}</span>
                   ))}
                 </div>
 
@@ -362,9 +362,9 @@ export default function StatsPage() {
                       padding: '12px 4px',
                       borderBottom: i < topClients.length - 1 ? '1px solid #f8f8f8' : 'none',
                     }}>
-                      <span style={{ fontSize: '32px', fontWeight: '700', color: '#111' }}>{client.name}</span>
-                      <span style={{ fontSize: '28px', color: '#666' }}>{client.invoices_count} Facture{client.invoices_count !== 1 ? 's' : ''}</span>
-                      <span style={{ fontSize: '30px', fontWeight: '700', color: '#111' }}>{fmt(client.total_amount)}</span>
+                      <span style={{ fontSize: '24px', fontWeight: '700', color: '#111' }}>{client.name}</span>
+                      <span style={{ fontSize: '16px', color: '#666' }}>{client.invoices_count} Facture{client.invoices_count !== 1 ? 's' : ''}</span>
+                      <span style={{ fontSize: '17px', fontWeight: '700', color: '#111' }}>{fmt(client.total_amount)}</span>
                     </div>
                   ))
                 )}

@@ -381,7 +381,7 @@ function HistoryCard({ item, type, onRefresh }) {
 
           {/* Statut */}
           <div>
-            {status && type !== 'quotes' ? (
+            {status && type !== 'quotes' && type !== 'receipts' ? (
               <span style={{
                 display: 'inline-block',
                 padding: '5px 16px', borderRadius: '20px',
@@ -1009,7 +1009,7 @@ export default function HistoryPage() {
               padding: COL_PADDING,
               marginBottom: '4px',
             }}>
-              {['Nom', 'Référence', 'Date', 'Montant', activeTab === 'quotes' ? '' : 'Statut', ''].map((h, i) => (
+              {['Nom', 'Référence', 'Date', 'Montant', (activeTab === 'quotes' || activeTab === 'receipts') ? '' : 'Statut', ''].map((h, i) => (
                 <span key={i} style={{
                   fontSize: '14px', fontWeight: '700', color: '#aaa',
                   textTransform: 'uppercase', letterSpacing: '0.6px',
