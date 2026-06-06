@@ -469,22 +469,23 @@ export default function DashboardPage() {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px' }}>
                     {[
-                      { icon: '/devisicone.svg',  count: operations.quotes ?? 0,   label: 'Devis',     href: '/history?tab=quotes' },
-                      { icon: '/operation2.svg',  count: operations.invoices ?? 0, label: 'Factures',  href: '/history?tab=invoices' },
-                      { icon: '/operation3.svg',  count: operations.unpaid ?? 0,   label: 'Impayés',   href: '/history?tab=invoices&filter=unpaid' },
-                      { icon: '/operation4.svg',  count: operations.clients ?? 0,  label: 'Clients',   href: '/clients' },
+                      { icon: '/devisicone.svg',  count: operations.quotes ?? 0,   label: 'Devis',     href: '/history?tab=quotes',              clickable: true },
+                      { icon: '/operation2.svg',  count: operations.invoices ?? 0, label: 'Factures',  href: '/history?tab=invoices',            clickable: true },
+                      { icon: '/operation3.svg',  count: operations.unpaid ?? 0,   label: 'Impayés',   href: '/history?tab=invoices&filter=unpaid', clickable: true },
+                      { icon: '/operation4.svg',  count: operations.clients ?? 0,  label: 'Clients',   href: '/clients',                         clickable: false },
                     ].map((op, i) => (
                       <div
                         key={i}
-                        onClick={() => navigate(op.href)}
+                        onClick={() => op.clickable && navigate(op.href)}
                         style={{
                           display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
                           backgroundColor: '#e8f4ff', borderRadius: '16px', padding: '14px 12px 16px',
                           minHeight: '150px', justifyContent: 'space-between',
-                          cursor: 'pointer', transition: 'background-color 0.15s, transform 0.15s',
+                          cursor: op.clickable ? 'pointer' : 'default',
+                          transition: 'background-color 0.15s, transform 0.15s',
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#d0e8ff'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#e8f4ff'; e.currentTarget.style.transform = 'none' }}
+                        onMouseEnter={e => { if (op.clickable) { e.currentTarget.style.backgroundColor = '#d0e8ff'; e.currentTarget.style.transform = 'translateY(-2px)' } }}
+                        onMouseLeave={e => { if (op.clickable) { e.currentTarget.style.backgroundColor = '#e8f4ff'; e.currentTarget.style.transform = 'none' } }}
                       >
                         <img src={op.icon} alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} />
                         <div>
