@@ -97,7 +97,7 @@ export default function SubscriptionPage() {
   const navigate = useNavigate()
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [selectedPro, setSelectedPro]     = useState('3months')
+  const [selectedPro, setSelectedPro]     = useState('yearly')
   const [selectedBasic, setSelectedBasic] = useState('yearly')
   const [paying, setPaying] = useState(false)
   const [showRenewalBanner, setShowRenewalBanner] = useState(false)
