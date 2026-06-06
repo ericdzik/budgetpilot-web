@@ -30,7 +30,13 @@ export default function ProfilePage() {
   const displayUser = profile || user
 
   // Avatar personnel
-  const avatarUrl = displayUser?.avatar_url || null
+  const avatarUrl = (() => {
+    const url = displayUser?.avatar_url
+    if (!url) return null
+    if (url.startsWith('http')) return url
+    const filename = url.split('/').pop()
+    return `/avatars/${filename}`
+  })()
   const avatarInitial = displayUser?.name?.charAt(0)?.toUpperCase() || 'U'
 
   // Logo entreprise

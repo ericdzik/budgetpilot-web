@@ -3,19 +3,32 @@ import { Zap } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 import { subscriptionService } from '../../services/subscriptionService'
 
+// ─── Helper URL avatar ────────────────────────────────────────────────────────
+
+function resolveAvatarUrl(avatar_url) {
+  if (!avatar_url) return null
+  if (avatar_url.startsWith('http')) return avatar_url
+  // Chemin relatif type "assets/images/avatars/female_1.jpg" → /avatars/female_1.jpg
+  const filename = avatar_url.split('/').pop()
+  return `/avatars/${filename}`
+}
+
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
 function Avatar({ user, size = 48 }) {
-  if (user?.avatar_url) {
+  const avatarUrl = resolveAvatarUrl(user?.avatar_url)
+
+  if (avatarUrl) {
     return (
       <img
-        src={user.avatar_url}
-        alt={user.name}
+        src={avatarUrl}
+        alt={user?.name || 'avatar'}
         style={{
           width: size, height: size, borderRadius: '50%',
           objectFit: 'cover', border: '2px solid #fff',
           flexShrink: 0,
         }}
+        onError={e => { e.target.style.display = 'none' }}
       />
     )
   }
@@ -41,7 +54,6 @@ export default function UserBadge({ size = 48 }) {
 
   const isPremium = plan === 'pro' || plan === 'basic'
 
-  // Couleurs selon le plan — identiques au mobile
   const badgeBg = plan === 'pro'
     ? '#1E88E5'
     : plan === 'basic'
@@ -53,10 +65,8 @@ export default function UserBadge({ size = 48 }) {
       ? '#1E88E5'
       : '#9e9e9e'
 
-  // Label affiché
   const label = plan === 'pro' ? 'pro' : plan === 'basic' ? 'basic' : 'gratuit'
 
-  // Conversion jours → mois si > 30 jours (comme sur mobile)
   const daysDisplay = daysLeft !== null
     ? daysLeft > 30
       ? `${Math.floor(daysLeft / 30)} mois restants`
@@ -68,8 +78,6 @@ export default function UserBadge({ size = 48 }) {
       .then((res) => {
         const data = res.data
         setPlan(data.plan ?? 'freemium')
-
-        // Calculer les jours restants depuis next_billing_at
         if (data.next_billing_at && data.status === 'active') {
           const end  = new Date(data.next_billing_at)
           const now  = new Date()
@@ -78,7 +86,6 @@ export default function UserBadge({ size = 48 }) {
         }
       })
       .catch(() => {
-        // Fallback sur les données du store
         setPlan(user?.plan ?? 'freemium')
       })
   }, [])
