@@ -102,7 +102,12 @@ export default function PersonalProfilePage() {
     }
   }
 
-  const avatarUrl = user?.avatar_url || null
+  const avatarUrl = (() => {
+    const url = user?.avatar_url
+    if (!url) return null
+    if (url.startsWith('http')) return url
+    return `/avatars/${url.split('/').pop()}`
+  })()
   const avatarInitial = (firstName || user?.name || 'U').charAt(0).toUpperCase()
 
   return (
