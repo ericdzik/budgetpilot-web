@@ -1,11 +1,25 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { Download, Eye, Plus, ChevronDown, X } from 'lucide-react'
+import { Download, Eye, Plus, ChevronDown } from 'lucide-react'
 import { dashboardService } from '../services/dashboardService'
 import { subscriptionService } from '../services/subscriptionService'
+import useAuthStore from '../store/authStore'
 import PdfPreviewModal from '../components/ui/PdfPreviewModal'
 import UserBadge from '../components/ui/UserBadge'
+import WelcomeProModal from '../components/ui/WelcomeProModal'
+import RenewalReminderModal from '../components/ui/RenewalReminderModal'
+import FreemiumLimitModal from '../components/ui/FreemiumLimitModal'
+import WelcomeProfileModal from '../components/ui/WelcomeProfileModal'
+
+// ─── Flags de session (hors React, persistants pendant la session) ────────────
+const _session = {
+  hasShownWelcomePro:    false,
+  hasShownRenewal:       false,
+  hasShownFreemiumLimit: false,
+  hasShownProfileModal:  false,
+  visitCount:            0,
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -20,6 +34,7 @@ const currentYear = new Date().getFullYear()
 
 export default function DashboardPage() {
   const navigate = useNavigate()
+  const { user: authUser } = useAuthStore()
   const [stats, setStats] = useState(null)
   const [treasury, setTreasury] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -27,10 +42,15 @@ export default function DashboardPage() {
   const [pdfPreview, setPdfPreview] = useState(null)
   const [periodOpen, setPeriodOpen] = useState(false)
   const periodRef = useRef(null)
-  const [renewalBanner, setRenewalBanner] = useState(null) // { plan, daysLeft }
 
-  // Vérification rappel renouvellement — une seule fois par session
-  const renewalChecked = useRef(false)
+  // ── État des modales ───────────────────────────────────────────────────────
+  const [activeModal, setActiveModal] = useState(null) // 'welcomePro' | 'renewal' | 'freemium' | 'profile'
+  const [subscriptionData, setSubscriptionData] = useState(null)
+  const modalQueue = useRef([])
+  const modalProcessing = useRef(false)
+
+  // Vérification abonnement — une seule fois par montage
+  const subscriptionChecked = useRef(false)
 
   const PERIOD_OPTIONS = [
     { value: 'day',   label: "Aujourd'hui" },
@@ -50,28 +70,91 @@ export default function DashboardPage() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  useEffect(() => {
-    // Vérifier le rappel renouvellement au montage (une seule fois)
-    if (!renewalChecked.current) {
-      renewalChecked.current = true
-      subscriptionService.getStatus()
-        .then(res => {
-          const data = res.data
-          if (
-            data?.status === 'active' &&
-            data?.plan !== 'freemium' &&
-            data?.billing_cycle !== 'welcome' &&
-            data?.next_billing_at
-          ) {
-            const diff = Math.ceil((new Date(data.next_billing_at) - new Date()) / (1000 * 60 * 60 * 24))
-            if (diff >= 0 && diff <= 5) {
-              setRenewalBanner({ plan: data.plan, daysLeft: diff })
-            }
-          }
-        })
-        .catch(() => {})
-    }
+  // ── File d'attente des modales ─────────────────────────────────────────────
+  const processModalQueue = useCallback(() => {
+    if (modalProcessing.current || modalQueue.current.length === 0) return
+    modalProcessing.current = true
+    const next = modalQueue.current.shift()
+    setTimeout(() => setActiveModal(next), 800)
   }, [])
+
+  const enqueueModal = useCallback((modalName) => {
+    modalQueue.current.push(modalName)
+    if (!modalProcessing.current) processModalQueue()
+  }, [processModalQueue])
+
+  const closeModal = useCallback(() => {
+    setActiveModal(null)
+    modalProcessing.current = false
+    processModalQueue()
+  }, [processModalQueue])
+
+  // ── Vérification des modales après chargement du statut abonnement ─────────
+  useEffect(() => {
+    if (subscriptionChecked.current) return
+    subscriptionChecked.current = true
+
+    subscriptionService.getStatus()
+      .then(res => {
+        const data = res.data
+        setSubscriptionData(data)
+
+        // 1. WelcomePro — billing_cycle === 'welcome' + status === 'active'
+        if (
+          !_session.hasShownWelcomePro &&
+          data?.billing_cycle === 'welcome' &&
+          data?.status === 'active'
+        ) {
+          _session.hasShownWelcomePro = true
+          enqueueModal('welcomePro')
+        }
+
+        // 2. Rappel renouvellement — actif + payant + pas welcome + ≤5 jours
+        if (
+          !_session.hasShownRenewal &&
+          data?.status === 'active' &&
+          data?.plan !== 'freemium' &&
+          data?.billing_cycle !== 'welcome' &&
+          data?.next_billing_at
+        ) {
+          const daysLeft = Math.ceil((new Date(data.next_billing_at) - new Date()) / (1000 * 60 * 60 * 24))
+          if (daysLeft >= 0 && daysLeft <= 5) {
+            _session.hasShownRenewal = true
+            enqueueModal('renewal')
+          }
+        }
+
+        // 3. Limite freemium — plan freemium + 2ème visite ou plus
+        _session.visitCount++
+        if (
+          !_session.hasShownFreemiumLimit &&
+          (data?.plan === 'freemium' || !data?.plan) &&
+          _session.visitCount >= 2
+        ) {
+          _session.hasShownFreemiumLimit = true
+          enqueueModal('freemium')
+        }
+      })
+      .catch(() => {
+        // Fallback : incrémenter le compteur de visite même sans API
+        _session.visitCount++
+      })
+  }, [enqueueModal])
+
+  // ── Vérification profil incomplet (après chargement des stats) ────────────
+  const profileChecked = useRef(false)
+
+  useEffect(() => {
+    if (profileChecked.current || loading) return
+    if (_session.hasShownProfileModal) return
+    profileChecked.current = true
+
+    const user = stats?.user ?? authUser
+    if (user && user.profile_completed !== true) {
+      _session.hasShownProfileModal = true
+      enqueueModal('profile')
+    }
+  }, [loading, stats, authUser, enqueueModal])
 
   useEffect(() => {
     loadData()
@@ -179,52 +262,6 @@ export default function DashboardPage() {
           <UserBadge size={48} />
         </div>
       </div>
-
-      {/* ── Bannière rappel renouvellement (≤ 5 jours) ── */}
-      {renewalBanner && (
-        <div style={{
-          margin: '0 28px 8px',
-          backgroundColor: '#fff8e1',
-          border: '1.5px solid #FFC107',
-          borderRadius: '16px',
-          padding: '14px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '20px' }}>⚠️</span>
-            <div>
-              <p style={{ margin: 0, fontWeight: '700', fontSize: '15px', color: '#111' }}>
-                Votre abonnement expire bientôt
-              </p>
-              <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#555' }}>
-                Il vous reste {renewalBanner.daysLeft} jour{renewalBanner.daysLeft !== 1 ? 's' : ''}. Renouvelez pour conserver l'accès.
-              </p>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-            <button
-              onClick={() => navigate('/subscription')}
-              style={{
-                backgroundColor: '#FFC107', color: '#111',
-                border: 'none', borderRadius: '20px',
-                padding: '8px 18px', fontSize: '13px', fontWeight: '700',
-                cursor: 'pointer',
-              }}
-            >
-              Renouveler
-            </button>
-            <button
-              onClick={() => setRenewalBanner(null)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#888' }}
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ── Corps ── */}
       <div style={{ flex: 1, padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -527,6 +564,38 @@ export default function DashboardPage() {
           onClose={() => setPdfPreview(null)}
         />
       )}
+
+      {/* ── Modales de notification (file d'attente) ── */}
+
+      <WelcomeProModal
+        open={activeModal === 'welcomePro'}
+        onClose={closeModal}
+      />
+
+      <RenewalReminderModal
+        open={activeModal === 'renewal'}
+        daysLeft={
+          subscriptionData?.next_billing_at
+            ? Math.max(0, Math.ceil((new Date(subscriptionData.next_billing_at) - new Date()) / (1000 * 60 * 60 * 24)))
+            : 0
+        }
+        plan={subscriptionData?.plan ?? 'pro'}
+        onClose={closeModal}
+        onRenew={() => { closeModal(); navigate('/subscription') }}
+      />
+
+      <FreemiumLimitModal
+        open={activeModal === 'freemium'}
+        onClose={closeModal}
+        onUpgrade={() => { closeModal(); navigate('/subscription') }}
+      />
+
+      <WelcomeProfileModal
+        open={activeModal === 'profile'}
+        user={stats?.user ?? authUser}
+        onComplete={() => { closeModal(); navigate('/profile/company') }}
+        onSkip={closeModal}
+      />
     </div>
   )
 }

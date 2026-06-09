@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Zap } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 import { subscriptionService } from '../../services/subscriptionService'
@@ -48,6 +49,7 @@ function Avatar({ user, size = 48 }) {
 // ─── UserBadge ────────────────────────────────────────────────────────────────
 
 export default function UserBadge({ size = 48 }) {
+  const navigate = useNavigate()
   const { user } = useAuthStore()
   const [daysLeft, setDaysLeft] = useState(null)
   const [plan, setPlan] = useState(user?.plan ?? 'freemium')
@@ -92,7 +94,10 @@ export default function UserBadge({ size = 48 }) {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '40px' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div
+        onClick={() => navigate('/subscription')}
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}
+      >
         <div style={{
           display: 'flex', alignItems: 'center', gap: '6px',
           backgroundColor: badgeBg, color: badgeTextColor,
