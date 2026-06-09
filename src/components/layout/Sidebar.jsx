@@ -92,7 +92,7 @@ export default function Sidebar() {
 
   return (
     <aside style={{
-      width: '220px',
+      width: '240px',
       flexShrink: 0,
       backgroundColor: '#f4f6f8',
       borderRight: 'none',
@@ -106,12 +106,12 @@ export default function Sidebar() {
       {/* Logo */}
       <div style={{
         display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
+        alignItems: 'flex-end',
+        gap: '12px',
         padding: '20px 20px',
       }}>
-        <img src="/Logo_app2.png" alt="B" style={{ width: 36, height: 36, objectFit: 'contain' }} />
-        <span style={{ fontSize: '22px', fontWeight: '700', color: '#111', letterSpacing: '-0.5px' }}>
+        <img src="/Logo_app2.png" alt="B" style={{ width: 60, height: 60, objectFit: 'contain' }} />
+        <span style={{ fontSize: '40px', fontWeight: '700', color: '#111', letterSpacing: '-0.5px' }}>
           Pilot
         </span>
       </div>
