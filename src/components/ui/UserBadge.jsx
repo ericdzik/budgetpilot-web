@@ -16,7 +16,7 @@ function resolveAvatarUrl(avatar_url) {
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
-function Avatar({ user, size = 48 }) {
+function Avatar({ user, size = 48, onClick }) {
   const avatarUrl = resolveAvatarUrl(user?.avatar_url)
 
   if (avatarUrl) {
@@ -24,23 +24,28 @@ function Avatar({ user, size = 48 }) {
       <img
         src={avatarUrl}
         alt={user?.name || 'avatar'}
+        onClick={onClick}
         style={{
           width: size, height: size, borderRadius: '50%',
           objectFit: 'cover', border: '2px solid #fff',
-          flexShrink: 0,
+          flexShrink: 0, cursor: onClick ? 'pointer' : 'default',
         }}
         onError={e => { e.target.style.display = 'none' }}
       />
     )
   }
   return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      backgroundColor: '#1E88E5', color: '#fff',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontWeight: '700', fontSize: size * 0.4,
-      border: '2px solid #fff', flexShrink: 0,
-    }}>
+    <div
+      onClick={onClick}
+      style={{
+        width: size, height: size, borderRadius: '50%',
+        backgroundColor: '#1E88E5', color: '#fff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontWeight: '700', fontSize: size * 0.4,
+        border: '2px solid #fff', flexShrink: 0,
+        cursor: onClick ? 'pointer' : 'default',
+      }}
+    >
       {user?.name?.charAt(0)?.toUpperCase() || 'U'}
     </div>
   )
@@ -113,7 +118,7 @@ export default function UserBadge({ size = 48 }) {
           </span>
         )}
       </div>
-      <Avatar user={user} size={size} />
+      <Avatar user={user} size={size} onClick={() => navigate('/profile')} />
     </div>
   )
 }
