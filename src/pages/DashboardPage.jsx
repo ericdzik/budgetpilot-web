@@ -5,6 +5,7 @@ import { Download, Eye, Plus, ChevronDown } from 'lucide-react'
 import { dashboardService } from '../services/dashboardService'
 import { subscriptionService } from '../services/subscriptionService'
 import useAuthStore from '../store/authStore'
+import useCurrencyStore, { formatAmount, CURRENCY_SYMBOLS } from '../store/currencyStore'
 import PdfPreviewModal from '../components/ui/PdfPreviewModal'
 import UserBadge from '../components/ui/UserBadge'
 import WelcomeProModal from '../components/ui/WelcomeProModal'
@@ -35,6 +36,7 @@ const currentYear = new Date().getFullYear()
 export default function DashboardPage() {
   const navigate = useNavigate()
   const { user: authUser } = useAuthStore()
+  const { activeCurrency, initFromUser } = useCurrencyStore()
   const [stats, setStats] = useState(null)
   const [treasury, setTreasury] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -169,6 +171,10 @@ export default function DashboardPage() {
       ])
       setStats(statsRes.data)
       setTreasury(treasuryRes.data)
+      // Synchroniser la devise depuis le profil utilisateur
+      if (statsRes.data?.user?.currency) {
+        initFromUser(statsRes.data.user)
+      }
     } catch {
       toast.error('Impossible de charger les données')
     } finally {
@@ -288,11 +294,11 @@ export default function DashboardPage() {
                   }}>
                     Caisse
                   </div>
-                  <span style={{ fontSize: '25px', opacity: 0.85 }}>XOF</span>
+                  <span style={{ fontSize: '25px', opacity: 0.85 }}>{activeCurrency}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
                   <div style={{ fontSize: '42px', fontWeight: '700', letterSpacing: '-1px' }}>
-                    {fmt(caisse)}
+                    {formatAmount(caisse, activeCurrency)}
                   </div>
                 </div>
                 <div style={{ fontSize: '13px', opacity: 0.8, marginTop: '4px', marginBottom: '6px' }}>
@@ -352,9 +358,8 @@ export default function DashboardPage() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                     <div style={{ fontSize: '42px', fontWeight: '700', color: '#111', letterSpacing: '-0.5px' }}>
-                      {fmt(recettes)}
+                      {formatAmount(recettes, activeCurrency)}
                     </div>
-                    <span style={{ fontSize: '14px', color: '#888', fontWeight: '500' }}>XOF</span>
                   </div>
                 </div>
               </div>
@@ -375,9 +380,8 @@ export default function DashboardPage() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                     <div style={{ fontSize: '42px', fontWeight: '700', color: '#111', letterSpacing: '-0.5px' }}>
-                      {fmt(depenses)}
+                      {formatAmount(depenses, activeCurrency)}
                     </div>
-                    <span style={{ fontSize: '14px', color: '#888', fontWeight: '500' }}>XOF</span>
                   </div>
                 </div>
               </div>
@@ -441,7 +445,7 @@ export default function DashboardPage() {
                           {inv.created_at}
                         </span>
                         <span style={{ fontSize: '17px', fontWeight: '600', color: '#111' }}>
-                          {fmt(inv.amount)}
+                          {formatAmount(inv.amount, activeCurrency)}
                         </span>
                         <div style={{ display: 'flex', gap: '12px' }}>
                           <Download size={22} color="#aaa" style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); handleOpenPreview(inv.id, inv.client_name) }} />

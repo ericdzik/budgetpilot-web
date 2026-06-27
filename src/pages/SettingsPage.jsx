@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, LogOut } from 'lucide-react'
 import useAuthStore from '../store/authStore'
+import useCurrencyStore, { CURRENCY_SYMBOLS } from '../store/currencyStore'
 import UserBadge from '../components/ui/UserBadge'
+import CurrencySelectorModal from '../components/ui/CurrencySelectorModal'
 import { authService } from '../services/authService'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 
@@ -86,8 +88,10 @@ function Tile({ iconSrc, label, onClick }) {
 export default function SettingsPage() {
   const navigate = useNavigate()
   const { user, setUser, logout } = useAuthStore()
+  const { activeCurrency, initFromUser } = useCurrencyStore()
   const [profile, setProfile] = useState(user)
   const [confirmLogout, setConfirmLogout] = useState(false)
+  const [currencyOpen, setCurrencyOpen] = useState(false)
 
   // Charger les données fraîches du profil
   useEffect(() => {
@@ -95,7 +99,10 @@ export default function SettingsPage() {
       .then(res => {
         const freshUser = res.data?.user ?? res.data
         setProfile(freshUser)
-        if (freshUser) setUser(freshUser)
+        if (freshUser) {
+          setUser(freshUser)
+          initFromUser(freshUser)
+        }
       })
       .catch(() => {})
   }, [])
@@ -200,6 +207,46 @@ export default function SettingsPage() {
             onClick={() => navigate('/subscription')}
           />
 
+          {/* Devise */}
+          <button
+            onClick={() => setCurrencyOpen(true)}
+            style={{
+              backgroundColor: '#e3f2fd',
+              borderRadius: '20px',
+              border: 'none',
+              padding: '40px 32px',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              minHeight: '220px',
+              width: '100%',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#bbdefb'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = '#e3f2fd'}
+          >
+            <div style={{
+              width: 68, height: 68, borderRadius: '50%',
+              backgroundColor: '#1E88E5',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <span style={{ fontSize: '28px', fontWeight: '800', color: '#fff' }}>
+                {(CURRENCY_SYMBOLS[activeCurrency] || activeCurrency).slice(0, 3)}
+              </span>
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <span style={{ fontSize: '22px', fontWeight: '700', color: '#111' }}>
+                Devise
+              </span>
+              <div style={{ fontSize: '14px', color: '#1E88E5', marginTop: '4px', fontWeight: '600' }}>
+                Active : {activeCurrency}
+              </div>
+            </div>
+          </button>
+
           {/* FAQ */}
           <Tile
             iconSrc="/iconefaq.svg"
@@ -285,6 +332,12 @@ export default function SettingsPage() {
         confirmColor="#1E88E5"
         onConfirm={doLogout}
         onCancel={() => setConfirmLogout(false)}
+      />
+
+      {/* Modal sélection devise */}
+      <CurrencySelectorModal
+        open={currencyOpen}
+        onClose={() => setCurrencyOpen(false)}
       />
     </div>
   )
