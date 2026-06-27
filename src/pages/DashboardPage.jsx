@@ -5,7 +5,7 @@ import { Download, Eye, Plus, ChevronDown } from 'lucide-react'
 import { dashboardService } from '../services/dashboardService'
 import { subscriptionService } from '../services/subscriptionService'
 import useAuthStore from '../store/authStore'
-import useCurrencyStore, { formatAmount, CURRENCY_SYMBOLS } from '../store/currencyStore'
+import useCurrencyStore, { formatAmount } from '../store/currencyStore'
 import PdfPreviewModal from '../components/ui/PdfPreviewModal'
 import UserBadge from '../components/ui/UserBadge'
 import WelcomeProModal from '../components/ui/WelcomeProModal'
@@ -23,11 +23,6 @@ const _session = {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function fmt(amount) {
-  if (!amount && amount !== 0) return '0'
-  return Number(amount).toLocaleString('fr-FR').replace(/\s/g, '.')
-}
 
 const currentYear = new Date().getFullYear()
 
@@ -160,7 +155,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadData()
-  }, [period])
+  }, [period])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadData = async () => {
     setLoading(true)
@@ -171,8 +166,9 @@ export default function DashboardPage() {
       ])
       setStats(statsRes.data)
       setTreasury(treasuryRes.data)
-      // Synchroniser la devise depuis le profil utilisateur
-      if (statsRes.data?.user?.currency) {
+      // Synchroniser la devise depuis le profil utilisateur — une seule fois
+      const currency = statsRes.data?.user?.currency
+      if (currency && currency !== useCurrencyStore.getState().activeCurrency) {
         initFromUser(statsRes.data.user)
       }
     } catch {
