@@ -153,11 +153,7 @@ export default function DashboardPage() {
     }
   }, [loading, stats, authUser, enqueueModal])
 
-  useEffect(() => {
-    loadData()
-  }, [period])  // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       const [statsRes, treasuryRes] = await Promise.all([
@@ -176,7 +172,11 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [period, initFromUser])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const handleOpenPreview = (docId, clientName) => {
     setPdfPreview({ docId, clientName })

@@ -1,4 +1,4 @@
-import { StrictMode, useState } from 'react'
+import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
@@ -15,10 +15,10 @@ function Root() {
   return (
     <>
       {!splashDone && <SplashScreen onFinish={() => setSplashDone(true)} />}
-      {/* L'app se charge en arrière-plan pendant le splash */}
-      <div style={{ visibility: splashDone ? 'visible' : 'hidden' }}>
+      {/* Ne monter l'app qu'après le splash pour éviter les appels API en double */}
+      {splashDone && (
         <RouterProvider router={router} />
-      </div>
+      )}
       <Toaster
         position="top-right"
         toastOptions={{
@@ -40,9 +40,7 @@ function Root() {
 }
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <Root />
-    </GoogleOAuthProvider>
-  </StrictMode>
+  <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+    <Root />
+  </GoogleOAuthProvider>
 )
