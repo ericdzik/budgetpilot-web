@@ -5,12 +5,14 @@ import { trackingService } from '../../services/trackingService'
 import useTrackingAuthStore from '../../store/trackingAuthStore'
 
 const COLORS = { getdenis: '#E65100', client: '#1565C0' }
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'
+// Le QR code doit pointer vers le backend Laravel directement
+// pour que la redirection vers le store fonctionne sans passer par nginx
+const BACKEND_BASE = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'
 
 // ─── QR Card ─────────────────────────────────────────────────────────────────
 function QRCard({ link, onToggle, onDelete }) {
   const canvasRef = useRef(null)
-  const qrUrl = `${API_BASE}/ref/${link.code}`
+  const qrUrl = `${BACKEND_BASE}/ref/${link.code}`
 
   useEffect(() => {
     if (canvasRef.current) {
