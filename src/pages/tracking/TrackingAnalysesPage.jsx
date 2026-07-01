@@ -15,13 +15,19 @@ function DonutChart({ byGroup, total }) {
   const circ = 2 * Math.PI * r
   const dashG = (getdenis / total) * circ
   const dashC = (client   / total) * circ
+  // Les deux segments couvrent-ils tout le cercle ?
+  const isFull = (getdenis + client) >= total
+
   return (
     <svg width="90" height="90" viewBox="0 0 90 90">
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f0f0f0" strokeWidth="14" />
+      {/* Fond gris uniquement si les segments ne couvrent pas tout */}
+      {!isFull && (
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f0f0f0" strokeWidth="14" />
+      )}
       {getdenis > 0 && (
         <circle cx={cx} cy={cy} r={r} fill="none"
           stroke={COLORS.getdenis} strokeWidth="14"
-          strokeDasharray={`${dashG} ${circ}`}
+          strokeDasharray={`${dashG} ${circ - dashG}`}
           strokeDashoffset={circ / 4}
           style={{ transform: 'rotate(-90deg)', transformOrigin: '45px 45px' }}
         />
@@ -29,7 +35,7 @@ function DonutChart({ byGroup, total }) {
       {client > 0 && (
         <circle cx={cx} cy={cy} r={r} fill="none"
           stroke={COLORS.client} strokeWidth="14"
-          strokeDasharray={`${dashC} ${circ}`}
+          strokeDasharray={`${dashC} ${circ - dashC}`}
           strokeDashoffset={circ / 4 - dashG}
           style={{ transform: 'rotate(-90deg)', transformOrigin: '45px 45px' }}
         />
