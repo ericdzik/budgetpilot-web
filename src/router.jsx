@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import NotFoundPage from './pages/NotFoundPage'
 import useAuthStore from './store/authStore'
 import useTrackingAuthStore from './store/trackingAuthStore'
 
@@ -151,5 +152,11 @@ export const router = createBrowserRouter([
       { path: 'historique', element: <TrackingHistoriquePage /> },
       { path: 'qrcodes',    element: <TrackingQRCodesPage /> },
     ],
+  },
+
+  // Catch-all — page 404
+  {
+    path: '*',
+    element: <NotFoundPage />,
   },
 ])
