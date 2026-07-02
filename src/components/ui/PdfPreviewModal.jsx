@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Download } from 'lucide-react'
+import { X, Download, Share2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import html2pdf from 'html2pdf.js'
 import QRCode from 'qrcode'
@@ -305,6 +305,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
+  const [sharing, setSharing]         = useState(false)
   const [qrDataUrl, setQrDataUrl] = useState(null)
   const templateRef = useRef(null)
 
@@ -361,6 +362,53 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
     }
   }
 
+  const handleShare = async () => {
+    if (!templateRef.current) return
+    setSharing(true)
+    try {
+      const filename = `${doc?.type === 'invoice' ? 'Facture' : 'Devis'}-${doc?.reference_number || docId}.pdf`
+
+      // Générer le PDF en blob
+      const blob = await html2pdf().set({
+        margin:      0,
+        filename,
+        image:       { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 794 },
+        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      }).from(templateRef.current).outputPdf('blob')
+
+      const file = new File([blob], filename, { type: 'application/pdf' })
+
+      // Web Share API — supporte le partage de fichiers (Chrome Android, Safari iOS)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title:   filename,
+          text:    `${doc?.type === 'invoice' ? 'Facture' : 'Devis'} ${doc?.reference_number}`,
+          files:   [file],
+        })
+        toast.success('Partagé !')
+      } else if (navigator.share) {
+        // Partage sans fichier (lien ou texte seulement)
+        await navigator.share({
+          title: filename,
+          text:  `${doc?.type === 'invoice' ? 'Facture' : 'Devis'} ${doc?.reference_number} — Budget Pilot`,
+        })
+      } else {
+        // Fallback : ouvrir le PDF dans un nouvel onglet
+        const url = URL.createObjectURL(blob)
+        window.open(url, '_blank')
+        setTimeout(() => URL.revokeObjectURL(url), 60000)
+        toast.success('PDF ouvert dans un nouvel onglet')
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        toast.error('Erreur lors du partage')
+      }
+    } finally {
+      setSharing(false)
+    }
+  }
+
   return (
     <div onClick={onClose} style={{
       position: 'fixed', inset: 0, zIndex: 1000,
@@ -389,6 +437,19 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button onClick={handleShare} disabled={loading || sharing} style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '9px 20px',
+              backgroundColor: loading ? '#f5f5f5' : '#fff',
+              color: loading ? '#bbb' : '#333',
+              border: '1.5px solid #e0e0e0',
+              borderRadius: '20px',
+              fontSize: '14px', fontWeight: '600',
+              cursor: loading ? 'not-allowed' : 'pointer',
+            }}>
+              <Share2 size={16} />
+              {sharing ? 'Préparation...' : 'Partager'}
+            </button>
             <button onClick={handleDownload} disabled={loading || downloading} style={{
               display: 'flex', alignItems: 'center', gap: '8px',
               padding: '9px 20px',
