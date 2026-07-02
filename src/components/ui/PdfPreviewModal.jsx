@@ -323,6 +323,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   const [qrDataUrl, setQrDataUrl]     = useState(null)
   const [logoDataUrl, setLogoDataUrl] = useState(null)
   const [sigDataUrl, setSigDataUrl]   = useState(null)
+  const [logoBbDataUrl, setLogoBbDataUrl] = useState(null)
 
   useEffect(() => { loadData() }, [docId])
 
@@ -332,6 +333,36 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
       width: 280, margin: 1, errorCorrectionLevel: 'M',
       color: { dark: '#000000', light: '#ffffff' },
     }).then(setQrDataUrl).catch(() => {})
+  }, [])
+
+  // Convertir logo_bb.svg en PNG noir via canvas (SVG original est blanc)
+  useEffect(() => {
+    const svgToPngBlack = async () => {
+      try {
+        const res  = await fetch('/logo_bb.svg')
+        let svgText = await res.text()
+        // Remplacer les couleurs claires par du noir (comme _convertSvgToBlack du mobile)
+        svgText = svgText
+          .replace(/stroke:#ebf7ff/g, 'stroke:#000000')
+          .replace(/stop-color:#ebf7ff/g, 'stop-color:#000000')
+          .replace(/fill:#ebf7ff/g, 'fill:#000000')
+
+        const blob = new Blob([svgText], { type: 'image/svg+xml' })
+        const url  = URL.createObjectURL(blob)
+        const img  = new window.Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          canvas.width  = 80
+          canvas.height = 104
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0, 80, 104)
+          setLogoBbDataUrl(canvas.toDataURL('image/png'))
+          URL.revokeObjectURL(url)
+        }
+        img.src = url
+      } catch { /* fallback silencieux */ }
+    }
+    svgToPngBlack()
   }, [])
 
   // Convertit une URL distant en dataURL (nécessaire pour @react-pdf/renderer)
@@ -377,7 +408,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   }
 
   // Génère le blob PDF via @react-pdf/renderer (MinimalPdfDocument)
-  const buildPdfBlob = () => generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUrl, sigDataUrl)
+  const buildPdfBlob = () => generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUrl, sigDataUrl, logoBbDataUrl)
 
   const handleDownload = async () => {
     setDownloading(true)

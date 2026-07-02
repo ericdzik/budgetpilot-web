@@ -263,7 +263,7 @@ const S = StyleSheet.create({
 
 // ─── Composant Document ───────────────────────────────────────────────────────
 
-export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl }) {
+export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl }) {
   const company = {
     name:    profile?.company_name    || profile?.name    || 'Mon Entreprise',
     address: profile?.company_address || '',
@@ -448,6 +448,10 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
             <View style={S.brandingLeft}>
               <Text style={S.brandingConcuPar}>Conçu par</Text>
               <View style={S.brandingPilotRow}>
+                {logoBbDataUrl
+                  ? <Image src={logoBbDataUrl} style={S.brandingLogoImg} />
+                  : null
+                }
                 <Text style={S.brandingPilot}>Pilot</Text>
               </View>
             </View>
@@ -483,7 +487,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
 
 // ─── Fonction utilitaire pour générer le blob PDF ────────────────────────────
 
-export async function generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl) {
+export async function generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl) {
   const blob = await pdf(
     <MinimalPdfDocument
       doc={doc}
@@ -491,6 +495,7 @@ export async function generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUr
       qrDataUrl={qrDataUrl}
       logoDataUrl={logoDataUrl}
       signatureDataUrl={signatureDataUrl}
+      logoBbDataUrl={logoBbDataUrl}
     />
   ).toBlob()
   return blob
