@@ -350,7 +350,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
         margin:      0,
         filename,
         image:       { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 794 },
         jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
       }).from(templateRef.current).save()
       toast.success('PDF téléchargé !')
