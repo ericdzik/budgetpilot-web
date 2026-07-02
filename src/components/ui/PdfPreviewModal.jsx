@@ -39,30 +39,37 @@ function MinimalTemplate({ doc, profile, qrDataUrl }) {
   const client = doc.client || {}
   const items  = doc.items  || []
 
-  // Calculs
-  const subtotalBefore = items.reduce((s, i) => s + (i.quantity * i.unit_price), 0)
-  const itemDiscounts  = items.reduce((s, i) => s + ((i.quantity * i.unit_price) - i.total), 0)
+  // Calculs — on force toujours des nombres valides
+  const toNum = v => (isNaN(parseFloat(v)) ? 0 : parseFloat(v))
+
+  const subtotalBefore = items.reduce((s, i) => s + toNum(i.quantity) * toNum(i.unit_price), 0)
+  // total par ligne : on recalcule si absent/NaN
+  const itemsWithTotal = items.map(i => ({
+    ...i,
+    _total: (i.total != null && !isNaN(i.total)) ? toNum(i.total) : toNum(i.quantity) * toNum(i.unit_price),
+  }))
+  const itemDiscounts = itemsWithTotal.reduce((s, i) => s + (toNum(i.quantity) * toNum(i.unit_price) - i._total), 0)
 
   let globalDiscount = 0
-  if (doc.discount_percent > 0) {
+  if (toNum(doc.discount_percent) > 0) {
     globalDiscount = doc.discount_type === 'percentage'
-      ? subtotalBefore * (doc.discount_percent / 100)
-      : doc.discount_percent
+      ? subtotalBefore * (toNum(doc.discount_percent) / 100)
+      : toNum(doc.discount_percent)
   }
 
   const totalDiscount = itemDiscounts + globalDiscount
   const subtotalAfter = subtotalBefore - totalDiscount
   const tvaRate       = 18
   const tvaAmount     = doc.has_tva ? subtotalAfter * (tvaRate / 100) : 0
-  const total         = doc.total_amount || (subtotalAfter + tvaAmount)
+  const total         = toNum(doc.total_amount) || (subtotalAfter + tvaAmount)
 
   const logoUrl      = profile?.logo_path ? `${STORAGE_BASE_URL}/${profile.logo_path}` : null
   const signatureUrl = profile?.signature_path && profile.signature_path !== '0'
     ? `${STORAGE_BASE_URL}/${profile.signature_path}` : null
 
-  // Grouper les items par catégorie
+  // Grouper les items par catégorie (avec _total calculé)
   const grouped = {}
-  items.forEach(item => {
+  itemsWithTotal.forEach(item => {
     const cat = item.category || 'Articles'
     if (!grouped[cat]) grouped[cat] = []
     grouped[cat].push(item)
@@ -140,7 +147,7 @@ function MinimalTemplate({ doc, profile, qrDataUrl }) {
           {/* Lignes articles */}
           <div>
             {Object.entries(grouped).map(([cat, catItems], gi) => {
-              const catTotal = catItems.reduce((s, i) => s + i.total, 0)
+              const catTotal = catItems.reduce((s, i) => s + i._total, 0)
               const showCatSubtotal = Object.keys(grouped).length > 1
               return (
                 <div key={gi}>
@@ -170,51 +177,56 @@ function MinimalTemplate({ doc, profile, qrDataUrl }) {
           {/* Séparateur invisible — juste un espace */}
           <div style={{ height: 1, background: 'transparent' }} />
 
-          {/* Pied : Paiement + boîte totaux flottante */}
-          <div style={{ display: 'flex', position: 'relative', minHeight: 70 }}>
-            <div style={{ flex: 1, padding: '10px 12px' }}>
-              <div style={{ fontWeight: 'bold', fontSize: 10, marginBottom: 5 }}>Paiement</div>
-              <div style={{ fontSize: 9, color: '#444', lineHeight: 1.7 }}>
-                <div>Statut : <strong>{statusLabel(doc.status)}</strong></div>
-                {doc.due_date && <div>Échéance : <strong>{fmtDate(doc.due_date)}</strong></div>}
-              </div>
-            </div>
-            <div style={{ flex: 1 }} />
+          {/* Pied : Paiement (gauche) + Totaux (droite) — layout table pour html2canvas */}
+          <div style={{ display: 'table', width: '100%', borderCollapse: 'collapse', minHeight: 80 }}>
+            <div style={{ display: 'table-row' }}>
 
-            {/* Boîte totaux — fond blanc + ligne Total noire */}
-            <div style={{
-              position: 'absolute',
-              bottom: -30,
-              right: 20,
-              background: '#fff',
-              border: '2px solid #000',
-              borderRadius: '10px',
-              minWidth: 200,
-              zIndex: 10,
-              overflow: 'hidden',
-            }}>
-              <div style={{ padding: '8px 14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 10, color: '#000' }}>Sous Total :</span>
-                  <span style={{ fontSize: 10, color: '#000' }}>{fmt(subtotalBefore)}</span>
+              {/* Cellule Paiement */}
+              <div style={{ display: 'table-cell', verticalAlign: 'top', padding: '10px 12px', width: '50%' }}>
+                <div style={{ fontWeight: 'bold', fontSize: 10, marginBottom: 5 }}>Paiement</div>
+                <div style={{ fontSize: 9, color: '#444', lineHeight: 1.7 }}>
+                  <div>Statut : <strong>{statusLabel(doc.status)}</strong></div>
+                  {doc.due_date && <div>Échéance : <strong>{fmtDate(doc.due_date)}</strong></div>}
                 </div>
-                {totalDiscount > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 10, color: '#000' }}>Remise :</span>
-                    <span style={{ fontSize: 10, color: '#000' }}>{fmt(totalDiscount)}</span>
-                  </div>
-                )}
-                {doc.has_tva && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 10, color: '#000' }}>TVA ({tvaRate}%) :</span>
-                    <span style={{ fontSize: 10, color: '#000' }}>{fmt(tvaAmount)}</span>
-                  </div>
-                )}
               </div>
-              <div style={{ background: '#000', padding: '8px 14px', display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, color: '#fff', fontWeight: 'bold' }}>Total :</span>
-                <span style={{ fontSize: 11, color: '#fff', fontWeight: 'bold' }}>{fmt(total)}</span>
+
+              {/* Cellule Totaux */}
+              <div style={{ display: 'table-cell', verticalAlign: 'bottom', padding: '0 0 0 0', width: '50%', textAlign: 'right' }}>
+                <div style={{
+                  display: 'inline-block',
+                  background: '#fff',
+                  border: '2px solid #000',
+                  borderRadius: '10px',
+                  minWidth: 200,
+                  overflow: 'hidden',
+                  marginBottom: '-2px',
+                  marginRight: 20,
+                }}>
+                  <div style={{ padding: '8px 14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: 10, color: '#000' }}>Sous Total :</span>
+                      <span style={{ fontSize: 10, color: '#000' }}>{fmt(subtotalBefore)}</span>
+                    </div>
+                    {totalDiscount > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 10, color: '#000' }}>Remise :</span>
+                        <span style={{ fontSize: 10, color: '#000' }}>{fmt(totalDiscount)}</span>
+                      </div>
+                    )}
+                    {doc.has_tva && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 10, color: '#000' }}>TVA ({tvaRate}%) :</span>
+                        <span style={{ fontSize: 10, color: '#000' }}>{fmt(tvaAmount)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ background: '#000', padding: '8px 14px', display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 11, color: '#fff', fontWeight: 'bold' }}>Total :</span>
+                    <span style={{ fontSize: 11, color: '#fff', fontWeight: 'bold' }}>{fmt(total)}</span>
+                  </div>
+                </div>
               </div>
+
             </div>
           </div>
 
