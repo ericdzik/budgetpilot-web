@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast'
 import QRCode from 'qrcode'
 import api from '../../config/api'
 import { STORAGE_BASE_URL } from '../../config/constants'
+import { generateMinimalPdfBlob } from './MinimalPdfDocument'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -319,23 +320,34 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
   const [sharing, setSharing]         = useState(false)
-  const [qrDataUrl, setQrDataUrl] = useState(null)
+  const [qrDataUrl, setQrDataUrl]     = useState(null)
+  const [logoDataUrl, setLogoDataUrl] = useState(null)
+  const [sigDataUrl, setSigDataUrl]   = useState(null)
 
   useEffect(() => { loadData() }, [docId])
 
-  // Générer le QR code une seule fois au montage
+  // QR code en dataURL
   useEffect(() => {
     QRCode.toDataURL('https://www.getbudgetpilot.com', {
-      width: 280,
-      margin: 1,
-      errorCorrectionLevel: 'M',
+      width: 280, margin: 1, errorCorrectionLevel: 'M',
       color: { dark: '#000000', light: '#ffffff' },
-    }).then(url => {
-      setQrDataUrl(url)
-    }).catch(() => {
-      // fallback silencieux
-    })
+    }).then(setQrDataUrl).catch(() => {})
   }, [])
+
+  // Convertit une URL distant en dataURL (nécessaire pour @react-pdf/renderer)
+  const toDataUrl = async (url) => {
+    if (!url) return null
+    try {
+      const res  = await fetch(url)
+      const blob = await res.blob()
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result)
+        reader.onerror  = reject
+        reader.readAsDataURL(blob)
+      })
+    } catch { return null }
+  }
 
   const loadData = async () => {
     setLoading(true)
@@ -345,7 +357,17 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
         api.get('/profile'),
       ])
       setDoc(docRes.data)
-      setProfile(profileRes.data.user || profileRes.data)
+      const prof = profileRes.data.user || profileRes.data
+      setProfile(prof)
+
+      // Charger logo et signature en dataURL pour le PDF
+      const logoUrl = prof?.logo_path ? `${STORAGE_BASE_URL}/${prof.logo_path}` : null
+      const sigUrl  = prof?.signature_path && prof.signature_path !== '0'
+        ? `${STORAGE_BASE_URL}/${prof.signature_path}` : null
+
+      const [logo, sig] = await Promise.all([toDataUrl(logoUrl), toDataUrl(sigUrl)])
+      setLogoDataUrl(logo)
+      setSigDataUrl(sig)
     } catch {
       toast.error('Impossible de charger le document')
       onClose()
@@ -354,29 +376,23 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
     }
   }
 
+  // Génère le blob PDF via @react-pdf/renderer (MinimalPdfDocument)
+  const buildPdfBlob = () => generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUrl, sigDataUrl)
+
   const handleDownload = async () => {
     setDownloading(true)
     try {
-      // Appel direct à la route backend qui génère un vrai PDF (DomPDF)
-      // Pas de html2canvas — même moteur que le mobile
-      const response = await api.get(`/documents/${docId}/pdf`, {
-        responseType: 'blob',
-      })
-      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const blob     = await buildPdfBlob()
       const filename = `${doc?.type === 'invoice' ? 'Facture' : 'Devis'}-${doc?.reference_number || docId}.pdf`
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
+      const url      = URL.createObjectURL(blob)
+      const a        = document.createElement('a')
+      a.href         = url
+      a.download     = filename
       a.click()
       setTimeout(() => URL.revokeObjectURL(url), 60000)
       toast.success('PDF téléchargé !')
-    } catch (err) {
-      if (err?.response?.status === 403) {
-        toast.error('Limite de téléchargements PDF atteinte pour le plan gratuit.')
-      } else {
-        toast.error('Erreur lors du téléchargement')
-      }
+    } catch {
+      toast.error('Erreur lors du téléchargement')
     } finally {
       setDownloading(false)
     }
@@ -385,18 +401,15 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   const handleShare = async () => {
     setSharing(true)
     try {
-      const response = await api.get(`/documents/${docId}/pdf`, {
-        responseType: 'blob',
-      })
-      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const blob     = await buildPdfBlob()
       const filename = `${doc?.type === 'invoice' ? 'Facture' : 'Devis'}-${doc?.reference_number || docId}.pdf`
-      const file = new File([blob], filename, { type: 'application/pdf' })
+      const file     = new File([blob], filename, { type: 'application/pdf' })
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
-          title:   filename,
-          text:    `${doc?.type === 'invoice' ? 'Facture' : 'Devis'} ${doc?.reference_number}`,
-          files:   [file],
+          title: filename,
+          text:  `${doc?.type === 'invoice' ? 'Facture' : 'Devis'} ${doc?.reference_number}`,
+          files: [file],
         })
         toast.success('Partagé !')
       } else if (navigator.share) {
