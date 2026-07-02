@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Download, Share2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import html2pdf from 'html2pdf.js'
 import QRCode from 'qrcode'
 import api from '../../config/api'
 import { STORAGE_BASE_URL } from '../../config/constants'
@@ -25,7 +24,7 @@ function statusLabel(s) {
   return m[s] || s
 }
 
-// ─── Template Minimal ────────────────────────────────────────────────────────
+// ─── Template Minimal (aperçu uniquement — pas utilisé pour générer le PDF) ──
 
 function MinimalTemplate({ doc, profile, qrDataUrl }) {
   const company = {
@@ -321,7 +320,6 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   const [downloading, setDownloading] = useState(false)
   const [sharing, setSharing]         = useState(false)
   const [qrDataUrl, setQrDataUrl] = useState(null)
-  const templateRef = useRef(null)
 
   useEffect(() => { loadData() }, [docId])
 
@@ -357,61 +355,43 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   }
 
   const handleDownload = async () => {
-    if (!templateRef.current) return
     setDownloading(true)
     try {
+      // Appel direct à la route backend qui génère un vrai PDF (DomPDF)
+      // Pas de html2canvas — même moteur que le mobile
+      const response = await api.get(`/documents/${docId}/pdf`, {
+        responseType: 'blob',
+      })
+      const blob = new Blob([response.data], { type: 'application/pdf' })
       const filename = `${doc?.type === 'invoice' ? 'Facture' : 'Devis'}-${doc?.reference_number || docId}.pdf`
-      await html2pdf().set({
-        margin:      0,
-        filename,
-        image:       { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          windowWidth: 794,
-          windowHeight: 1123,
-          scrollX: 0,
-          scrollY: 0,
-          width: 794,
-        },
-        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      }).from(templateRef.current).save()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 60000)
       toast.success('PDF téléchargé !')
-    } catch {
-      toast.error('Erreur lors du téléchargement')
+    } catch (err) {
+      if (err?.response?.status === 403) {
+        toast.error('Limite de téléchargements PDF atteinte pour le plan gratuit.')
+      } else {
+        toast.error('Erreur lors du téléchargement')
+      }
     } finally {
       setDownloading(false)
     }
   }
 
   const handleShare = async () => {
-    if (!templateRef.current) return
     setSharing(true)
     try {
+      const response = await api.get(`/documents/${docId}/pdf`, {
+        responseType: 'blob',
+      })
+      const blob = new Blob([response.data], { type: 'application/pdf' })
       const filename = `${doc?.type === 'invoice' ? 'Facture' : 'Devis'}-${doc?.reference_number || docId}.pdf`
-
-      // Générer le PDF en blob
-      const blob = await html2pdf().set({
-        margin:      0,
-        filename,
-        image:       { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          windowWidth: 794,
-          windowHeight: 1123,
-          scrollX: 0,
-          scrollY: 0,
-          width: 794,
-        },
-        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      }).from(templateRef.current).outputPdf('blob')
-
       const file = new File([blob], filename, { type: 'application/pdf' })
 
-      // Web Share API — supporte le partage de fichiers (Chrome Android, Safari iOS)
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title:   filename,
@@ -420,13 +400,11 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
         })
         toast.success('Partagé !')
       } else if (navigator.share) {
-        // Partage sans fichier (lien ou texte seulement)
         await navigator.share({
           title: filename,
           text:  `${doc?.type === 'invoice' ? 'Facture' : 'Devis'} ${doc?.reference_number} — Budget Pilot`,
         })
       } else {
-        // Fallback : ouvrir le PDF dans un nouvel onglet
         const url = URL.createObjectURL(blob)
         window.open(url, '_blank')
         setTimeout(() => URL.revokeObjectURL(url), 60000)
@@ -517,7 +495,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
               <span style={{ fontSize: 14, color: '#888' }}>Chargement du document...</span>
             </div>
           ) : doc ? (
-            <div ref={templateRef} style={{ background: '#fff', boxShadow: '0 4px 24px rgba(0,0,0,0.15)', borderRadius: 4 }}>
+            <div style={{ background: '#fff', boxShadow: '0 4px 24px rgba(0,0,0,0.15)', borderRadius: 4 }}>
               <MinimalTemplate doc={doc} profile={profile} qrDataUrl={qrDataUrl || ''} />
             </div>
           ) : null}
