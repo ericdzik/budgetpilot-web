@@ -68,7 +68,7 @@ function MinimalTemplate({ doc, profile, qrDataUrl }) {
     grouped[cat].push(item)
   })
 
-  const PAGE_W = '210mm'
+  const PAGE_W = '794px'  // 210mm à 96dpi — fixe en px pour html2canvas
 
   return (
     <div style={{
@@ -77,10 +77,12 @@ function MinimalTemplate({ doc, profile, qrDataUrl }) {
       color: '#000',
       background: '#fff',
       width: PAGE_W,
-      minHeight: '297mm',
+      minHeight: '1123px',  // 297mm à 96dpi
       padding: '20px 24px 24px',
       boxSizing: 'border-box',
       position: 'relative',
+      textRendering: 'geometricPrecision',
+      WebkitFontSmoothing: 'antialiased',
     }}>
 
       {/* ── HEADER ── */}
@@ -351,7 +353,16 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
         margin:      0,
         filename,
         image:       { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 794 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          windowWidth: 794,
+          windowHeight: 1123,
+          scrollX: 0,
+          scrollY: 0,
+          width: 794,
+        },
         jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
       }).from(templateRef.current).save()
       toast.success('PDF téléchargé !')
@@ -373,7 +384,16 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
         margin:      0,
         filename,
         image:       { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 794 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          windowWidth: 794,
+          windowHeight: 1123,
+          scrollX: 0,
+          scrollY: 0,
+          width: 794,
+        },
         jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
       }).from(templateRef.current).outputPdf('blob')
 
