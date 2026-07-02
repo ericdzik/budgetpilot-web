@@ -185,6 +185,8 @@ export default function DashboardPage() {
   const caisse   = treasury?.available_balance ?? 0
   const recettes = treasury?.total_income ?? 0
   const depenses = treasury?.total_expenses ?? 0
+  // Devise fixe FCFA — multidevises temporairement masqué
+  const displayCurrency = 'FCFA'
 
   const operations    = stats?.operations ?? {}
   const recentInvoices = stats?.recent_invoices ?? []
@@ -290,11 +292,11 @@ export default function DashboardPage() {
                   }}>
                     Caisse
                   </div>
-                  <span style={{ fontSize: '25px', opacity: 0.85 }}>{activeCurrency}</span>
+                  <span style={{ fontSize: '25px', opacity: 0.85 }}>{displayCurrency}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
                   <div style={{ fontSize: '42px', fontWeight: '700', letterSpacing: '-1px' }}>
-                    {formatAmount(caisse, activeCurrency)}
+                    {formatAmount(caisse, displayCurrency)}
                   </div>
                 </div>
                 <div style={{ fontSize: '13px', opacity: 0.8, marginTop: '4px', marginBottom: '6px' }}>
@@ -354,7 +356,7 @@ export default function DashboardPage() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                     <div style={{ fontSize: '42px', fontWeight: '700', color: '#111', letterSpacing: '-0.5px' }}>
-                      {formatAmount(recettes, activeCurrency)}
+                      {formatAmount(recettes, displayCurrency)}
                     </div>
                   </div>
                 </div>
@@ -376,7 +378,7 @@ export default function DashboardPage() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                     <div style={{ fontSize: '42px', fontWeight: '700', color: '#111', letterSpacing: '-0.5px' }}>
-                      {formatAmount(depenses, activeCurrency)}
+                      {formatAmount(depenses, displayCurrency)}
                     </div>
                   </div>
                 </div>
@@ -441,7 +443,7 @@ export default function DashboardPage() {
                           {inv.created_at}
                         </span>
                         <span style={{ fontSize: '17px', fontWeight: '600', color: '#111' }}>
-                          {formatAmount(inv.amount, activeCurrency)}
+                          {formatAmount(inv.amount, displayCurrency)}
                         </span>
                         <div style={{ display: 'flex', gap: '12px' }}>
                           <Download size={22} color="#aaa" style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); handleOpenPreview(inv.id, inv.client_name) }} />
