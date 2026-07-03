@@ -128,34 +128,42 @@ function BarChart({ data }) {
                   </div>
                 )}
 
-                {/* Barre empilée : bleu (client) au-dessus, orange (getdenis) en bas */}
+                {/* Barre empilée dynamique : le plus grand segment en bas */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '70%' }}>
-                  {/* Segment Budget Pilot (bleu) — top */}
-                  {c > 0 && (
-                    <div style={{
-                      width: '100%',
-                      height: hC,
-                      backgroundColor: COLORS.client,
-                      borderRadius: hG > 0 ? '3px 3px 0 0' : '3px 3px 3px 3px',
-                      opacity: isHovered ? 1 : 0.85,
-                      transition: 'opacity 0.15s',
-                    }} />
-                  )}
-                  {/* Segment Getdenis (orange) — bottom */}
-                  {g > 0 && (
-                    <div style={{
-                      width: '100%',
-                      height: hG,
-                      backgroundColor: COLORS.getdenis,
-                      borderRadius: c > 0 ? '0 0 3px 3px' : '3px 3px 3px 3px',
-                      opacity: isHovered ? 1 : 0.85,
-                      transition: 'opacity 0.15s',
-                    }} />
-                  )}
-                  {/* Barre vide si aucune donnée */}
-                  {g === 0 && c === 0 && (
-                    <div style={{ width: '100%', height: 4, backgroundColor: '#f0f0f0', borderRadius: 3 }} />
-                  )}
+                  {(() => {
+                    // Le segment le plus petit va en haut, le plus grand en bas
+                    const topGroup   = g >= c ? 'client'   : 'getdenis'
+                    const bottomGroup = g >= c ? 'getdenis' : 'client'
+                    const hTop    = topGroup    === 'getdenis' ? hG : hC
+                    const hBottom = bottomGroup === 'getdenis' ? hG : hC
+                    const colorTop    = COLORS[topGroup]
+                    const colorBottom = COLORS[bottomGroup]
+                    return (
+                      <>
+                        {hTop > 0 && (
+                          <div style={{
+                            width: '100%', height: hTop,
+                            backgroundColor: colorTop,
+                            borderRadius: hBottom > 0 ? '3px 3px 0 0' : '3px',
+                            opacity: isHovered ? 1 : 0.85,
+                            transition: 'opacity 0.15s',
+                          }} />
+                        )}
+                        {hBottom > 0 && (
+                          <div style={{
+                            width: '100%', height: hBottom,
+                            backgroundColor: colorBottom,
+                            borderRadius: hTop > 0 ? '0 0 3px 3px' : '3px',
+                            opacity: isHovered ? 1 : 0.85,
+                            transition: 'opacity 0.15s',
+                          }} />
+                        )}
+                        {g === 0 && c === 0 && (
+                          <div style={{ width: '100%', height: 4, backgroundColor: '#f0f0f0', borderRadius: 3 }} />
+                        )}
+                      </>
+                    )
+                  })()}
                 </div>
 
                 {/* Date */}
