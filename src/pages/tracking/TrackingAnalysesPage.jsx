@@ -44,7 +44,7 @@ function DonutChart({ byGroup, total }) {
   )
 }
 
-// ─── Graphique barres ─────────────────────────────────────────────────────────
+// ─── Graphique barres empilées ────────────────────────────────────────────────
 function BarChart({ data }) {
   const [hoveredDate, setHoveredDate] = useState(null)
 
@@ -54,14 +54,17 @@ function BarChart({ data }) {
     </div>
   )
 
+  // Grouper par date
   const grouped = {}
   data.forEach(({ date, count, group }) => {
     if (!grouped[date]) grouped[date] = { getdenis: 0, client: 0 }
     grouped[date][group] = (grouped[date][group] || 0) + count
   })
   const dates = Object.keys(grouped).sort()
-  const maxVal = Math.max(...dates.map(d => Math.max(grouped[d].getdenis, grouped[d].client)), 1)
-  const yMax = Math.ceil((maxVal * 1.2) / 20) * 20 || 120
+
+  // Max = max du total empilé par jour
+  const maxVal = Math.max(...dates.map(d => grouped[d].getdenis + grouped[d].client), 1)
+  const yMax   = Math.ceil((maxVal * 1.2) / 20) * 20 || 120
   const ySteps = []
   for (let v = yMax; v >= 20; v -= 20) ySteps.push(v)
   const chartH = 180
@@ -92,14 +95,14 @@ function BarChart({ data }) {
           ))}
         </div>
 
-        {/* Barres */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: chartH }}>
+        {/* Barres empilées */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: chartH }}>
           {dates.map(date => {
-            const g = grouped[date].getdenis
-            const c = grouped[date].client
+            const g     = grouped[date].getdenis
+            const c     = grouped[date].client
             const total = g + c
-            const hG = Math.max((g / yMax) * chartH, g > 0 ? 4 : 0)
-            const hC = Math.max((c / yMax) * chartH, c > 0 ? 4 : 0)
+            const hG    = Math.max((g / yMax) * chartH, g > 0 ? 4 : 0)
+            const hC    = Math.max((c / yMax) * chartH, c > 0 ? 4 : 0)
             const isHovered = hoveredDate === date
 
             return (
@@ -113,7 +116,7 @@ function BarChart({ data }) {
                 {isHovered && total > 0 && (
                   <div style={{
                     position: 'absolute',
-                    bottom: Math.max(hG, hC) + 10,
+                    bottom: hG + hC + 10,
                     left: '50%', transform: 'translateX(-50%)',
                     backgroundColor: '#111', color: '#fff',
                     fontSize: 11, fontWeight: 600,
@@ -121,28 +124,40 @@ function BarChart({ data }) {
                     whiteSpace: 'nowrap', zIndex: 10,
                     boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                   }}>
-                    {total} scan{total > 1 ? 's' : ''}
+                    {total} scan{total > 1 ? 's' : ''}{g > 0 ? ` · ${g} Gdn` : ''}{c > 0 ? ` · ${c} BP` : ''}
                   </div>
                 )}
-                {/* Paire de barres côte à côte */}
-                <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', width: '100%', justifyContent: 'center' }}>
-                  <div style={{
-                    width: 12, height: hG,
-                    backgroundColor: COLORS.getdenis,
-                    borderRadius: '3px 3px 0 0',
-                    opacity: isHovered ? 1 : 0.9,
-                    transition: 'opacity 0.15s',
-                    flexShrink: 0,
-                  }} />
-                  <div style={{
-                    width: 12, height: hC,
-                    backgroundColor: COLORS.client,
-                    borderRadius: '3px 3px 0 0',
-                    opacity: isHovered ? 1 : 0.9,
-                    transition: 'opacity 0.15s',
-                    flexShrink: 0,
-                  }} />
+
+                {/* Barre empilée : bleu (client) au-dessus, orange (getdenis) en bas */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '70%' }}>
+                  {/* Segment Budget Pilot (bleu) — top */}
+                  {c > 0 && (
+                    <div style={{
+                      width: '100%',
+                      height: hC,
+                      backgroundColor: COLORS.client,
+                      borderRadius: hG > 0 ? '3px 3px 0 0' : '3px 3px 3px 3px',
+                      opacity: isHovered ? 1 : 0.85,
+                      transition: 'opacity 0.15s',
+                    }} />
+                  )}
+                  {/* Segment Getdenis (orange) — bottom */}
+                  {g > 0 && (
+                    <div style={{
+                      width: '100%',
+                      height: hG,
+                      backgroundColor: COLORS.getdenis,
+                      borderRadius: c > 0 ? '0 0 3px 3px' : '3px 3px 3px 3px',
+                      opacity: isHovered ? 1 : 0.85,
+                      transition: 'opacity 0.15s',
+                    }} />
+                  )}
+                  {/* Barre vide si aucune donnée */}
+                  {g === 0 && c === 0 && (
+                    <div style={{ width: '100%', height: 4, backgroundColor: '#f0f0f0', borderRadius: 3 }} />
+                  )}
                 </div>
+
                 {/* Date */}
                 <span style={{ fontSize: 10, color: '#bbb', marginTop: 6, whiteSpace: 'nowrap' }}>
                   {date.slice(5).replace('-', '.')}
