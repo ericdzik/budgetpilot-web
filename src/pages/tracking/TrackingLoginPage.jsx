@@ -29,8 +29,10 @@ export default function TrackingLoginPage() {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      position: 'fixed',
+      inset: 0,
       backgroundColor: '#f0f0f0',
+      overflowY: 'auto',
       display: 'flex',
       alignItems: 'flex-start',
       justifyContent: 'center',
