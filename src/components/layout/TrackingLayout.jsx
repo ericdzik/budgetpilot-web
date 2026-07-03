@@ -102,7 +102,7 @@ export default function TrackingLayout() {
           <img
             src="/denistest.png"
             alt="Denis"
-            style={{ width: 80, height: 80, objectFit: 'contain', margin: '0 auto 10px', display: 'block' }}
+            style={{ width: 120, height: 120, objectFit: 'contain', margin: '0 auto 10px', display: 'block' }}
           />
           <p style={{ fontSize: '13px', color: '#444', marginBottom: '10px', lineHeight: 1.4 }}>
             Besoin d'aide ou d'informations ?

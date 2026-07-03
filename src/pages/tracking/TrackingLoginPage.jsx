@@ -65,7 +65,7 @@ export default function TrackingLoginPage() {
           <img
             src="/denis_hi.png"
             alt="Denis"
-            style={{ width: 110, height: 110, objectFit: 'contain' }}
+            style={{ width: 160, height: 160, objectFit: 'contain' }}
           />
         </div>
 
