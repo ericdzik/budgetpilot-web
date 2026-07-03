@@ -99,15 +99,11 @@ export default function TrackingLayout() {
           textAlign: 'center',
           marginBottom: '12px',
         }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: '50%',
-            backgroundColor: '#555',
-            margin: '0 auto 10px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '18px',
-          }}>
-            🤖
-          </div>
+          <img
+            src="/denistest.png"
+            alt="Denis"
+            style={{ width: 52, height: 52, objectFit: 'contain', margin: '0 auto 10px', display: 'block' }}
+          />
           <p style={{ fontSize: '13px', color: '#444', marginBottom: '10px', lineHeight: 1.4 }}>
             Besoin d'aide ou d'informations ?
           </p>

@@ -43,22 +43,30 @@ export default function TrackingLoginPage() {
     }}>
       <div style={{ width: '100%', maxWidth: '480px', padding: '0 16px' }}>
 
-        {/* Logo + nom */}
+        {/* Logo + nom + mascotte */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: '12px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           marginBottom: '32px',
         }}>
-          <div style={{
-            width: 42, height: 42, borderRadius: '10px',
-            backgroundColor: '#555',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '18px', fontWeight: '700', color: '#fff',
-          }}>
-            G
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: 42, height: 42, borderRadius: '10px',
+              backgroundColor: '#555',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '18px', fontWeight: '700', color: '#fff',
+            }}>
+              G
+            </div>
+            <span style={{ fontSize: '20px', fontWeight: '600', color: '#222' }}>
+              getdenis
+            </span>
           </div>
-          <span style={{ fontSize: '20px', fontWeight: '600', color: '#222' }}>
-            getdenis
-          </span>
+          {/* Mascotte denis_hi */}
+          <img
+            src="/denis_hi.png"
+            alt="Denis"
+            style={{ width: 72, height: 72, objectFit: 'contain' }}
+          />
         </div>
 
         {/* Carte */}
