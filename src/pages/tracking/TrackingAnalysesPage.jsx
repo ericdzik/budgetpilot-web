@@ -62,9 +62,17 @@ function BarChart({ data }) {
   })
   const dates = Object.keys(grouped).sort()
 
-  // Axe Y fixe : 20, 40, 60, 80, 100, 120
-  const yMax   = 120
-  const ySteps = [120, 100, 80, 60, 40, 20]
+  // Axe Y dynamique — toujours 6 graduations régulières adaptées aux données
+  const maxVal = Math.max(...dates.map(d => grouped[d].getdenis + grouped[d].client), 1)
+  // Calcul d'un "step" propre (1, 2, 5, 10, 20, 50, 100...)
+  const rawStep = maxVal / 5
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)))
+  const niceStep = rawStep / magnitude <= 1 ? magnitude
+    : rawStep / magnitude <= 2 ? 2 * magnitude
+    : rawStep / magnitude <= 5 ? 5 * magnitude
+    : 10 * magnitude
+  const yMax   = niceStep * 6
+  const ySteps = [6, 5, 4, 3, 2, 1].map(i => i * niceStep)
   const chartH = 180
 
   return (
