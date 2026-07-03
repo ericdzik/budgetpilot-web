@@ -107,8 +107,8 @@ function BarChart({ data }) {
             const g     = grouped[date].getdenis
             const c     = grouped[date].client
             const total = g + c
-            const hG    = Math.max((g / yMax) * chartH, g > 0 ? 4 : 0)
-            const hC    = Math.max((c / yMax) * chartH, c > 0 ? 4 : 0)
+            const hG = (g / yMax) * chartH
+            const hC = (c / yMax) * chartH
             const isHovered = hoveredDate === date
 
             return (
@@ -137,13 +137,12 @@ function BarChart({ data }) {
                 {/* Barre empilée dynamique : le plus grand segment en bas */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                   {(() => {
-                    // Le segment le plus petit va en haut, le plus grand en bas
-                    const topGroup    = g >= c ? 'client'   : 'getdenis'
-                    const bottomGroup = g >= c ? 'getdenis' : 'client'
-                    const hTop    = topGroup    === 'getdenis' ? hG : hC
-                    const hBottom = bottomGroup === 'getdenis' ? hG : hC
-                    const colorTop    = COLORS[topGroup]
-                    const colorBottom = COLORS[bottomGroup]
+                    // Plus grand en bas, plus petit en haut
+                    const gIsLarger = g >= c
+                    const hBottom = gIsLarger ? hG : hC
+                    const hTop    = gIsLarger ? hC : hG
+                    const colorBottom = gIsLarger ? COLORS.getdenis : COLORS.client
+                    const colorTop    = gIsLarger ? COLORS.client   : COLORS.getdenis
                     return (
                       <>
                         {hTop > 0 && (
