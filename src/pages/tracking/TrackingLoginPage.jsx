@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
+import { Eye, EyeOff } from 'lucide-react'
 import useTrackingAuthStore from '../../store/trackingAuthStore'
 
 export default function TrackingLoginPage() {
@@ -129,11 +130,16 @@ export default function TrackingLoginPage() {
                     position: 'absolute', right: '14px', top: '50%',
                     transform: 'translateY(-50%)',
                     width: '28px', height: '28px',
-                    borderRadius: '50%',
-                    backgroundColor: '#333',
-                    border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: 'transparent',
+                    border: 'none', cursor: 'pointer', padding: 0,
                   }}
-                />
+                >
+                  {showPassword
+                    ? <EyeOff size={20} color="#888" />
+                    : <Eye size={20} color="#888" />
+                  }
+                </button>
               </div>
               <p style={{ fontSize: '12px', color: '#aaa', marginTop: '6px' }}>
                 Un mot de passe provisoire vous a été envoyé par mail
