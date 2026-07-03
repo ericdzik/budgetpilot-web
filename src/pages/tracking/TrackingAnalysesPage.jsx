@@ -62,11 +62,9 @@ function BarChart({ data }) {
   })
   const dates = Object.keys(grouped).sort()
 
-  // Max = max du total empilé par jour
-  const maxVal = Math.max(...dates.map(d => grouped[d].getdenis + grouped[d].client), 1)
-  const yMax   = Math.ceil((maxVal * 1.2) / 20) * 20 || 120
-  const ySteps = []
-  for (let v = yMax; v >= 20; v -= 20) ySteps.push(v)
+  // Axe Y fixe : 20, 40, 60, 80, 100, 120
+  const yMax   = 120
+  const ySteps = [120, 100, 80, 60, 40, 20]
   const chartH = 180
 
   return (
@@ -129,10 +127,10 @@ function BarChart({ data }) {
                 )}
 
                 {/* Barre empilée dynamique : le plus grand segment en bas */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '70%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                   {(() => {
                     // Le segment le plus petit va en haut, le plus grand en bas
-                    const topGroup   = g >= c ? 'client'   : 'getdenis'
+                    const topGroup    = g >= c ? 'client'   : 'getdenis'
                     const bottomGroup = g >= c ? 'getdenis' : 'client'
                     const hTop    = topGroup    === 'getdenis' ? hG : hC
                     const hBottom = bottomGroup === 'getdenis' ? hG : hC
@@ -142,7 +140,7 @@ function BarChart({ data }) {
                       <>
                         {hTop > 0 && (
                           <div style={{
-                            width: '100%', height: hTop,
+                            width: 14, height: hTop,
                             backgroundColor: colorTop,
                             borderRadius: hBottom > 0 ? '3px 3px 0 0' : '3px',
                             opacity: isHovered ? 1 : 0.85,
@@ -151,7 +149,7 @@ function BarChart({ data }) {
                         )}
                         {hBottom > 0 && (
                           <div style={{
-                            width: '100%', height: hBottom,
+                            width: 14, height: hBottom,
                             backgroundColor: colorBottom,
                             borderRadius: hTop > 0 ? '0 0 3px 3px' : '3px',
                             opacity: isHovered ? 1 : 0.85,
@@ -159,7 +157,7 @@ function BarChart({ data }) {
                           }} />
                         )}
                         {g === 0 && c === 0 && (
-                          <div style={{ width: '100%', height: 4, backgroundColor: '#f0f0f0', borderRadius: 3 }} />
+                          <div style={{ width: 14, height: 4, backgroundColor: '#f0f0f0', borderRadius: 3 }} />
                         )}
                       </>
                     )
