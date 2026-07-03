@@ -44,7 +44,7 @@ function DonutChart({ byGroup, total }) {
   )
 }
 
-// ─── Graphique barres empilées ────────────────────────────────────────────────
+// ─── Graphique barres empilées (SVG) ─────────────────────────────────────────
 function BarChart({ data }) {
   const [hoveredDate, setHoveredDate] = useState(null)
 
@@ -62,127 +62,142 @@ function BarChart({ data }) {
   })
   const dates = Object.keys(grouped).sort()
 
-  // Axe Y dynamique — toujours 6 graduations régulières adaptées aux données
-  const maxVal = Math.max(...dates.map(d => grouped[d].getdenis + grouped[d].client), 1)
-  // Calcul d'un "step" propre (1, 2, 5, 10, 20, 50, 100...)
+  // Axe Y dynamique — 6 graduations propres
+  const maxVal  = Math.max(...dates.map(d => grouped[d].getdenis + grouped[d].client), 1)
   const rawStep = maxVal / 5
-  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)))
-  const niceStep = rawStep / magnitude <= 1 ? magnitude
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep || 1)))
+  const niceStep  = rawStep / magnitude <= 1 ? magnitude
     : rawStep / magnitude <= 2 ? 2 * magnitude
     : rawStep / magnitude <= 5 ? 5 * magnitude
     : 10 * magnitude
   const yMax   = niceStep * 6
   const ySteps = [6, 5, 4, 3, 2, 1].map(i => i * niceStep)
+
+  // Dimensions SVG
+  const marginLeft = 32
+  const marginBottom = 24  // espace pour les dates sous l'axe X
+  const chartW = 400
   const chartH = 180
+  const svgW   = chartW + marginLeft
+  const svgH   = chartH + marginBottom
+  const barW   = 14
+  const colW   = chartW / (dates.length || 1)
 
   return (
-    <div style={{ position: 'relative', paddingLeft: 36 }}>
-      {/* Axe Y */}
-      <div style={{
-        position: 'absolute', left: 0, top: 0,
-        height: chartH,
-        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-      }}>
-        {ySteps.map(v => (
-          <span key={v} style={{ fontSize: 11, color: '#bbb', lineHeight: 1 }}>{v}</span>
-        ))}
-      </div>
+    <div>
+      <svg width="100%" viewBox={`0 0 ${svgW} ${svgH}`} style={{ overflow: 'visible' }}>
 
-      {/* Zone graphique */}
-      <div style={{ position: 'relative' }}>
-        {/* Lignes horizontales */}
-        <div style={{
-          position: 'absolute', left: 0, right: 0, top: 0, height: chartH,
-          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-          pointerEvents: 'none',
-        }}>
-          {ySteps.map(v => (
-            <div key={v} style={{ borderBottom: '1px solid #f0f0f0', width: '100%' }} />
-          ))}
-        </div>
+        {/* Lignes horizontales + labels Y */}
+        {ySteps.map((v, i) => {
+          const y = (1 - v / yMax) * chartH
+          return (
+            <g key={v}>
+              <line
+                x1={marginLeft} y1={y}
+                x2={svgW}       y2={y}
+                stroke="#f0f0f0" strokeWidth="1"
+              />
+              <text
+                x={marginLeft - 4} y={y + 4}
+                textAnchor="end"
+                fontSize="10" fill="#bbb"
+              >{v}</text>
+            </g>
+          )
+        })}
 
-        {/* Barres empilées */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: chartH }}>
-          {dates.map(date => {
-            const g     = grouped[date].getdenis
-            const c     = grouped[date].client
-            const total = g + c
-            const hG = (g / yMax) * chartH
-            const hC = (c / yMax) * chartH
-            const isHovered = hoveredDate === date
+        {/* Barres + dates */}
+        {dates.map((date, i) => {
+          const g     = grouped[date].getdenis
+          const c     = grouped[date].client
+          const total = g + c
 
-            return (
-              <div
-                key={date}
-                onMouseEnter={() => setHoveredDate(date)}
-                onMouseLeave={() => setHoveredDate(null)}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}
-              >
-                {/* Tooltip */}
-                {isHovered && total > 0 && (
-                  <div style={{
-                    position: 'absolute',
-                    bottom: hG + hC + 10,
-                    left: '50%', transform: 'translateX(-50%)',
-                    backgroundColor: '#111', color: '#fff',
-                    fontSize: 11, fontWeight: 600,
-                    padding: '4px 8px', borderRadius: 6,
-                    whiteSpace: 'nowrap', zIndex: 10,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                  }}>
+          const hG = (g / yMax) * chartH
+          const hC = (c / yMax) * chartH
+
+          // Moins grand en bas, plus grand au-dessus
+          const bottomVal   = g <= c ? g : c
+          const topVal      = g <= c ? c : g
+          const colorBottom = g <= c ? COLORS.getdenis : COLORS.client
+          const colorTop    = g <= c ? COLORS.client   : COLORS.getdenis
+          const hBottom = (bottomVal / yMax) * chartH
+          const hTop    = (topVal    / yMax) * chartH
+
+          const cx = marginLeft + i * colW + colW / 2
+          const isHovered = hoveredDate === date
+
+          return (
+            <g key={date}
+              onMouseEnter={() => setHoveredDate(date)}
+              onMouseLeave={() => setHoveredDate(null)}
+              style={{ cursor: 'default' }}
+            >
+              {/* Segment bottom (moins grand) */}
+              {hBottom > 0 && (
+                <rect
+                  x={cx - barW / 2}
+                  y={chartH - hBottom}
+                  width={barW} height={hBottom}
+                  fill={colorBottom}
+                  rx={hTop > 0 ? 0 : 3} ry={hTop > 0 ? 0 : 3}
+                  opacity={isHovered ? 1 : 0.85}
+                />
+              )}
+              {/* Segment top (plus grand) */}
+              {hTop > 0 && (
+                <rect
+                  x={cx - barW / 2}
+                  y={chartH - hBottom - hTop}
+                  width={barW} height={hTop}
+                  fill={colorTop}
+                  rx={3} ry={3}
+                  opacity={isHovered ? 1 : 0.85}
+                />
+              )}
+              {/* Barre vide */}
+              {g === 0 && c === 0 && (
+                <rect x={cx - barW / 2} y={chartH - 4} width={barW} height={4}
+                  fill="#f0f0f0" rx={3} />
+              )}
+
+              {/* Date sous l'axe X */}
+              <text
+                x={cx} y={chartH + 16}
+                textAnchor="middle"
+                fontSize="10" fill="#bbb"
+              >{date.slice(5).replace('-', '.')}</text>
+
+              {/* Tooltip au survol */}
+              {isHovered && total > 0 && (
+                <g>
+                  <rect
+                    x={cx - 50} y={chartH - hBottom - hTop - 32}
+                    width={100} height={22}
+                    fill="#111" rx={5}
+                  />
+                  <text
+                    x={cx} y={chartH - hBottom - hTop - 17}
+                    textAnchor="middle"
+                    fontSize="11" fill="#fff" fontWeight="600"
+                  >
                     {total} scan{total > 1 ? 's' : ''}{g > 0 ? ` · ${g} Gdn` : ''}{c > 0 ? ` · ${c} BP` : ''}
-                  </div>
-                )}
+                  </text>
+                </g>
+              )}
+            </g>
+          )
+        })}
 
-                {/* Barre empilée dynamique : le plus grand segment en bas */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                  {(() => {
-                    // Plus grand en bas, plus petit en haut
-                    const gIsLarger = g >= c
-                    const hBottom = gIsLarger ? hG : hC
-                    const hTop    = gIsLarger ? hC : hG
-                    const colorBottom = gIsLarger ? COLORS.getdenis : COLORS.client
-                    const colorTop    = gIsLarger ? COLORS.client   : COLORS.getdenis
-                    return (
-                      <>
-                        {hTop > 0 && (
-                          <div style={{
-                            width: 14, height: hTop,
-                            backgroundColor: colorTop,
-                            borderRadius: hBottom > 0 ? '3px 3px 0 0' : '3px',
-                            opacity: isHovered ? 1 : 0.85,
-                            transition: 'opacity 0.15s',
-                          }} />
-                        )}
-                        {hBottom > 0 && (
-                          <div style={{
-                            width: 14, height: hBottom,
-                            backgroundColor: colorBottom,
-                            borderRadius: hTop > 0 ? '0 0 3px 3px' : '3px',
-                            opacity: isHovered ? 1 : 0.85,
-                            transition: 'opacity 0.15s',
-                          }} />
-                        )}
-                        {g === 0 && c === 0 && (
-                          <div style={{ width: 14, height: 4, backgroundColor: '#f0f0f0', borderRadius: 3 }} />
-                        )}
-                      </>
-                    )
-                  })()}
-                </div>
-
-                {/* Date */}
-                <span style={{ fontSize: 10, color: '#bbb', marginTop: 6, whiteSpace: 'nowrap' }}>
-                  {date.slice(5).replace('-', '.')}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      </div>
+        {/* Axe X baseline */}
+        <line
+          x1={marginLeft} y1={chartH}
+          x2={svgW}       y2={chartH}
+          stroke="#e0e0e0" strokeWidth="1"
+        />
+      </svg>
 
       {/* Légende */}
-      <div style={{ display: 'flex', gap: 16, marginTop: 10, justifyContent: 'center' }}>
+      <div style={{ display: 'flex', gap: 16, marginTop: 8, justifyContent: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <div style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: COLORS.getdenis }} />
           <span style={{ fontSize: 11, color: '#888' }}>Getdenis</span>
