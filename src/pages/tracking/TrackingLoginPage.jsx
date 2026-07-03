@@ -32,8 +32,10 @@ export default function TrackingLoginPage() {
       minHeight: '100vh',
       backgroundColor: '#f0f0f0',
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'center',
+      paddingTop: '80px',
+      paddingBottom: '40px',
       fontFamily: "'Inter', sans-serif",
     }}>
       <div style={{ width: '100%', maxWidth: '480px', padding: '0 16px' }}>
