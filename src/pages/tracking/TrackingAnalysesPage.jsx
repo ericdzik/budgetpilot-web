@@ -255,11 +255,11 @@ export default function TrackingAnalysesPage() {
   const [loading, setLoading] = useState(true)
   const [period, setPeriod]   = useState({ from: '', to: '' })
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (from, to) => {
     setLoading(true)
     try {
       const [statsData, scansData] = await Promise.all([
-        trackingService.getStats(period.from || null, period.to || null),
+        trackingService.getStats(from || null, to || null),
         trackingService.getScans({ page: 1 }),
       ])
       setStats(statsData)
@@ -269,9 +269,22 @@ export default function TrackingAnalysesPage() {
     } finally {
       setLoading(false)
     }
-  }, [period.from, period.to])
+  }, [])
 
-  useEffect(() => { load() }, [])
+  // Chargement initial
+  useEffect(() => { load('', '') }, [])
+
+  // Recharger automatiquement quand les deux dates sont renseignées
+  const handlePeriodChange = (newPeriod) => {
+    setPeriod(newPeriod)
+    if (newPeriod.from && newPeriod.to) {
+      load(newPeriod.from, newPeriod.to)
+    }
+    // Si les deux dates sont vides, recharger toute la période
+    if (!newPeriod.from && !newPeriod.to) {
+      load('', '')
+    }
+  }
 
   const total        = stats?.total_scans  || 0
   const byGroup      = stats?.by_group     || {}
@@ -302,15 +315,15 @@ export default function TrackingAnalysesPage() {
             fontSize: 13,
           }}>
             <input type="date" value={period.from}
-              onChange={e => setPeriod(p => ({ ...p, from: e.target.value }))}
+              onChange={e => handlePeriodChange({ ...period, from: e.target.value })}
               style={{ border: 'none', outline: 'none', fontSize: 13, color: '#444', width: 110 }}
             />
             <span style={{ color: '#bbb' }}>–</span>
             <input type="date" value={period.to}
-              onChange={e => setPeriod(p => ({ ...p, to: e.target.value }))}
+              onChange={e => handlePeriodChange({ ...period, to: e.target.value })}
               style={{ border: 'none', outline: 'none', fontSize: 13, color: '#444', width: 110 }}
             />
-            <Calendar size={16} color="#555" style={{ cursor: 'pointer', flexShrink: 0 }} onClick={load} />
+            <Calendar size={16} color="#555" style={{ cursor: 'pointer', flexShrink: 0 }} onClick={() => load(period.from, period.to)} />
           </div>
           {/* Budget Pilot badge */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
