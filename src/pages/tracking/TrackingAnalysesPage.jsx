@@ -309,40 +309,37 @@ export default function TrackingAnalysesPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <h1 style={{ fontSize: 32, fontWeight: 700, color: '#111', margin: 0 }}>Analyses</h1>
 
-          {/* Sélecteur période — design noir pill */}
+          {/* Sélecteur période — même design que le Dashboard */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            backgroundColor: '#111', borderRadius: 24,
-            padding: '8px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
-            fontSize: 13, cursor: 'pointer',
+            padding: '8px 16px',
+            borderRadius: '20px',
+            border: '1.5px solid #e0e0e0',
+            backgroundColor: '#fff',
+            fontSize: 13,
           }}>
             <input type="date" value={period.from}
               onChange={e => handlePeriodChange({ ...period, from: e.target.value })}
               style={{
                 border: 'none', outline: 'none', fontSize: 13,
-                color: '#fff', backgroundColor: 'transparent',
-                colorScheme: 'dark', width: 110,
+                color: '#333', backgroundColor: 'transparent', width: 110,
+                fontWeight: 500,
               }}
             />
-            <span style={{ color: '#888' }}>–</span>
+            <span style={{ color: '#bbb' }}>–</span>
             <input type="date" value={period.to}
               onChange={e => handlePeriodChange({ ...period, to: e.target.value })}
               style={{
                 border: 'none', outline: 'none', fontSize: 13,
-                color: '#fff', backgroundColor: 'transparent',
-                colorScheme: 'dark', width: 110,
+                color: '#333', backgroundColor: 'transparent', width: 110,
+                fontWeight: 500,
               }}
             />
-            <div style={{
-              width: 20, height: 20, borderRadius: '50%',
-              backgroundColor: '#333',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', flexShrink: 0,
-            }}
+            <Calendar
+              size={15} color="#1E88E5"
+              style={{ cursor: 'pointer', flexShrink: 0 }}
               onClick={() => load(period.from, period.to)}
-            >
-              <Calendar size={12} color="#fff" />
-            </div>
+            />
           </div>
         </div>
 
