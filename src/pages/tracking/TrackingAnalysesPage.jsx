@@ -304,36 +304,36 @@ export default function TrackingAnalysesPage() {
     <div style={{ padding: '28px 32px', minHeight: '100vh', backgroundColor: '#f5f5f5', fontFamily: 'Inter, sans-serif' }}>
 
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, position: 'relative' }}>
         <h1 style={{ fontSize: 32, fontWeight: 700, color: '#111', margin: 0 }}>Analyses</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          {/* Sélecteur période */}
+
+        {/* Sélecteur période — centré */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          backgroundColor: '#fff', borderRadius: 24,
+          padding: '8px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+          fontSize: 13, position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+        }}>
+          <input type="date" value={period.from}
+            onChange={e => handlePeriodChange({ ...period, from: e.target.value })}
+            style={{ border: 'none', outline: 'none', fontSize: 13, color: '#444', width: 110 }}
+          />
+          <span style={{ color: '#bbb' }}>–</span>
+          <input type="date" value={period.to}
+            onChange={e => handlePeriodChange({ ...period, to: e.target.value })}
+            style={{ border: 'none', outline: 'none', fontSize: 13, color: '#444', width: 110 }}
+          />
+          <Calendar size={16} color="#555" style={{ cursor: 'pointer', flexShrink: 0 }} onClick={() => load(period.from, period.to)} />
+        </div>
+
+        {/* Budget Pilot badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            backgroundColor: '#fff', borderRadius: 24,
-            padding: '8px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-            fontSize: 13,
-          }}>
-            <input type="date" value={period.from}
-              onChange={e => handlePeriodChange({ ...period, from: e.target.value })}
-              style={{ border: 'none', outline: 'none', fontSize: 13, color: '#444', width: 110 }}
-            />
-            <span style={{ color: '#bbb' }}>–</span>
-            <input type="date" value={period.to}
-              onChange={e => handlePeriodChange({ ...period, to: e.target.value })}
-              style={{ border: 'none', outline: 'none', fontSize: 13, color: '#444', width: 110 }}
-            />
-            <Calendar size={16} color="#555" style={{ cursor: 'pointer', flexShrink: 0 }} onClick={() => load(period.from, period.to)} />
-          </div>
-          {/* Budget Pilot badge */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: '50%', backgroundColor: '#222',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontSize: 14, fontWeight: 700,
-            }}>B</div>
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#222' }}>Budget pilot</span>
-          </div>
+            width: 36, height: 36, borderRadius: '50%', backgroundColor: '#222',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontSize: 14, fontWeight: 700,
+          }}>B</div>
+          <span style={{ fontSize: 15, fontWeight: 600, color: '#222' }}>Budget pilot</span>
         </div>
       </div>
 
