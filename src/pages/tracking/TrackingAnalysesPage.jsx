@@ -1,8 +1,16 @@
-import { useEffect, useState, useCallback } from 'react'
-import { QrCode, Users, User, MoreHorizontal, Calendar } from 'lucide-react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { QrCode, Users, User, MoreHorizontal, ChevronDown } from 'lucide-react'
 import { trackingService } from '../../services/trackingService'
 
 const COLORS = { getdenis: '#E65100', client: '#1565C0' }
+
+const PERIOD_OPTIONS = [
+  { value: 'today',  label: "Aujourd'hui" },
+  { value: 'week',   label: 'Cette semaine' },
+  { value: 'month',  label: 'Ce mois' },
+  { value: 'all',    label: 'Toute la période' },
+  { value: 'custom', label: 'Personnalisé...' },
+]
 
 // ─── Donut SVG ────────────────────────────────────────────────────────────────
 function DonutChart({ byGroup, total }) {
@@ -253,7 +261,41 @@ export default function TrackingAnalysesPage() {
   const [stats, setStats]     = useState(null)
   const [scans, setScans]     = useState([])
   const [loading, setLoading] = useState(true)
-  const [period, setPeriod]   = useState({ from: '', to: '' })
+  const [period, setPeriod]   = useState('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo]     = useState('')
+  const [periodOpen, setPeriodOpen] = useState(false)
+  const periodRef = useRef(null)
+
+  // Fermer le dropdown au clic extérieur
+  useEffect(() => {
+    function handleClick(e) {
+      if (periodRef.current && !periodRef.current.contains(e.target)) {
+        setPeriodOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  // Calcul des dates from/to selon la période sélectionnée
+  const getDateRange = useCallback((p) => {
+    const today = new Date()
+    const fmt = d => d.toISOString().split('T')[0]
+    if (p === 'today') {
+      const t = fmt(today)
+      return { from: t, to: t }
+    }
+    if (p === 'week') {
+      const mon = new Date(today)
+      mon.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1))
+      return { from: fmt(mon), to: fmt(today) }
+    }
+    if (p === 'month') {
+      return { from: fmt(new Date(today.getFullYear(), today.getMonth(), 1)), to: fmt(today) }
+    }
+    return { from: null, to: null }
+  }, [])
 
   const load = useCallback(async (from, to) => {
     setLoading(true)
@@ -272,19 +314,21 @@ export default function TrackingAnalysesPage() {
   }, [])
 
   // Chargement initial
-  useEffect(() => { load('', '') }, [])
+  useEffect(() => { load(null, null) }, [])
 
-  // Recharger automatiquement quand les deux dates sont renseignées
-  const handlePeriodChange = (newPeriod) => {
-    setPeriod(newPeriod)
-    if (newPeriod.from && newPeriod.to) {
-      load(newPeriod.from, newPeriod.to)
-    }
-    // Si les deux dates sont vides, recharger toute la période
-    if (!newPeriod.from && !newPeriod.to) {
-      load('', '')
-    }
+  const handlePeriodSelect = (p) => {
+    setPeriod(p)
+    setPeriodOpen(false)
+    if (p === 'custom') return // attendre les dates
+    const { from, to } = getDateRange(p)
+    load(from, to)
   }
+
+  const handleCustomApply = () => {
+    if (customFrom && customTo) load(customFrom, customTo)
+  }
+
+  const currentLabel = PERIOD_OPTIONS.find(o => o.value === period)?.label || 'Toute la période'
 
   const total        = stats?.total_scans  || 0
   const byGroup      = stats?.by_group     || {}
@@ -293,53 +337,97 @@ export default function TrackingAnalysesPage() {
   const clientLinks  = byCommercial.filter(l => l.group === 'client')
   const totalClient  = clientLinks.reduce((s, l) => s + (l.total_scans || 0), 0)
 
-  // Label période affiché
-  const periodLabel = period.from && period.to
-    ? `${period.from} - ${period.to}`
-    : period.from
-    ? `depuis ${period.from}`
-    : 'Toute la période'
-
   return (
     <div style={{ padding: '28px 32px', minHeight: '100vh', backgroundColor: '#f5f5f5', fontFamily: 'Inter, sans-serif' }}>
 
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, position: 'relative' }}>
-        {/* Titre + Calendrier côte à côte à gauche */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+        {/* Titre + Filtre à gauche */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <h1 style={{ fontSize: 32, fontWeight: 700, color: '#111', margin: 0 }}>Analyses</h1>
 
-          {/* Sélecteur période — même design que le Dashboard */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '8px 16px',
-            borderRadius: '20px',
-            border: '1.5px solid #e0e0e0',
-            backgroundColor: '#fff',
-            fontSize: 13,
-          }}>
-            <input type="date" value={period.from}
-              onChange={e => handlePeriodChange({ ...period, from: e.target.value })}
+          {/* Dropdown filtre période — même design que Dashboard */}
+          <div ref={periodRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setPeriodOpen(v => !v)}
               style={{
-                border: 'none', outline: 'none', fontSize: 13,
-                color: '#333', backgroundColor: 'transparent', width: 110,
-                fontWeight: 500,
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '8px 16px', borderRadius: 20,
+                border: '1.5px solid #e0e0e0', fontSize: 15,
+                fontWeight: 600, color: '#333',
+                backgroundColor: '#fff', cursor: 'pointer', outline: 'none',
               }}
-            />
-            <span style={{ color: '#bbb' }}>–</span>
-            <input type="date" value={period.to}
-              onChange={e => handlePeriodChange({ ...period, to: e.target.value })}
-              style={{
-                border: 'none', outline: 'none', fontSize: 13,
-                color: '#333', backgroundColor: 'transparent', width: 110,
-                fontWeight: 500,
-              }}
-            />
-            <Calendar
-              size={15} color="#1E88E5"
-              style={{ cursor: 'pointer', flexShrink: 0 }}
-              onClick={() => load(period.from, period.to)}
-            />
+            >
+              {currentLabel}
+              <ChevronDown size={15} color="#1E88E5" style={{
+                transition: 'transform 0.2s',
+                transform: periodOpen ? 'rotate(180deg)' : 'none',
+              }} />
+            </button>
+
+            {periodOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 200,
+                backgroundColor: '#fff', borderRadius: 16,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
+                padding: 8, minWidth: 200,
+              }}>
+                {PERIOD_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => handlePeriodSelect(opt.value)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      width: '100%', padding: '10px 16px',
+                      background: period === opt.value ? '#e8f4ff' : 'none',
+                      border: 'none', borderRadius: 10,
+                      fontSize: 15, fontWeight: period === opt.value ? 700 : 500,
+                      color: period === opt.value ? '#1E88E5' : '#333',
+                      cursor: 'pointer', textAlign: 'left',
+                    }}
+                  >
+                    {opt.label}
+                    {period === opt.value && (
+                      <span style={{
+                        width: 20, height: 20, borderRadius: '50%',
+                        backgroundColor: '#1E88E5',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </span>
+                    )}
+                  </button>
+                ))}
+
+                {/* Inputs personnalisés */}
+                {period === 'custom' && (
+                  <div style={{ padding: '8px 16px 12px', borderTop: '1px solid #f0f0f0', marginTop: 4 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <input type="date" value={customFrom}
+                        onChange={e => setCustomFrom(e.target.value)}
+                        style={{ padding: '8px 10px', border: '1.5px solid #e0e0e0', borderRadius: 8, fontSize: 13, outline: 'none' }}
+                      />
+                      <input type="date" value={customTo}
+                        onChange={e => setCustomTo(e.target.value)}
+                        style={{ padding: '8px 10px', border: '1.5px solid #e0e0e0', borderRadius: 8, fontSize: 13, outline: 'none' }}
+                      />
+                      <button
+                        onClick={handleCustomApply}
+                        style={{
+                          padding: '8px', backgroundColor: '#1E88E5', color: '#fff',
+                          border: 'none', borderRadius: 8, fontSize: 13,
+                          fontWeight: 600, cursor: 'pointer',
+                        }}
+                      >
+                        Appliquer
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

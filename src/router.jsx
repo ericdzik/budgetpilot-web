@@ -18,6 +18,7 @@ import TrackingLoginPage from './pages/tracking/TrackingLoginPage'
 import TrackingAnalysesPage from './pages/tracking/TrackingAnalysesPage'
 import TrackingHistoriquePage from './pages/tracking/TrackingHistoriquePage'
 import TrackingQRCodesPage from './pages/tracking/TrackingQRCodesPage'
+import TrackingCalendrierPage from './pages/tracking/TrackingCalendrierPage'
 
 // Pages App
 import DashboardPage from './pages/DashboardPage'
@@ -148,9 +149,10 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Navigate to="/tracking/analyses" replace /> },
-      { path: 'analyses',   element: <TrackingAnalysesPage /> },
-      { path: 'historique', element: <TrackingHistoriquePage /> },
-      { path: 'qrcodes',    element: <TrackingQRCodesPage /> },
+      { path: 'analyses',    element: <TrackingAnalysesPage /> },
+      { path: 'historique',  element: <TrackingHistoriquePage /> },
+      { path: 'calendrier',  element: <TrackingCalendrierPage /> },
+      { path: 'qrcodes',     element: <TrackingQRCodesPage /> },
     ],
   },
 

@@ -84,8 +84,9 @@ export default function TrackingLayout() {
 
         {/* Navigation */}
         <nav style={{ flex: 1 }}>
-          <SidebarLink to="/tracking/analyses"  label="Analyses" />
+          <SidebarLink to="/tracking/analyses"   label="Analyses" />
           <SidebarLink to="/tracking/historique" label="Historique" />
+          <SidebarLink to="/tracking/calendrier" label="Calendrier" />
           {isAdmin && (
             <SidebarLink to="/tracking/qrcodes" label="QR Codes" />
           )}
