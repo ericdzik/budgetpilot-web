@@ -19,6 +19,7 @@ import TrackingAnalysesPage from './pages/tracking/TrackingAnalysesPage'
 import TrackingHistoriquePage from './pages/tracking/TrackingHistoriquePage'
 import TrackingQRCodesPage from './pages/tracking/TrackingQRCodesPage'
 import TrackingCalendrierPage from './pages/tracking/TrackingCalendrierPage'
+import TrackingSettingsPage from './pages/tracking/TrackingSettingsPage'
 
 // Pages App
 import DashboardPage from './pages/DashboardPage'
@@ -153,6 +154,7 @@ export const router = createBrowserRouter([
       { path: 'historique',  element: <TrackingHistoriquePage /> },
       { path: 'calendrier',  element: <TrackingCalendrierPage /> },
       { path: 'qrcodes',     element: <TrackingQRCodesPage /> },
+      { path: 'parametres',  element: <TrackingSettingsPage /> },
     ],
   },
 

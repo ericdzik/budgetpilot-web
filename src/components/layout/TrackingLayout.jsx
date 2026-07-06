@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import useTrackingAuthStore from '../../store/trackingAuthStore'
+import useTrackingSettingsStore from '../../store/trackingSettingsStore'
 
 function SidebarLink({ to, label }) {
   return (
@@ -37,6 +38,7 @@ function SidebarLink({ to, label }) {
 
 export default function TrackingLayout() {
   const { trackingLogout, trackingUser } = useTrackingAuthStore()
+  const { clientLogoUrl, clientName }    = useTrackingSettingsStore()
   const navigate = useNavigate()
   const isAdmin = trackingUser?.role === 'admin'
 
@@ -69,16 +71,13 @@ export default function TrackingLayout() {
           display: 'flex', alignItems: 'center', gap: '10px',
           padding: '0 8px', marginBottom: '40px',
         }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: '8px',
-            backgroundColor: '#555',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '14px', fontWeight: '700', color: '#fff',
-          }}>
-            G
-          </div>
+          <img
+            src={clientLogoUrl}
+            alt={clientName}
+            style={{ width: 52, height: 52, objectFit: 'contain', borderRadius: '8px' }}
+          />
           <span style={{ fontSize: '17px', fontWeight: '600', color: '#222' }}>
-            getdenis
+            {clientName}
           </span>
         </div>
 
@@ -86,9 +85,12 @@ export default function TrackingLayout() {
         <nav style={{ flex: 1 }}>
           <SidebarLink to="/tracking/analyses"   label="Analyses" />
           <SidebarLink to="/tracking/historique" label="Historique" />
-          <SidebarLink to="/tracking/calendrier" label="Calendrier" />
+          {/* <SidebarLink to="/tracking/calendrier" label="Calendrier" /> */}
           {isAdmin && (
-            <SidebarLink to="/tracking/qrcodes" label="QR Codes" />
+            <SidebarLink to="/tracking/qrcodes"    label="QR Codes" />
+          )}
+          {isAdmin && (
+            <SidebarLink to="/tracking/parametres" label="Paramètres" />
           )}
         </nav>
 

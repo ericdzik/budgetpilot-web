@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { trackingService } from '../../services/trackingService'
+import useTrackingSettingsStore from '../../store/trackingSettingsStore'
 
 const COLORS = { getdenis: '#E65100', client: '#1565C0' }
 
@@ -10,6 +11,7 @@ const FILTERS = [
 ]
 
 export default function TrackingHistoriquePage() {
+  const { partnerLogoUrl, partnerName } = useTrackingSettingsStore()
   const [scans, setScans]         = useState([])
   const [total, setTotal]         = useState(0)
   const [loading, setLoading]     = useState(true)
@@ -94,13 +96,8 @@ export default function TrackingHistoriquePage() {
           </div>
           {/* Logo Budget Pilot */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: '50%',
-              backgroundColor: '#222',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontSize: '14px', fontWeight: '700',
-            }}>B</div>
-            <span style={{ fontSize: '14px', fontWeight: '600', color: '#222' }}>Budget pilot</span>
+            <img src={partnerLogoUrl} alt={partnerName} style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 8 }} />
+            <span style={{ fontSize: '14px', fontWeight: '600', color: '#222' }}>{partnerName}</span>
           </div>
         </div>
       </div>

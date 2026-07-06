@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { trackingService } from '../../services/trackingService'
+import useTrackingSettingsStore from '../../store/trackingSettingsStore'
 
 const COLORS = { getdenis: '#E65100', client: '#1565C0' }
 
@@ -129,6 +130,7 @@ function DayDetailModal({ date, scans, onClose }) {
 
 // ─── Page principale ────────────────────────────────────────────────────────
 export default function TrackingCalendrierPage() {
+  const { partnerLogoUrl, partnerName } = useTrackingSettingsStore()
   const today    = new Date()
   const [year, setYear]   = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth()) // 0-indexed
@@ -233,12 +235,8 @@ export default function TrackingCalendrierPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
         <h1 style={{ fontSize: 32, fontWeight: 700, color: '#111', margin: 0 }}>Calendrier</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: '50%', backgroundColor: '#222',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontSize: 14, fontWeight: 700,
-          }}>B</div>
-          <span style={{ fontSize: 15, fontWeight: 600, color: '#222' }}>Budget pilot</span>
+          <img src={partnerLogoUrl} alt={partnerName} style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 8 }} />
+          <span style={{ fontSize: 15, fontWeight: 600, color: '#222' }}>{partnerName}</span>
         </div>
       </div>
 
