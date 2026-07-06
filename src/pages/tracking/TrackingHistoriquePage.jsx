@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { trackingService } from '../../services/trackingService'
 import useTrackingSettingsStore from '../../store/trackingSettingsStore'
+import TrackingDateButton from '../../components/ui/TrackingDateButton'
 
 const COLORS = { getdenis: '#E65100', client: '#1565C0' }
 
@@ -18,18 +19,22 @@ export default function TrackingHistoriquePage() {
   const [filter, setFilter]       = useState('all')
   const [links, setLinks]         = useState([])
   const [selectedCode, setSelectedCode] = useState(null)
-  const [period, setPeriod]       = useState({ from: '', to: '' })
+  const [dateStart, setDateStart] = useState(null)
+  const [dateEnd,   setDateEnd]   = useState(null)
   const [page, setPage]           = useState(1)
   const [lastPage, setLastPage]   = useState(1)
 
-  const load = async (p = 1) => {
+  const fmtDate = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+
+  const load = async (p = 1, start = dateStart, end = dateEnd) => {
     setLoading(true)
     try {
-      const params = { page: p }
+      const params = { page: p, per_page: 20 }
       if (filter !== 'all') params.group = filter
       if (selectedCode)     params.code  = selectedCode
-      if (period.from)      params.from  = period.from
-      if (period.to)        params.to    = period.to
+      if (start) params.from = fmtDate(start)
+      if (end)   params.to   = fmtDate(end)
 
       const data = await trackingService.getScans(params)
       setScans(data.data || [])
@@ -41,6 +46,18 @@ export default function TrackingHistoriquePage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleDateChange = (start, end) => {
+    setDateStart(start)
+    setDateEnd(end)
+    load(1, start, end)
+  }
+
+  const handleDateReset = () => {
+    setDateStart(null)
+    setDateEnd(null)
+    load(1, null, null)
   }
 
   const loadLinks = async () => {
@@ -64,41 +81,37 @@ export default function TrackingHistoriquePage() {
     <div style={{ padding: '32px', minHeight: '100vh' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#111' }}>Historique</h1>
+        {/* Titre + date button côte à côte */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {/* Sélecteur période */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-            backgroundColor: '#fff', borderRadius: '20px',
-            padding: '8px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-          }}>
-            <input
-              type="date" value={period.from}
-              onChange={e => setPeriod(p => ({ ...p, from: e.target.value }))}
-              style={{ border: 'none', outline: 'none', fontSize: '13px', color: '#444' }}
-            />
-            <span style={{ color: '#aaa' }}>—</span>
-            <input
-              type="date" value={period.to}
-              onChange={e => setPeriod(p => ({ ...p, to: e.target.value }))}
-              style={{ border: 'none', outline: 'none', fontSize: '13px', color: '#444' }}
-            />
+          <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#111', margin: 0 }}>Historique</h1>
+          <TrackingDateButton
+            startDate={dateStart}
+            endDate={dateEnd}
+            onChange={handleDateChange}
+            accentColor="#E65100"
+          />
+          {/* Bouton reset — visible seulement si un filtre est actif */}
+          {dateStart && dateEnd && (
             <button
-              onClick={() => load(1)}
+              onClick={handleDateReset}
+              title="Voir toutes les données"
               style={{
-                backgroundColor: '#E65100', color: '#fff',
-                border: 'none', borderRadius: '12px',
-                padding: '4px 12px', fontSize: '12px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '7px 14px', borderRadius: 20,
+                border: '1.5px solid #E65100',
+                backgroundColor: '#fff0ea', color: '#E65100',
+                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                whiteSpace: 'nowrap',
               }}
             >
-              OK
+              ✕ Tout
             </button>
-          </div>
-          {/* Logo Budget Pilot */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <img src={partnerLogoUrl} alt={partnerName} style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 8 }} />
-            <span style={{ fontSize: '14px', fontWeight: '600', color: '#222' }}>{partnerName}</span>
-          </div>
+          )}
+        </div>
+        {/* Logo partenaire à droite */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img src={partnerLogoUrl} alt={partnerName} style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 8 }} />
+          <span style={{ fontSize: '14px', fontWeight: '600', color: '#222' }}>{partnerName}</span>
         </div>
       </div>
 

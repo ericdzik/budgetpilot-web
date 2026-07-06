@@ -11,8 +11,9 @@ export const trackingService = {
   },
 
   // Historique paginé des scans
-  getScans: async ({ group, code, from, to, page = 1 } = {}) => {
+  getScans: async ({ group, code, from, to, page = 1, per_page } = {}) => {
     const params = { page }
+    if (per_page) params.per_page = per_page
     if (group) params.group = group
     if (code)  params.code  = code
     if (from)  params.from  = from

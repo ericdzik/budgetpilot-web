@@ -496,28 +496,35 @@ export default function TrackingAnalysesPage() {
   const { partnerLogoUrl, partnerName } = useTrackingSettingsStore()
   const [stats, setStats]     = useState(null)
   const [scans, setScans]     = useState([])
+  const [scansTotal, setScansTotal] = useState(0)
+  const [scansPage,  setScansPage]  = useState(1)
+  const [scansLastPage, setScansLastPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const today = new Date()
 
-  // Par défaut : mois en cours
-  const defaultStart = new Date(today.getFullYear(), today.getMonth(), 1)
-  const defaultEnd   = today
-
-  const [customStart, setCustomStart] = useState(defaultStart)
-  const [customEnd,   setCustomEnd]   = useState(defaultEnd)
+  // Par défaut : null → toutes les données
+  const [customStart, setCustomStart] = useState(null)
+  const [customEnd,   setCustomEnd]   = useState(null)
 
   const fmtDate = (d) =>
     `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 
-  const load = useCallback(async (from, to) => {
+  const load = useCallback(async (from, to, page = 1) => {
     setLoading(true)
     try {
+      const scanParams = { page, per_page: 10 }
+      if (from) scanParams.from = from
+      if (to)   scanParams.to   = to
+
       const [statsData, scansData] = await Promise.all([
         trackingService.getStats(from || null, to || null),
-        trackingService.getScans({ page: 1 }),
+        trackingService.getScans(scanParams),
       ])
       setStats(statsData)
       setScans(scansData.data || [])
+      setScansTotal(scansData.total || 0)
+      setScansLastPage(scansData.last_page || 1)
+      setScansPage(page)
     } catch (e) {
       console.error(e)
     } finally {
@@ -525,15 +532,27 @@ export default function TrackingAnalysesPage() {
     }
   }, [])
 
-  // Chargement initial — mois en cours par défaut
+  // Chargement initial — toutes les données (pas de filtre)
   useEffect(() => {
-    load(fmtDate(defaultStart), fmtDate(defaultEnd))
+    load(null, null)
   }, [])
 
   const handleRangeChange = (start, end) => {
     setCustomStart(start)
     setCustomEnd(end)
-    load(fmtDate(start), fmtDate(end))
+    load(fmtDate(start), fmtDate(end), 1)
+  }
+
+  const handleRangeReset = () => {
+    setCustomStart(null)
+    setCustomEnd(null)
+    load(null, null, 1)
+  }
+
+  const handleScansPage = (p) => {
+    const from = customStart ? fmtDate(customStart) : null
+    const to   = customEnd   ? fmtDate(customEnd)   : null
+    load(from, to, p)
   }
 
   const total        = stats?.total_scans  || 0
@@ -558,6 +577,23 @@ export default function TrackingAnalysesPage() {
             onChange={handleRangeChange}
             accentColor="#E65100"
           />
+          {/* Reset filtre */}
+          {customStart && customEnd && (
+            <button
+              onClick={handleRangeReset}
+              title="Voir toutes les données"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '7px 14px', borderRadius: 20,
+                border: '1.5px solid #E65100',
+                backgroundColor: '#fff0ea', color: '#E65100',
+                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ✕ Tout
+            </button>
+          )}
         </div>
 
         {/* Budget Pilot badge */}
@@ -680,7 +716,9 @@ export default function TrackingAnalysesPage() {
                 padding: '16px 20px 12px',
               }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: '#222' }}>Liste des scans</span>
-                <MoreHorizontal size={18} color="#555" style={{ cursor: 'pointer' }} />
+                <span style={{ fontSize: 12, color: '#aaa', backgroundColor: '#f5f5f5', padding: '2px 8px', borderRadius: 10 }}>
+                  {scansTotal} total
+                </span>
               </div>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -694,7 +732,7 @@ export default function TrackingAnalysesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {scans.slice(0, 7).map((scan, i) => (
+                  {scans.map((scan, i) => (
                     <tr key={scan.id} style={{
                       backgroundColor: scan.group === 'getdenis'
                         ? (i % 2 === 0 ? '#fff8f5' : '#fff3ee')
@@ -719,13 +757,51 @@ export default function TrackingAnalysesPage() {
                   ))}
                   {scans.length === 0 && (
                     <tr>
-                      <td colSpan={4} style={{ padding: '32px', textAlign: 'center', color: '#ccc', fontSize: 13 }}>
+                      <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: '#ccc', fontSize: 13 }}>
                         Aucun scan pour le moment
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
+
+              {/* Pagination */}
+              {scansLastPage > 1 && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  gap: 8, padding: '12px 16px',
+                  borderTop: '1px solid #f0f0f0',
+                }}>
+                  <button
+                    onClick={() => handleScansPage(scansPage - 1)}
+                    disabled={scansPage === 1}
+                    style={{
+                      padding: '5px 14px', borderRadius: 20,
+                      border: '1px solid #e0e0e0',
+                      backgroundColor: '#fff', cursor: scansPage === 1 ? 'not-allowed' : 'pointer',
+                      color: scansPage === 1 ? '#ccc' : '#444', fontSize: 12,
+                    }}
+                  >
+                    ‹ Préc.
+                  </button>
+                  <span style={{ fontSize: 12, color: '#666' }}>
+                    {scansPage} / {scansLastPage}
+                  </span>
+                  <button
+                    onClick={() => handleScansPage(scansPage + 1)}
+                    disabled={scansPage === scansLastPage}
+                    style={{
+                      padding: '5px 14px', borderRadius: 20,
+                      border: '1px solid #e0e0e0',
+                      backgroundColor: scansPage === scansLastPage ? '#f5f5f5' : '#E65100',
+                      cursor: scansPage === scansLastPage ? 'not-allowed' : 'pointer',
+                      color: scansPage === scansLastPage ? '#ccc' : '#fff', fontSize: 12,
+                    }}
+                  >
+                    Suiv. ›
+                  </button>
+                </div>
+              )}
             </div>
 
           </div>
