@@ -1,23 +1,28 @@
 import { useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useParams } from 'react-router-dom'
 
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.budget.budgetpilot'
-const APP_STORE_URL  = 'https://apps.apple.com/app/b-pilot/id6743278510'
+const APP_STORE_URL  = 'https://apps.apple.com/app/b-pilot/id6760863629'
 const WEBSITE_URL    = 'https://www.getbudgetpilot-web.com'
 
 /**
- * Page de redirection universelle — /app?ref=CODE
+ * Page de redirection universelle
+ *
+ * Supporte deux formats :
+ *   - /app?ref=CODE        (format actuel)
+ *   - /app/ref/CODE        (ancien format, rétrocompatibilité)
  *
  * Détecte la plateforme via User-Agent et redirige vers :
  *   - Play Store  (Android)
  *   - App Store   (iOS)
  *   - Site web    (Desktop / autres)
- *
- * Le code de parrainage est transmis en paramètre store quand c'est possible.
  */
 export default function AppRedirectPage() {
   const [searchParams] = useSearchParams()
-  const refCode = searchParams.get('ref') || ''
+  const params = useParams()
+
+  // Priorité : query param ?ref=CODE, sinon path param /app/ref/:code
+  const refCode = searchParams.get('ref') || params.code || ''
 
   useEffect(() => {
     const ua = navigator.userAgent.toLowerCase()
