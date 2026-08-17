@@ -561,7 +561,7 @@ function Step1({ data, onChange, onNext }) {
 
 // ─── Étape 2 : Page complète fusionnée (avatar + infos + contacts + CGU) ─────
 
-function Step2({ data, onChange, onSubmit, onBack, loading }) {
+function Step2({ data, onChange, onBatchChange, onSubmit, onBack, loading }) {
   const [errors, setErrors] = useState({})
   const [acceptTerms, setAcceptTerms] = useState(false)
 
@@ -670,11 +670,13 @@ function Step2({ data, onChange, onSubmit, onBack, loading }) {
               dialCode={data.dialCode || '228'}
               countryCode={data.countryCode || 'TG'}
               onSelect={(dial, code) => {
-                onChange('dialCode', dial)
-                onChange('countryCode', code)
                 const full = '+' + dial + (data.localPhone || '')
-                onChange('phone', full)
-                onChange('currency', DIAL_TO_CURRENCY[dial] || 'XOF')
+                onBatchChange({
+                  dialCode: dial,
+                  countryCode: code,
+                  phone: full,
+                  currency: DIAL_TO_CURRENCY[dial] || 'XOF',
+                })
               }}
             />
             {/* Numéro local */}
@@ -809,6 +811,7 @@ export default function RegisterPage() {
   })
 
   const set = (field, value) => setForm(p => ({ ...p, [field]: value }))
+  const setBatch = (updates) => setForm(p => ({ ...p, ...updates }))
 
   const handleSubmit = async () => {
     setLoading(true)
@@ -851,7 +854,7 @@ export default function RegisterPage() {
   }
 
   // Étape 2 — page complète fusionnée (plein écran bleu)
-  if (step === 2) return <Step2 data={form} onChange={set} onSubmit={handleSubmit} onBack={() => setStep(1)} loading={loading} />
+  if (step === 2) return <Step2 data={form} onChange={set} onBatchChange={setBatch} onSubmit={handleSubmit} onBack={() => setStep(1)} loading={loading} />
 
   // Étape 1 — fond bleu + carte blanche centrée
   return (
