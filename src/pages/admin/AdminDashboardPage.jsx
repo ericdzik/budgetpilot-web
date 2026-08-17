@@ -290,7 +290,7 @@ export default function AdminDashboardPage() {
 
                 {/* Abonnement */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <PlanBadge plan={u.plan} />
+                  <PlanBadge plan={u.display_plan || u.plan} />
                   {subExpiry && (
                     <span style={{ fontSize: '11px', color: '#aaa' }}>
                       Expire le {formatDate(subExpiry)}
