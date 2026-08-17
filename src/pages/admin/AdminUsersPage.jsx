@@ -130,7 +130,7 @@ export default function AdminUsersPage() {
           <option value="pro">Pro</option>
           <option value="basic">Basic</option>
           <option value="freemium">Freemium</option>
-          <option value="welcome">Welcome</option>
+          <option value="welcome">Welcome (essai)</option>
         </select>
       </div>
 
@@ -196,7 +196,7 @@ export default function AdminUsersPage() {
                       </div>
                     </div>
                   </td>
-                  <td style={{ padding: '14px 16px' }}><PlanBadge plan={u.plan} /></td>
+                  <td style={{ padding: '14px 16px' }}><PlanBadge plan={u.display_plan || u.plan} /></td>
                   <td style={{ padding: '14px 16px', color: '#555' }}>{formatDate(u.created_at)}</td>
                   <td style={{ padding: '14px 16px', color: '#555', textAlign: 'center' }}>{u.clients_count ?? 0}</td>
                   <td style={{ padding: '14px 16px', color: '#555', textAlign: 'center' }}>{u.documents_count ?? 0}</td>
