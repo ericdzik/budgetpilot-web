@@ -1,11 +1,182 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { X, Eye, EyeOff, User, Lock, Phone, Mail, Gift } from 'lucide-react'
+import { X, Eye, EyeOff, User, Lock, Phone, Mail, Gift, ChevronDown } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 import GoogleAuthButton from '../../components/ui/GoogleAuthButton'
 
+// ─── Table indicatif → devise (même logique que le mobile) ─────────────────
+const DIAL_TO_CURRENCY = {
+  '228': 'XOF', '229': 'XOF', '225': 'XOF', '221': 'XOF',
+  '223': 'XOF', '226': 'XOF', '227': 'XOF', '224': 'GNF',
+  '237': 'XAF', '241': 'XAF', '242': 'XAF', '236': 'XAF',
+  '235': 'XAF', '240': 'XAF', '243': 'CDF', '234': 'NGN',
+  '233': 'GHS', '212': 'MAD', '213': 'DZD', '216': 'TND',
+  '20':  'EGP', '251': 'ETB', '254': 'KES', '255': 'TZS',
+  '256': 'UGX', '27':  'ZAR', '260': 'ZMW', '263': 'ZWL',
+  '33':  'EUR', '32':  'EUR', '352': 'EUR', '41':  'CHF',
+  '34':  'EUR', '39':  'EUR', '49':  'EUR', '31':  'EUR',
+  '351': 'EUR', '30':  'EUR', '43':  'EUR', '358': 'EUR',
+  '1':   'USD', '44':  'GBP', '61':  'AUD', '64':  'NZD',
+  '81':  'JPY', '82':  'KRW', '86':  'CNY', '91':  'INR',
+  '55':  'BRL', '52':  'MXN', '7':   'RUB', '966': 'SAR',
+  '971': 'AED', '972': 'ILS', '90':  'TRY', '62':  'IDR',
+  '60':  'MYR', '66':  'THB', '65':  'SGD', '63':  'PHP',
+  '84':  'VND', '880': 'BDT', '92':  'PKR', '48':  'PLN',
+  '46':  'SEK', '47':  'NOK', '45':  'DKK',
+}
+
+function getCurrencyFromPhone(phone) {
+  // Extraire l'indicatif — supporte +228..., 00228..., 228...
+  let digits = phone.replace(/\D/g, '')
+  if (phone.startsWith('+')) digits = phone.slice(1).replace(/\D/g, '')
+  else if (digits.startsWith('00')) digits = digits.slice(2)
+
+  if (!digits) return 'XOF'
+
+  // Trier par longueur décroissante pour matcher le plus précis en premier (ex: 228 avant 2)
+  const keys = Object.keys(DIAL_TO_CURRENCY).sort((a, b) => b.length - a.length)
+  for (const key of keys) {
+    if (digits.startsWith(key)) return DIAL_TO_CURRENCY[key]
+  }
+  return 'XOF' // Défaut Franc CFA
+}
+
+// ─── Table pays : drapeau + indicatif (ordre alphabétique, Afrique en premier) ─
+const COUNTRIES = [
+  // ── Afrique (BCEAO/XOF) ──
+  { flag: '🇹🇬', name: 'Togo',               dial: '228' },
+  { flag: '🇧🇯', name: 'Bénin',              dial: '229' },
+  { flag: '🇨🇮', name: "Côte d'Ivoire",      dial: '225' },
+  { flag: '🇸🇳', name: 'Sénégal',            dial: '221' },
+  { flag: '🇲🇱', name: 'Mali',               dial: '223' },
+  { flag: '🇧🇫', name: 'Burkina Faso',       dial: '226' },
+  { flag: '🇳🇪', name: 'Niger',              dial: '227' },
+  // ── Afrique (XAF) ──
+  { flag: '🇨🇲', name: 'Cameroun',           dial: '237' },
+  { flag: '🇬🇦', name: 'Gabon',              dial: '241' },
+  { flag: '🇨🇬', name: 'Congo',              dial: '242' },
+  { flag: '🇨🇫', name: 'Centrafrique',       dial: '236' },
+  { flag: '🇹🇩', name: 'Tchad',              dial: '235' },
+  { flag: '🇬🇶', name: 'Guinée Équatoriale', dial: '240' },
+  // ── Afrique (autres) ──
+  { flag: '🇬🇳', name: 'Guinée',             dial: '224' },
+  { flag: '🇨🇩', name: 'RD Congo',           dial: '243' },
+  { flag: '🇳🇬', name: 'Nigeria',            dial: '234' },
+  { flag: '🇬🇭', name: 'Ghana',              dial: '233' },
+  { flag: '🇲🇦', name: 'Maroc',              dial: '212' },
+  { flag: '🇩🇿', name: 'Algérie',            dial: '213' },
+  { flag: '🇹🇳', name: 'Tunisie',            dial: '216' },
+  { flag: '🇪🇬', name: 'Égypte',             dial: '20'  },
+  { flag: '🇪🇹', name: 'Éthiopie',           dial: '251' },
+  { flag: '🇰🇪', name: 'Kenya',              dial: '254' },
+  { flag: '🇹🇿', name: 'Tanzanie',           dial: '255' },
+  { flag: '🇺🇬', name: 'Ouganda',            dial: '256' },
+  { flag: '🇿🇦', name: 'Afrique du Sud',     dial: '27'  },
+  { flag: '🇿🇲', name: 'Zambie',             dial: '260' },
+  // ── Europe ──
+  { flag: '🇫🇷', name: 'France',             dial: '33'  },
+  { flag: '🇧🇪', name: 'Belgique',           dial: '32'  },
+  { flag: '🇨🇭', name: 'Suisse',             dial: '41'  },
+  { flag: '🇩🇪', name: 'Allemagne',          dial: '49'  },
+  { flag: '🇬🇧', name: 'Royaume-Uni',        dial: '44'  },
+  { flag: '🇵🇹', name: 'Portugal',           dial: '351' },
+  { flag: '🇪🇸', name: 'Espagne',            dial: '34'  },
+  { flag: '🇮🇹', name: 'Italie',             dial: '39'  },
+  // ── Amériques ──
+  { flag: '🇺🇸', name: 'États-Unis',         dial: '1'   },
+  { flag: '🇨🇦', name: 'Canada',             dial: '1'   },
+  { flag: '🇧🇷', name: 'Brésil',             dial: '55'  },
+  // ── Moyen-Orient ──
+  { flag: '🇸🇦', name: 'Arabie Saoudite',    dial: '966' },
+  { flag: '🇦🇪', name: 'Émirats Arabes',     dial: '971' },
+]
+
 // ─── Composants partagés ────────────────────────────────────────────────────
+
+/** Sélecteur de pays avec drapeau et indicatif */
+function CountryPicker({ dialCode, countryFlag, onSelect }) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+
+  const filtered = COUNTRIES.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    c.dial.includes(search)
+  )
+
+  return (
+    <div style={{ position: 'relative', flexShrink: 0 }}>
+      {/* Bouton */}
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setSearch('') }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '6px',
+          height: '100%', minHeight: '50px',
+          padding: '0 14px',
+          backgroundColor: '#fff', border: 'none',
+          borderRadius: '25px', cursor: 'pointer',
+          fontSize: '18px', whiteSpace: 'nowrap',
+        }}
+      >
+        <span>{countryFlag}</span>
+        <ChevronDown size={14} color="#9e9e9e" />
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', left: 0,
+          width: '260px', backgroundColor: '#fff',
+          borderRadius: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+          zIndex: 100, overflow: 'hidden',
+        }}>
+          {/* Recherche */}
+          <div style={{ padding: '10px 12px', borderBottom: '1px solid #f0f0f0' }}>
+            <input
+              autoFocus
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher..."
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                border: '1.5px solid #e0e0e0', borderRadius: '20px',
+                padding: '8px 14px', fontSize: '13px', outline: 'none',
+              }}
+            />
+          </div>
+          {/* Liste */}
+          <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
+            {filtered.map((c, i) => (
+              <div
+                key={i}
+                onClick={() => { onSelect(c.dial, c.flag); setOpen(false) }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '10px 14px', cursor: 'pointer',
+                  backgroundColor: c.dial === dialCode ? '#f0f7ff' : 'transparent',
+                  transition: 'background 0.1s',
+                }}
+                onMouseEnter={e => { if (c.dial !== dialCode) e.currentTarget.style.backgroundColor = '#fafafa' }}
+                onMouseLeave={e => { if (c.dial !== dialCode) e.currentTarget.style.backgroundColor = 'transparent' }}
+              >
+                <span style={{ fontSize: '20px', flexShrink: 0 }}>{c.flag}</span>
+                <span style={{ fontSize: '13px', color: '#111', flex: 1 }}>{c.name}</span>
+                <span style={{ fontSize: '12px', color: '#888', flexShrink: 0 }}>+{c.dial}</span>
+              </div>
+            ))}
+            {filtered.length === 0 && (
+              <div style={{ padding: '16px', textAlign: 'center', color: '#aaa', fontSize: '13px' }}>
+                Aucun résultat
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 /** Champ blanc arrondi avec icône, focus bleu, croix rouge */
 function Field({ label, value, onChange, type = 'text', placeholder, error, icon: Icon }) {
@@ -210,7 +381,7 @@ function Step2({ data, onChange, onSubmit, onBack, loading }) {
     const e = {}
     if (!data.lastName)  e.lastName  = 'Requis'
     if (!data.firstName) e.firstName = 'Requis'
-    if (!data.phone)     e.phone     = 'Téléphone requis'
+    if (!data.localPhone || data.localPhone.length < 6) e.phone = 'Numéro requis (min 6 chiffres)'
     if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) e.email = 'Email invalide'
     if (!acceptTerms)    e.terms     = 'Vous devez accepter les CGU'
     setErrors(e)
@@ -294,8 +465,94 @@ function Step2({ data, onChange, onSubmit, onBack, loading }) {
           placeholder="Votre nom" error={errors.lastName} icon={User} />
         <FieldBlue label="Prénom" value={data.firstName} onChange={v => onChange('firstName', v)}
           placeholder="Votre prénom" error={errors.firstName} icon={User} />
-        <FieldBlue label="Téléphone" value={data.phone} onChange={v => onChange('phone', v)}
-          type="tel" placeholder="Votre numéro de téléphone" error={errors.phone} icon={Phone} />
+
+        {/* Téléphone avec sélecteur de pays */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: '400', color: 'rgba(255,255,255,0.8)', marginBottom: '7px' }}>
+            Téléphone
+          </label>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+            {/* Sélecteur pays */}
+            <CountryPicker
+              dialCode={data.dialCode || '228'}
+              countryFlag={data.countryFlag || '🇹🇬'}
+              onSelect={(dial, flag) => {
+                onChange('dialCode', dial)
+                onChange('countryFlag', flag)
+                const full = '+' + dial + (data.localPhone || '')
+                onChange('phone', full)
+                onChange('currency', DIAL_TO_CURRENCY[dial] || 'XOF')
+              }}
+            />
+            {/* Numéro local */}
+            <div style={{
+              flex: 1, display: 'flex', alignItems: 'center',
+              borderRadius: '25px', padding: '0 20px',
+              backgroundColor: '#fff',
+            }}>
+              <span style={{ fontSize: '14px', color: '#9e9e9e', marginRight: '6px', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                +{data.dialCode || '228'}
+              </span>
+              <input
+                type="tel"
+                value={data.localPhone || ''}
+                onChange={e => {
+                  const local = e.target.value.replace(/\D/g, '')
+                  onChange('localPhone', local)
+                  const full = '+' + (data.dialCode || '228') + local
+                  onChange('phone', full)
+                }}
+                placeholder="90123456"
+                style={{
+                  flex: 1, border: 'none', outline: 'none',
+                  fontSize: '14px', color: '#111', fontWeight: '500',
+                  padding: '14px 0', backgroundColor: 'transparent',
+                }}
+              />
+            </div>
+          </div>
+          {errors.phone && <p style={{ color: '#FF8A65', fontSize: '12px', marginTop: '5px', paddingLeft: '16px' }}>{errors.phone}</p>}
+        </div>
+
+        {/* Devise — détectée automatiquement depuis l'indicatif, modifiable */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: '400', color: 'rgba(255,255,255,0.8)', marginBottom: '7px' }}>
+            Devise <span style={{ fontSize: '11px', opacity: 0.7 }}>(détectée automatiquement)</span>
+          </label>
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            borderRadius: '25px', padding: '0 20px',
+            backgroundColor: '#fff', position: 'relative',
+          }}>
+            <select
+              value={data.currency || 'XOF'}
+              onChange={e => onChange('currency', e.target.value)}
+              style={{
+                flex: 1, border: 'none', outline: 'none',
+                fontSize: '14px', color: '#111', fontWeight: '500',
+                padding: '14px 0', backgroundColor: 'transparent',
+                appearance: 'none', cursor: 'pointer', width: '100%',
+              }}
+            >
+              {Object.entries({
+                XOF: 'Franc CFA BCEAO (XOF)', XAF: 'Franc CFA BEAC (XAF)',
+                EUR: 'Euro (EUR)', USD: 'Dollar américain (USD)',
+                GBP: 'Livre sterling (GBP)', GHS: 'Cedi ghanéen (GHS)',
+                NGN: 'Naira nigérian (NGN)', MAD: 'Dirham marocain (MAD)',
+                DZD: 'Dinar algérien (DZD)', TND: 'Dinar tunisien (TND)',
+                KES: 'Shilling kényan (KES)', ZAR: 'Rand sud-africain (ZAR)',
+                CHF: 'Franc suisse (CHF)', CAD: 'Dollar canadien (CAD)',
+                GNF: 'Franc guinéen (GNF)', CDF: 'Franc congolais (CDF)',
+                EGP: 'Livre égyptienne (EGP)', ETB: 'Birr éthiopien (ETB)',
+                SAR: 'Riyal saoudien (SAR)', AED: 'Dirham émirien (AED)',
+              }).map(([code, label]) => (
+                <option key={code} value={code}>{label}</option>
+              ))}
+            </select>
+            <ChevronDown size={16} color="#9e9e9e" style={{ flexShrink: 0, pointerEvents: 'none' }} />
+          </div>
+        </div>
+
         <FieldBlue label="E-mail" value={data.email} onChange={v => onChange('email', v)}
           type="email" placeholder="Votre adresse mail" error={errors.email} icon={Mail} />
 
@@ -378,6 +635,10 @@ export default function RegisterPage() {
       firstName: '', lastName: '',
       avatar_id: 'male1',
       phone: '', email: '', activity: '',
+      currency: 'XOF',
+      dialCode: '228',
+      countryFlag: '🇹🇬',
+      localPhone: '',
       referral_code: refCode.toUpperCase(),
     }
   })
@@ -400,6 +661,7 @@ export default function RegisterPage() {
         avatar_id: form.avatar_id,
         gender: isFemalAvatar ? 'female' : 'male',
         avatar_url: `assets/images/avatars/${avatarFileName}`,
+        currency: form.currency || 'XOF',
       }
       if (form.referral_code?.trim()) {
         payload.referral_code = form.referral_code.trim().toUpperCase()
