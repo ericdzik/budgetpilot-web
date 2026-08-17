@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { X, Eye, EyeOff, User, Lock, Phone, Mail } from 'lucide-react'
+import { X, Eye, EyeOff, User, Lock, Phone, Mail, Gift } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 import GoogleAuthButton from '../../components/ui/GoogleAuthButton'
 
@@ -299,7 +299,14 @@ function Step2({ data, onChange, onSubmit, onBack, loading }) {
         <FieldBlue label="E-mail" value={data.email} onChange={v => onChange('email', v)}
           type="email" placeholder="Votre adresse mail" error={errors.email} icon={Mail} />
 
-
+        {/* Code de parrainage (optionnel) */}
+        <FieldBlue
+          label="Code de parrainage (optionnel)"
+          value={data.referral_code || ''}
+          onChange={v => onChange('referral_code', v.toUpperCase().slice(0, 8))}
+          placeholder="Ex : AB3K9XZ2"
+          icon={Gift}
+        />
 
         {/* ── Section CGU ── */}
         <div style={{ marginBottom: '28px' }}>
@@ -309,8 +316,8 @@ function Step2({ data, onChange, onSubmit, onBack, loading }) {
               Lire les termes
             </Link>
           </div>
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer' }}>
-            <div onClick={() => setAcceptTerms(v => !v)}
+          <label onClick={() => setAcceptTerms(v => !v)} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer' }}>
+            <div
               style={{
                 width: '20px', height: '20px', flexShrink: 0, marginTop: '2px',
                 border: '2px solid rgba(255,255,255,0.8)', borderRadius: '4px',
@@ -362,11 +369,17 @@ export default function RegisterPage() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
 
-  const [form, setForm] = useState({
-    name: '', password: '', password_confirmation: '',
-    firstName: '', lastName: '',
-    avatar_id: 'male1',
-    phone: '', email: '', activity: '',
+  const [form, setForm] = useState(() => {
+    // Pré-remplir le code depuis ?ref= dans l'URL
+    const params = new URLSearchParams(window.location.search)
+    const refCode = params.get('ref') || ''
+    return {
+      name: '', password: '', password_confirmation: '',
+      firstName: '', lastName: '',
+      avatar_id: 'male1',
+      phone: '', email: '', activity: '',
+      referral_code: refCode.toUpperCase(),
+    }
   })
 
   const set = (field, value) => setForm(p => ({ ...p, [field]: value }))
@@ -374,6 +387,9 @@ export default function RegisterPage() {
   const handleSubmit = async () => {
     setLoading(true)
     try {
+      const isFemalAvatar = form.avatar_id?.startsWith('female')
+      const avatarFileName = isFemalAvatar ? 'female_1.jpg' : 'male_1.jpg'
+
       const payload = {
         name: form.name,
         email: form.email,
@@ -382,7 +398,11 @@ export default function RegisterPage() {
         password_confirmation: form.password_confirmation,
         activity: form.activity,
         avatar_id: form.avatar_id,
-        gender: form.avatar_id?.startsWith('female') ? 'female' : 'male',
+        gender: isFemalAvatar ? 'female' : 'male',
+        avatar_url: `assets/images/avatars/${avatarFileName}`,
+      }
+      if (form.referral_code?.trim()) {
+        payload.referral_code = form.referral_code.trim().toUpperCase()
       }
       await register(payload)
       toast.success('Compte créé ! 1 mois Pro offert 🎉')

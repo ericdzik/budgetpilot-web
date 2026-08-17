@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { ChevronDown } from 'lucide-react'
 import { dashboardService } from '../services/dashboardService'
 import UserBadge from '../components/ui/UserBadge'
+import PeriodDropdown from '../components/ui/PeriodDropdown'
 import useAuthStore from '../store/authStore'
+import usePremiumGate from '../hooks/usePremiumGate'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -61,30 +62,28 @@ function StatCard({ count, label, icon, onClick }) {
 export default function StatsPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const { requirePremium, modal: premiumModal } = usePremiumGate()
   const [stats, setStats] = useState(null)
   const [treasury, setTreasury] = useState(null)
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState('year')
   const [year] = useState(currentYear)
-  const [periodOpen, setPeriodOpen] = useState(false)
-  const periodRef = useRef(null)
+  // Plage personnalisée
+  const [customStart, setCustomStart] = useState(null)
+  const [customEnd, setCustomEnd]     = useState(null)
 
   const PERIOD_OPTIONS = [
     { value: 'day',   label: "Aujourd'hui" },
     { value: 'month', label: 'Ce mois' },
     { value: 'year',  label: String(currentYear) },
+    { value: 'custom', label: 'Personnaliser' },
   ]
-  const currentPeriodLabel = PERIOD_OPTIONS.find(o => o.value === period)?.label || 'Cette année'
 
-  useEffect(() => {
-    function handleClick(e) {
-      if (periodRef.current && !periodRef.current.contains(e.target)) {
-        setPeriodOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
+  const handlePeriodChange = (p, start, end) => {
+    setPeriod(p)
+    setCustomStart(start)
+    setCustomEnd(end)
+  }
 
   // Calcul des jours depuis l'inscription
   const memberDays = user?.created_at
@@ -92,16 +91,18 @@ export default function StatsPage() {
     : null
 
   useEffect(() => {
-    loadData(period, year)
-  }, [period, year])
+    loadData(period, year, period === 'custom' ? customStart : null, period === 'custom' ? customEnd : null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period, year, customStart, customEnd])
 
-  const loadData = async (currentPeriod, currentYear) => {
+  const loadData = async (currentPeriod, currentYear, startDate = null, endDate = null) => {
     setLoading(true)
     try {
-      const periodParam = currentPeriod === 'year' ? 'year' : currentPeriod === 'month' ? 'month' : 'day'
+      const periodParam = currentPeriod === 'year' ? 'year' : currentPeriod === 'month' ? 'month' : currentPeriod === 'custom' ? 'custom' : 'day'
+      const start = periodParam === 'year' ? currentYear : startDate
       const [statsRes, treasuryRes] = await Promise.all([
-        dashboardService.getStats(periodParam, currentPeriod === 'year' ? currentYear : null),
-        dashboardService.getTreasury(periodParam),
+        dashboardService.getStats(periodParam, start, endDate),
+        dashboardService.getTreasury(periodParam, start, endDate),
       ])
       setStats(statsRes.data)
       setTreasury(treasuryRes.data)
@@ -134,61 +135,15 @@ export default function StatsPage() {
           </h1>
 
           {/* Dropdown filtre période — même style que Dashboard */}
-          <div ref={periodRef} style={{ position: 'relative', marginLeft: '8px' }}>
-            <button
-              onClick={() => setPeriodOpen(v => !v)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '8px 16px',
-                borderRadius: '20px',
-                border: '1.5px solid #e0e0e0',
-                fontSize: '15px', fontWeight: '600', color: '#333',
-                backgroundColor: '#fff',
-                cursor: 'pointer', outline: 'none',
-              }}
-            >
-              {currentPeriodLabel}
-              <ChevronDown size={15} color="#1E88E5" style={{ transition: 'transform 0.2s', transform: periodOpen ? 'rotate(180deg)' : 'none' }} />
-            </button>
-
-            {periodOpen && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 200,
-                backgroundColor: '#fff', borderRadius: '16px',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
-                padding: '8px', minWidth: '170px',
-              }}>
-                {PERIOD_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => { setPeriod(opt.value); setPeriodOpen(false) }}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      width: '100%', padding: '10px 16px',
-                      background: period === opt.value ? '#e8f4ff' : 'none',
-                      border: 'none', borderRadius: '10px',
-                      fontSize: '15px', fontWeight: period === opt.value ? '700' : '500',
-                      color: period === opt.value ? '#1E88E5' : '#333',
-                      cursor: 'pointer', textAlign: 'left',
-                    }}
-                  >
-                    {opt.label}
-                    {period === opt.value && (
-                      <span style={{
-                        width: 20, height: 20, borderRadius: '50%',
-                        backgroundColor: '#1E88E5',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0,
-                      }}>
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                          <path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
+          <div style={{ marginLeft: '8px' }}>
+            <PeriodDropdown
+              period={period}
+              options={PERIOD_OPTIONS}
+              customStart={customStart}
+              customEnd={customEnd}
+              onChange={handlePeriodChange}
+              accentColor="#1E88E5"
+            />
           </div>
         </div>
 
@@ -292,7 +247,7 @@ export default function StatsPage() {
 
               {/* Impayées */}
               <div
-                onClick={() => navigate('/history?tab=invoices&filter=unpaid')}
+                onClick={() => navigate('/history?tab=invoices&filter=unpaid_and_pending')}
                 onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#d0e8ff'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(30,136,229,0.18)' }}
                 onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#e8f4ff'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none' }}
                 style={{
@@ -355,12 +310,13 @@ export default function StatsPage() {
                   </div>
                 ) : (
                   topClients.map((client, i) => (
-                    <div key={client.id ?? i} style={{
+                    <div key={client.id ?? i} onClick={() => { if (requirePremium('La gestion des clients')) navigate('/clients', { state: { selectedId: client.id } }) }} style={{
                       display: 'grid',
                       gridTemplateColumns: '1.5fr 1fr 1.2fr',
                       alignItems: 'center',
                       padding: '12px 4px',
                       borderBottom: i < topClients.length - 1 ? '1px solid #f8f8f8' : 'none',
+                      cursor: 'pointer',
                     }}>
                       <span style={{ fontSize: '24px', fontWeight: '700', color: '#111' }}>{client.name}</span>
                       <span style={{ fontSize: '16px', color: '#666' }}>{client.invoices_count} Facture{client.invoices_count !== 1 ? 's' : ''}</span>
@@ -429,6 +385,8 @@ export default function StatsPage() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
+
+      {premiumModal}
     </div>
   )
 }

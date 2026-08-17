@@ -207,8 +207,7 @@ export default function SettingsPage() {
             onClick={() => navigate('/subscription')}
           />
 
-          {/* Devise — temporairement masqué */}
-          {false && (
+          {/* Devise */}
           <button
             onClick={() => setCurrencyOpen(true)}
             style={{
@@ -247,7 +246,6 @@ export default function SettingsPage() {
               </div>
             </div>
           </button>
-          )}
 
           {/* FAQ */}
           <Tile

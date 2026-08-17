@@ -3,7 +3,7 @@ import api from '../config/api'
 export const clientService = {
   getAll: (page = 1) => api.get(`/clients?page=${page}`),
 
-  getOne: (id) => api.get(`/clients/${id}`),
+  getOne: (id, params = {}) => api.get(`/clients/${id}`, { params }),
 
   create: (data) => api.post('/clients', data),
 

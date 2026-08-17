@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="48.46875"
+   height="53.3125"
+   viewBox="0 0 12.824023 14.105599"
+   version="1.1"
+   id="svg1"
+   xml:space="preserve"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><defs
+     id="defs1"><linearGradient
+       id="linearGradient65"><stop
+         style="stop-color:#ebf7ff;stop-opacity:1;"
+         offset="0"
+         id="stop66" /><stop
+         style="stop-color:#ebf7ff;stop-opacity:0;"
+         offset="1"
+         id="stop67" /></linearGradient></defs><g
+     id="layer1"
+     transform="translate(15810.671,12398.81)"><g
+       style="fill:#1c96ff;fill-opacity:1;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"
+       id="g149"
+       transform="matrix(0.26458333,0,0,0.26458333,-15890.82,-12463.818)"><g
+         id="g155"
+         transform="matrix(2.4335142,0,0,2.4335142,-1.4335142,-27.236771)"><rect
+           width="20"
+           height="12"
+           x="2"
+           y="6"
+           rx="2"
+           id="rect1-8"
+           style="fill:#88e3ff;fill-opacity:1;stroke:#1c96ff;stroke-opacity:1" /><circle
+           cx="12"
+           cy="12"
+           r="2"
+           id="circle1"
+           style="fill:#88e3ff;fill-opacity:1;stroke:#1c96ff;stroke-opacity:1" /><path
+           d="M 6,12 H 6.01 M 18,12 h 0.01"
+           id="path1-64"
+           style="fill:#1c96ff;fill-opacity:1;stroke:#1c96ff;stroke-opacity:1" /></g><g
+         style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"
+         id="g156"
+         transform="matrix(2.4235084,0,0,2.4235084,298.0789,243.26971)"><path
+           d="M 10,18 V 11"
+           id="path1-28"
+           style="stroke:#64c9ff;stroke-opacity:1" /><path
+           d="m 11.119,2.205 a 2,2 0 0 1 1.762,0 l 7.84,3.846 A 0.5,0.5 0 0 1 20.5,7 H 3.5 A 0.5,0.5 0 0 1 3.28,6.051 Z"
+           id="path2-92"
+           style="fill:#64c9ff;fill-opacity:1;stroke:#1c96ff;stroke-opacity:1" /><path
+           d="M 14,18 V 11"
+           id="path3-67"
+           style="stroke:#1c96ff;stroke-opacity:1" /><path
+           d="M 18,18 V 11"
+           id="path4-31"
+           style="stroke:#64c9ff;stroke-opacity:1" /><path
+           d="M 3,22 H 21"
+           id="path5-7"
+           style="stroke:#1c96ff;stroke-opacity:1" /><path
+           d="M 6,18 V 11"
+           id="path6-3"
+           style="stroke:#1c96ff;stroke-opacity:1" /></g></g></g><style
+     type="text/css"
+     id="style1">
+	.puchipuchi_een{fill:#111918;}
+</style></svg>

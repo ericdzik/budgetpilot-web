@@ -1,5 +1,4 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import useAuthStore from '../../store/authStore'
 
 function SvgIcon({ src, size = 20, active = false, colored = false }) {
   return (
@@ -135,6 +134,10 @@ export default function Sidebar() {
         <NavItem to="/stats"        svgSrc="/navbar_icon3.svg" label="Statistiques" />
         {/* payblue = Abonnements */}
         <NavItem to="/subscription" svgSrc="/payblue.svg"      label="Abonnements" />
+        {/* Parrainage */}
+        <NavItem to="/referral"     svgSrc="/navbar_icon4.svg"  label="Parrainage" />
+        {/* ICONE_clients = Mes clients */}
+        <NavItem to="/clients"      svgSrc="/ICONE_clients.svg"  label="Mes clients" />
 
         {/* Séparateur */}
         <div style={{ height: '1px', backgroundColor: '#e0e0e0', margin: '14px 8px' }} />

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { Download, Eye, Plus, ChevronDown } from 'lucide-react'
+import { Download, Eye, Plus } from 'lucide-react'
 import { dashboardService } from '../services/dashboardService'
 import { subscriptionService } from '../services/subscriptionService'
 import useAuthStore from '../store/authStore'
@@ -12,6 +12,7 @@ import WelcomeProModal from '../components/ui/WelcomeProModal'
 import RenewalReminderModal from '../components/ui/RenewalReminderModal'
 import FreemiumLimitModal from '../components/ui/FreemiumLimitModal'
 import WelcomeProfileModal from '../components/ui/WelcomeProfileModal'
+import PeriodDropdown from '../components/ui/PeriodDropdown'
 
 // ─── Flags de session (hors React, persistants pendant la session) ────────────
 const _session = {
@@ -35,10 +36,12 @@ export default function DashboardPage() {
   const [stats, setStats] = useState(null)
   const [treasury, setTreasury] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [webBanner, setWebBanner] = useState(null)
   const [period, setPeriod] = useState('month')
   const [pdfPreview, setPdfPreview] = useState(null)
-  const [periodOpen, setPeriodOpen] = useState(false)
-  const periodRef = useRef(null)
+  // Plage personnalisée
+  const [customStart, setCustomStart] = useState(null)
+  const [customEnd, setCustomEnd]     = useState(null)
 
   // ── État des modales ───────────────────────────────────────────────────────
   const [activeModal, setActiveModal] = useState(null) // 'welcomePro' | 'renewal' | 'freemium' | 'profile'
@@ -50,22 +53,21 @@ export default function DashboardPage() {
   const subscriptionChecked = useRef(false)
 
   const PERIOD_OPTIONS = [
-    { value: 'day',   label: "Aujourd'hui" },
-    { value: 'month', label: 'Ce mois' },
-    { value: 'year',  label: String(currentYear) },
+    { value: 'month',  label: 'Ce mois' },
+    { value: 'day',    label: "Aujourd'hui" },
+    { value: 'year',   label: String(currentYear) },
+    { value: 'custom', label: 'Personnaliser' },
   ]
-  const currentPeriodLabel = PERIOD_OPTIONS.find(o => o.value === period)?.label || 'Ce mois'
 
-  // Fermer le dropdown au clic extérieur
-  useEffect(() => {
-    function handleClick(e) {
-      if (periodRef.current && !periodRef.current.contains(e.target)) {
-        setPeriodOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
+  const handlePeriodChange = (p, start, end) => {
+    setPeriod(p)
+    setCustomStart(start)
+    setCustomEnd(end)
+  }
+
+  const goClients = () => {
+    navigate('/clients')
+  }
 
   // ── File d'attente des modales ─────────────────────────────────────────────
   const processModalQueue = useCallback(() => {
@@ -156,12 +158,14 @@ export default function DashboardPage() {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [statsRes, treasuryRes] = await Promise.all([
-        dashboardService.getStats(period),
-        dashboardService.getTreasury(period),
+      const [statsRes, treasuryRes, bannerRes] = await Promise.all([
+        dashboardService.getStats(period, period === 'custom' ? customStart : null, period === 'custom' ? customEnd : null),
+        dashboardService.getTreasury(period, period === 'custom' ? customStart : null, period === 'custom' ? customEnd : null),
+        dashboardService.getWebBanner().catch(() => null),
       ])
       setStats(statsRes.data)
       setTreasury(treasuryRes.data)
+      if (bannerRes?.data?.image_url) setWebBanner(bannerRes.data)
       // Synchroniser la devise depuis le profil utilisateur — une seule fois
       const currency = statsRes.data?.user?.currency
       if (currency && currency !== useCurrencyStore.getState().activeCurrency) {
@@ -172,7 +176,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [period, initFromUser])
+  }, [period, customStart, customEnd, initFromUser])
 
   useEffect(() => {
     loadData()
@@ -185,8 +189,8 @@ export default function DashboardPage() {
   const caisse   = treasury?.available_balance ?? 0
   const recettes = treasury?.total_income ?? 0
   const depenses = treasury?.total_expenses ?? 0
-  // Devise fixe FCFA — multidevises temporairement masqué
-  const displayCurrency = 'FCFA'
+  // Devise active depuis le store (synchronisée avec le backend)
+  const displayCurrency = activeCurrency
 
   const operations    = stats?.operations ?? {}
   const recentInvoices = stats?.recent_invoices ?? []
@@ -202,63 +206,15 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <h1 style={{ fontSize: '32px', fontWeight: '700', color: '#111', margin: 0 }}>Dashboard</h1>
 
-          {/* Dropdown filtre période — custom stylisé */}
-          <div ref={periodRef} style={{ position: 'relative', marginLeft: '8px' }}>
-            <button
-              onClick={() => setPeriodOpen(v => !v)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '8px 16px',
-                borderRadius: '20px',
-                border: '1.5px solid #e0e0e0',
-                fontSize: '15px', fontWeight: '600', color: '#333',
-                backgroundColor: '#fff',
-                cursor: 'pointer', outline: 'none',
-              }}
-            >
-              {currentPeriodLabel}
-              <ChevronDown size={15} color="#1E88E5" style={{ transition: 'transform 0.2s', transform: periodOpen ? 'rotate(180deg)' : 'none' }} />
-            </button>
-
-            {periodOpen && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 200,
-                backgroundColor: '#fff', borderRadius: '16px',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
-                padding: '8px', minWidth: '170px',
-              }}>
-                {PERIOD_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => { setPeriod(opt.value); setPeriodOpen(false) }}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      width: '100%', padding: '10px 16px',
-                      background: period === opt.value ? '#e8f4ff' : 'none',
-                      border: 'none', borderRadius: '10px',
-                      fontSize: '15px', fontWeight: period === opt.value ? '700' : '500',
-                      color: period === opt.value ? '#1E88E5' : '#333',
-                      cursor: 'pointer', textAlign: 'left',
-                    }}
-                  >
-                    {opt.label}
-                    {period === opt.value && (
-                      <span style={{
-                        width: 20, height: 20, borderRadius: '50%',
-                        backgroundColor: '#1E88E5',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0,
-                      }}>
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                          <path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Dropdown filtre période */}
+          <PeriodDropdown
+            period={period}
+            options={PERIOD_OPTIONS}
+            customStart={customStart}
+            customEnd={customEnd}
+            onChange={handlePeriodChange}
+            accentColor="#1E88E5"
+          />
         </div>
 
         {/* Droite : badge Pro + avatar */}
@@ -469,6 +425,30 @@ export default function DashboardPage() {
                     Accès Statistiques
                   </button>
                   <button
+                    onClick={() => navigate('/referral')}
+                    style={{
+                      padding: '14px 32px',
+                      backgroundColor: '#fff', color: '#333',
+                      border: '1.5px solid #e0e0e0', borderRadius: '20px',
+                      fontSize: '16px', fontWeight: '600', cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Parrainage
+                  </button>
+                  <button
+                    onClick={goClients}
+                    style={{
+                      padding: '14px 32px',
+                      backgroundColor: '#fff', color: '#333',
+                      border: '1.5px solid #e0e0e0', borderRadius: '20px',
+                      fontSize: '16px', fontWeight: '600', cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Clients
+                  </button>
+                  <button
                     style={{
                       padding: '14px 32px',
                       backgroundColor: '#fff', color: '#333',
@@ -510,12 +490,12 @@ export default function DashboardPage() {
                     {[
                       { icon: '/devisicone.svg',  count: operations.quotes ?? 0,   label: 'Devis',     href: '/history?tab=quotes',              clickable: true },
                       { icon: '/operation2.svg',  count: operations.invoices ?? 0, label: 'Factures',  href: '/history?tab=invoices',            clickable: true },
-                      { icon: '/operation3.svg',  count: operations.unpaid ?? 0,   label: 'Impayés',   href: '/history?tab=invoices&filter=unpaid', clickable: true },
-                      { icon: '/operation4.svg',  count: operations.clients ?? 0,  label: 'Clients',   href: '/clients',                         clickable: false },
+                      { icon: '/operation3.svg',  count: operations.unpaid ?? 0,   label: 'Impayés',   href: '/history?tab=invoices&filter=unpaid_and_pending', clickable: true },
+                      { icon: '/operation4.svg',  count: operations.clients ?? 0,  label: 'Clients',   href: null, onClick: goClients,           clickable: true },
                     ].map((op, i) => (
                       <div
                         key={i}
-                        onClick={() => op.clickable && navigate(op.href)}
+                        onClick={() => (op.onClick ? op.onClick() : (op.clickable && navigate(op.href)))}
                         style={{
                           display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
                           backgroundColor: '#e8f4ff', borderRadius: '16px', padding: '14px 12px 16px',
@@ -539,13 +519,21 @@ export default function DashboardPage() {
                 {/* Bannière promo */}
                 <div style={{
                   borderRadius: '18px', overflow: 'hidden',
-                  height: '200px',
+                  height: '200px', backgroundColor: '#f5f5f5',
                 }}>
-                  <img
-                    src="/pub5.png"
-                    alt="Promotion"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                  />
+                  {webBanner?.image_url ? (
+                    <img
+                      src={webBanner.image_url}
+                      alt={webBanner.client_name || 'Publicité'}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
+                  ) : (
+                    <img
+                      src="/pub5.png"
+                      alt="Promotion"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
+                  )}
                 </div>
 
               </div>

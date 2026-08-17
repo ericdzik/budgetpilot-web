@@ -32,6 +32,7 @@ import AdminUserDetailPage from './pages/admin/AdminUserDetailPage'
 import AdminReferralsPage from './pages/admin/AdminReferralsPage'
 import AdminReferrerDetailPage from './pages/admin/AdminReferrerDetailPage'
 import AdminBannersPage from './pages/admin/AdminBannersPage'
+import AdminSettingsPage from './pages/admin/AdminSettingsPage'
 
 // Pages App
 import DashboardPage from './pages/DashboardPage'
@@ -192,6 +193,11 @@ export const router = createBrowserRouter([
     path: '/app',
     element: <AppRedirectPage />,
   },
+  // Rétrocompatibilité : anciens liens /app/ref/CODE
+  {
+    path: '/app/ref/:code',
+    element: <AppRedirectPage />,
+  },
 
   // Catch-all — page 404
   {
@@ -223,6 +229,7 @@ export const router = createBrowserRouter([
       { path: 'referrals',         element: <AdminReferralsPage /> },
       { path: 'referrals/:id',     element: <AdminReferrerDetailPage /> },
       { path: 'banners',      element: <AdminBannersPage /> },
+      { path: 'settings',     element: <AdminSettingsPage /> },
     ],
   },
 ])

@@ -6,18 +6,27 @@ import { subscriptionService } from '../../services/subscriptionService'
 
 // ─── Helper URL avatar ────────────────────────────────────────────────────────
 
-function resolveAvatarUrl(avatar_url) {
-  if (!avatar_url) return null
-  if (avatar_url.startsWith('http')) return avatar_url
-  // Chemin relatif type "assets/images/avatars/female_1.jpg" → /avatars/female_1.jpg
-  const filename = avatar_url.split('/').pop()
-  return `/avatars/${filename}`
+function resolveAvatarUrl(avatar_url, avatar_id) {
+  // Priorité 1 : avatar_url explicite
+  if (avatar_url) {
+    if (avatar_url.startsWith('http')) return avatar_url
+    // Chemin relatif type "assets/images/avatars/female_1.jpg" → /avatars/female_1.jpg
+    const filename = avatar_url.split('/').pop()
+    return `/avatars/${filename}`
+  }
+  // Priorité 2 : fallback sur avatar_id (ex: 'male1' → male_1.jpg, 'female1' → female_1.jpg)
+  if (avatar_id) {
+    // 'male1' → 'male_1', 'female1' → 'female_1'
+    const filename = avatar_id.replace(/^(male|female)(\d+)$/, '$1_$2') + '.jpg'
+    return `/avatars/${filename}`
+  }
+  return null
 }
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
 function Avatar({ user, size = 48, onClick }) {
-  const avatarUrl = resolveAvatarUrl(user?.avatar_url)
+  const avatarUrl = resolveAvatarUrl(user?.avatar_url, user?.avatar_id)
 
   if (avatarUrl) {
     return (

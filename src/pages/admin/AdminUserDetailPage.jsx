@@ -125,9 +125,9 @@ function SubRow({ sub }) {
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: '80px 70px 110px 110px 120px 80px',
-      gap: '12px',
-      padding: '12px 0',
+      gridTemplateColumns: '1fr 1fr 1.5fr 1.5fr 1.5fr 1fr',
+      gap: '24px',
+      padding: '16px 0',
       borderBottom: '1px solid #f5f5f5',
       alignItems: 'center',
     }}>
@@ -712,7 +712,7 @@ export default function AdminUserDetailPage() {
   const currentSub       = subHistory[0] || null
   const historySubs      = subHistory.slice(1)
   const supportNotes     = Array.isArray(user.support_notes) ? user.support_notes : []
-  const referrer         = user.referredBy?.referrer
+  const referrer         = user.referred_by?.referrer
 
   // Durée totale abonnement en mois
   const totalMonths      = user.total_subscription_months || subHistory.length
@@ -743,35 +743,37 @@ export default function AdminUserDetailPage() {
           onSave={handleUpdateScore}
         />
 
-        {/* Boutons parrainage — seulement si l'utilisateur a un parrain */}
-        <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {referrer && (
-            <button
-              onClick={() => navigate(`/admin/referrals/${referrer.id}`)}
-              style={{
-                padding: '7px 18px', border: '1.5px solid #ddd',
-                borderRadius: '50px', background: '#fff',
-                fontSize: '13px', color: '#111', cursor: 'pointer', fontWeight: '500',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Voir la fiche parrain
-            </button>
-          )}
-          {referrer && (
+        {/* Bouton parrain — seulement si l'utilisateur a un parrain */}
+        {referrer && (
+          <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
               onClick={() => navigate(`/admin/users/${referrer.id}`)}
               style={{
-                padding: '7px 18px', border: '1.5px solid #ddd',
+                padding: '9px 20px', border: '1.5px solid #e0e0e0',
                 borderRadius: '50px', background: '#fff',
-                fontSize: '13px', color: '#111', cursor: 'pointer', fontWeight: '500',
-                whiteSpace: 'nowrap',
+                fontSize: '13px', color: '#555', cursor: 'pointer', fontWeight: '500',
+                whiteSpace: 'nowrap', transition: 'border-color 0.15s, color 0.15s',
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#1E88E5'; e.currentTarget.style.color = '#1E88E5' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e0e0e0'; e.currentTarget.style.color = '#555' }}
             >
               Voir le parrain
             </button>
-          )}
-        </div>
+            <button
+              onClick={() => navigate(`/admin/referrals/${referrer.id}`)}
+              style={{
+                padding: '9px 20px', border: '1.5px solid #e0e0e0',
+                borderRadius: '50px', background: '#fff',
+                fontSize: '13px', color: '#555', cursor: 'pointer', fontWeight: '500',
+                whiteSpace: 'nowrap', transition: 'border-color 0.15s, color 0.15s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#1E88E5'; e.currentTarget.style.color = '#1E88E5' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e0e0e0'; e.currentTarget.style.color = '#555' }}
+            >
+              Fiche parrain
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Information personnel ─────────────────────────────────────────── */}

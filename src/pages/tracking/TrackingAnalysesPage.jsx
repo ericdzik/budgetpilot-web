@@ -212,7 +212,8 @@ function CustomDateButton({ startDate, endDate, onChange, accentColor = '#E65100
                   else if (inRange) { bg = lightBg;     fg = accentColor }
                   return (
                     <button key={col} onClick={() => handleDayTap(date)} style={{
-                      height: 30, borderRadius: '50%', border: 'none',
+                      width: 30, height: 30, justifySelf: 'center', alignSelf: 'center',
+                      borderRadius: '50%', border: 'none',
                       backgroundColor: bg, color: fg, fontWeight: fw,
                       fontSize: 11, cursor: 'pointer', padding: 0,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',

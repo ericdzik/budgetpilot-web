@@ -3,13 +3,16 @@ import { Search, X, Check } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import api from '../../config/api'
 import useCurrencyStore, { ALL_CURRENCIES } from '../../store/currencyStore'
+import usePremiumGate from '../../hooks/usePremiumGate'
 
 /**
  * Modal de sélection de devise.
  * Envoie POST /api/profile { currency: code } puis met à jour le store.
+ * La liste est visible pour tous, mais le choix est réservé aux offres Basic et Pro.
  */
 export default function CurrencySelectorModal({ open, onClose }) {
   const { activeCurrency, setCurrency } = useCurrencyStore()
+  const { requirePremium, modal } = usePremiumGate()
   const [search, setSearch] = useState('')
   const [saving, setSaving] = useState(false)
   const searchRef = useRef(null)
@@ -35,6 +38,7 @@ export default function CurrencySelectorModal({ open, onClose }) {
       onClose()
       return
     }
+    if (!requirePremium('Le choix de la devise')) return
     setSaving(true)
     try {
       await api.post('/profile', { currency: currency.code })
@@ -197,6 +201,8 @@ export default function CurrencySelectorModal({ open, onClose }) {
           &nbsp;·&nbsp;{ALL_CURRENCIES.length} devises disponibles
         </div>
       </div>
+
+      {modal}
     </>
   )
 }

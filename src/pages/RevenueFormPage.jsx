@@ -3,9 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import { Plus, Trash2 } from 'lucide-react'
 import api from '../config/api'
+import useCurrencyStore, { ALL_CURRENCIES, formatAmount } from '../store/currencyStore'
 import UserBadge from '../components/ui/UserBadge'
 import FloatInput from '../components/ui/FloatInput'
 import CustomSelect from '../components/ui/CustomSelect'
+
+const CURRENCY_OPTIONS = ALL_CURRENCIES.map(c => ({ value: c.code, label: `${c.code} - ${c.name} (${c.symbol})` }))
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -45,12 +48,16 @@ export default function RevenueFormPage() {
   const { id }    = useParams()
   const isEditing = !!id
   const pageTitle = isEditing ? 'Modifier une recette' : 'Créer une nouvelle recette'
+  const { activeCurrency } = useCurrencyStore()
 
   const today = new Date().toISOString().slice(0, 10)
 
   // ── Numéro de référence ──
   const [refNumber,  setRefNumber]  = useState('')
   const [refLoading, setRefLoading] = useState(true)
+
+  // ── Devise ──
+  const [revCurrency, setRevCurrency] = useState(activeCurrency)
 
   // ── Champs ──
   const [issueDate,      setIssueDate]      = useState(today)
@@ -135,6 +142,7 @@ export default function RevenueFormPage() {
       setRefNumber(rev.reference_number || `REC-${String(rev.id).padStart(3, '0')}`)
       setRefLoading(false)
       setIssueDate(rev.date?.slice(0, 10) || today)
+      setRevCurrency(rev.currency || activeCurrency)
       setClientName(rev.client_name || '')
       setCategory(rev.category || REVENUE_CATEGORIES[0])
       setPaymentMethod(rev.payment_method || 'cash')
@@ -218,6 +226,7 @@ export default function RevenueFormPage() {
   // ── Réinitialisation ──
   const handleReset = () => {
     setClientName('')
+    setRevCurrency(activeCurrency)
     setCategory(REVENUE_CATEGORIES[0])
     setPaymentMethod('cash')
     setNotes('')
@@ -247,6 +256,7 @@ export default function RevenueFormPage() {
       const payload = {
         description,
         amount:         total,
+        currency:       revCurrency,
         category,
         date:           issueDate,
         payment_method: paymentMethod,
@@ -336,7 +346,15 @@ export default function RevenueFormPage() {
             onChange={(e) => setIssueDate(e.target.value)}
             style={{ ...inputStyle, width: '180px' }}
           />
+          <div style={{ minWidth: '200px' }}>
+            <CustomSelect
+              value={revCurrency}
+              onChange={setRevCurrency}
+              options={CURRENCY_OPTIONS}
+            />
+          </div>
         </div>
+
       </div>
 
       {/* ── Corps scrollable ── */}
@@ -469,7 +487,7 @@ export default function RevenueFormPage() {
           <p style={sectionTitle}>Détails</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
 
-            {/* Col 1 : Méthode de paiement */}
+            {/* Col 1 : Devise + Méthode de paiement */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label style={labelStyle}>Méthode de paiement <span style={{ color: 'red' }}>*</span></label>
@@ -488,8 +506,8 @@ export default function RevenueFormPage() {
                 <span>{fmt(subtotal)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', fontSize: '16px', fontWeight: '800', color: '#111' }}>
-                <span>Total (XOF)</span>
-                <span>{fmt(total)}</span>
+                <span>Total ({revCurrency})</span>
+                <span>{formatAmount(total, revCurrency)}</span>
               </div>
             </div>
 

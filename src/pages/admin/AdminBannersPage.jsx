@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { adminService } from '../../services/adminService'
 import { toast } from 'react-hot-toast'
-import { Upload, Trash2, Pencil } from 'lucide-react'
+import { Upload, Trash2, Pencil, Calendar, Building2 } from 'lucide-react'
+import { SingleDatePicker } from '../../components/ui/PeriodDropdown'
 
 const SLOTS = [
   { key: 'android', label: 'Android' },
@@ -15,6 +16,11 @@ const fmtDate = (d) => {
   return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+// Convertit une Date JS en 'YYYY-MM-DD' (format attendu par l'API)
+const toDateInput = (d) => d
+  ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  : ''
+
 // ── Modal upload ──────────────────────────────────────────────────────────────
 function BannerModal({ initialSlot, onClose, onSaved }) {
   const fileRef   = useRef(null)
@@ -24,8 +30,11 @@ function BannerModal({ initialSlot, onClose, onSaved }) {
   const [preview, setPreview]       = useState(null)
   const [file, setFile]             = useState(null)
   const [clientName, setClientName] = useState('')
-  const [startDate, setStartDate]   = useState('')
-  const [endDate, setEndDate]       = useState('')
+  const [startDate, setStartDate]   = useState(null)
+  const [endDate, setEndDate]       = useState(null)
+  const [openPicker, setOpenPicker] = useState(null) // 'start' | 'end' | null
+  const startRef    = useRef(null)
+  const endRef      = useRef(null)
   const [dragging, setDragging]     = useState(false)
   const [saving, setSaving]         = useState(false)
 
@@ -68,8 +77,8 @@ function BannerModal({ initialSlot, onClose, onSaved }) {
         const fd = new FormData()
         if (file)       fd.append('image', file)
         fd.append('client_name', clientName)
-        if (startDate)  fd.append('start_date', startDate)
-        if (endDate)    fd.append('end_date', endDate)
+        if (startDate)  fd.append('start_date', toDateInput(startDate))
+        if (endDate)    fd.append('end_date', toDateInput(endDate))
         return adminService.updateBanner(slot, fd)
       })
 
@@ -175,10 +184,7 @@ function BannerModal({ initialSlot, onClose, onSaved }) {
             border: '1.5px solid #e0e0e0', borderRadius: '50px',
             padding: '10px 16px', backgroundColor: '#fafafa',
           }}>
-            <span style={{
-              width: 10, height: 10, borderRadius: '50%',
-              backgroundColor: '#bbb', flexShrink: 0,
-            }} />
+            <Building2 size={16} color="#bbb" flexShrink={0} />
             <input
               type="text"
               value={clientName}
@@ -193,33 +199,76 @@ function BannerModal({ initialSlot, onClose, onSaved }) {
         </div>
 
         {/* Dates */}
-        <div style={{ marginBottom: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ fontSize: '14px', fontWeight: '600', color: '#111', width: '80px' }}>Date début</span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+        <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {/* Date début */}
+          <div ref={startRef} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <span style={{ fontSize: '14px', fontWeight: '600', color: '#111', width: '80px', flexShrink: 0 }}>
+              Date début
+            </span>
+            <button
+              onClick={() => setOpenPicker(openPicker === 'start' ? null : 'start')}
               style={{
-                border: '1.5px solid #e0e0e0', borderRadius: '50px',
-                padding: '8px 16px', fontSize: '14px', outline: 'none',
-                backgroundColor: '#fafafa', color: '#333',
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                border: '1.5px solid ' + (openPicker === 'start' ? '#1E88E5' : '#e0e0e0'),
+                borderRadius: '50px', padding: '8px 16px',
+                backgroundColor: openPicker === 'start' ? '#e3f2fd' : '#fafafa',
+                cursor: 'pointer', outline: 'none',
               }}
-            />
+            >
+              <span style={{ fontSize: '14px', color: startDate ? '#1E88E5' : '#aaa', fontWeight: startDate ? 600 : 400 }}>
+                {startDate ? fmtDate(startDate) : 'Choisir la date'}
+              </span>
+              <Calendar size={16} color="#1E88E5" />
+            </button>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ fontSize: '14px', fontWeight: '600', color: '#111', width: '80px' }}>Date fin</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+
+          {/* Date fin */}
+          <div ref={endRef} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <span style={{ fontSize: '14px', fontWeight: '600', color: '#111', width: '80px', flexShrink: 0 }}>
+              Date fin
+            </span>
+            <button
+              onClick={() => setOpenPicker(openPicker === 'end' ? null : 'end')}
               style={{
-                border: '1.5px solid #e0e0e0', borderRadius: '50px',
-                padding: '8px 16px', fontSize: '14px', outline: 'none',
-                backgroundColor: '#fafafa', color: '#333',
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                border: '1.5px solid ' + (openPicker === 'end' ? '#1E88E5' : '#e0e0e0'),
+                borderRadius: '50px', padding: '8px 16px',
+                backgroundColor: openPicker === 'end' ? '#e3f2fd' : '#fafafa',
+                cursor: 'pointer', outline: 'none',
               }}
-            />
+            >
+              <span style={{ fontSize: '14px', color: endDate ? '#1E88E5' : '#aaa', fontWeight: endDate ? 600 : 400 }}>
+                {endDate ? fmtDate(endDate) : 'Choisir la date'}
+              </span>
+              <Calendar size={16} color="#1E88E5" />
+            </button>
           </div>
+
+          {/* Calendriers déroulants */}
+          {openPicker === 'start' && (
+            <div style={{
+              border: '1.5px solid #eee', borderRadius: '16px',
+              backgroundColor: '#fff', padding: '12px 14px',
+            }}>
+              <SingleDatePicker
+                value={startDate}
+                onSelect={(d) => { setStartDate(d); setOpenPicker(null) }}
+                accentColor="#1E88E5"
+              />
+            </div>
+          )}
+          {openPicker === 'end' && (
+            <div style={{
+              border: '1.5px solid #eee', borderRadius: '16px',
+              backgroundColor: '#fff', padding: '12px 14px',
+            }}>
+              <SingleDatePicker
+                value={endDate}
+                onSelect={(d) => { setEndDate(d); setOpenPicker(null) }}
+                accentColor="#1E88E5"
+              />
+            </div>
+          )}
         </div>
 
         {/* Zone upload — drag & drop */}

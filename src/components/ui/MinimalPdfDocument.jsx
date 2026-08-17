@@ -25,13 +25,59 @@ import {
 
 function fmt(n) {
   if (!n && n !== 0) return '0'
-  const parts = Math.round(Number(n)).toString().split('')
-  const result = []
-  parts.reverse().forEach((d, i) => {
-    if (i > 0 && i % 3 === 0) result.push('.')
-    result.push(d)
-  })
-  return result.reverse().join('')
+  const num = Number(n)
+  // Si le nombre a des décimales significatives (montants convertis en petite devise),
+  // garder 2 décimales. Sinon, arrondir à l'entier.
+  const rounded = Math.abs(num) < 1000 && num !== Math.round(num)
+    ? parseFloat(num.toFixed(2))
+    : Math.round(num)
+  const parts = rounded.toFixed(Math.abs(num) < 1000 && num !== Math.round(num) ? 2 : 0)
+    .split('.')
+  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return parts[1] && parts[1] !== '00' ? `${intPart},${parts[1]}` : intPart
+}
+
+// Formater un montant avec le symbole de devise (logique sans store React)
+function fmtCurrency(amount, currencyCode = 'XOF') {
+  const code = (currencyCode || 'XOF').toUpperCase()
+  const num = Number(amount) || 0
+
+  const SYMBOLS = {
+    XOF: 'FCFA', XAF: 'FCFA',
+    USD: '$',    EUR: '€',     GBP: '£',
+    JPY: '¥',    CNY: '¥',     CHF: 'Fr',
+    CAD: 'CA$',  AUD: 'A$',    NZD: 'NZ$',
+    NGN: '₦',    GHS: '₵',     KES: 'KSh',
+    ZAR: 'R',    EGP: '£',     MAD: 'DH',
+    DZD: 'DA',   TND: 'DT',    INR: '₹',
+    BRL: 'R$',   MXN: '$',     RUB: '₽',
+    SAR: '﷼',    AED: 'د.إ',   TRY: '₺',
+    KRW: '₩',    THB: '฿',     SGD: 'S$',
+    HKD: 'HK$',  SEK: 'kr',    NOK: 'kr',
+    DKK: 'kr',   PLN: 'zł',    CZK: 'Kč',
+    HUF: 'Ft',   RON: 'lei',   UAH: '₴',
+    IDR: 'Rp',   MYR: 'RM',    PHP: '₱',
+    VND: '₫',    PKR: '₨',     BDT: '৳',
+    ILS: '₪',    CDF: 'FC',    GNF: 'FG',
+    UGX: 'USh',  TZS: 'TSh',   ZMW: 'K',
+    ETB: 'Br',
+  }
+
+  if (code === 'XOF' || code === 'XAF') {
+    return `${fmt(Math.round(num))} FCFA`
+  }
+
+  const noDecimal = ['JPY', 'KRW', 'VND', 'IDR', 'UGX', 'TZS', 'GNF', 'MMK']
+  const sym = SYMBOLS[code] || code
+
+  if (noDecimal.includes(code)) {
+    return `${fmt(Math.round(num))} ${sym}`
+  }
+
+  const formatted = num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  const symbolAfter = ['EUR', 'CHF', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON']
+  if (symbolAfter.includes(code)) return `${formatted} ${sym}`
+  return `${sym}${formatted}`
 }
 
 function fmtDate(d) {
@@ -76,15 +122,15 @@ const S = StyleSheet.create({
     flex: 1,
   },
   logoBox: {
-    width: 28,
-    height: 28,
+    width: 44,
+    height: 44,
     backgroundColor: '#4CAF50',
     borderRadius: 4,
     marginBottom: 6,
   },
   logoImg: {
-    width: 28,
-    height: 28,
+    width: 44,
+    height: 44,
     objectFit: 'contain',
     marginBottom: 6,
   },
@@ -241,29 +287,29 @@ const S = StyleSheet.create({
     flexDirection: 'column',
     gap: 4,
   },
-  brandingConcuPar: { fontSize: 11, color: '#000' },
+  brandingConcuPar: { fontSize: 14, color: '#000' },
   brandingPilotRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  brandingLogoImg: { width: 22, height: 22, objectFit: 'contain' },
-  brandingPilot: { fontSize: 16, fontFamily: 'Helvetica-Bold', color: '#000' },
-  brandingDivider: { width: 1, height: 48, backgroundColor: '#e0e0e0' },
+  brandingLogoImg: { width: 28, height: 28, objectFit: 'contain' },
+  brandingPilot: { fontSize: 20, fontFamily: 'Helvetica-Bold', color: '#000' },
+  brandingDivider: { width: 1, height: 56, backgroundColor: '#e0e0e0' },
   brandingQrArea: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
   },
-  qrImg: { width: 52, height: 52 },
-  brandingLink: { fontSize: 12, color: '#1E88E5', textDecoration: 'underline' },
-  brandingNif:  { fontSize: 12, color: '#555', marginTop: 4 },
-  pageNum: { marginLeft: 'auto', fontSize: 11, color: '#888' },
+  qrImg: { width: 60, height: 60 },
+  brandingLink: { fontSize: 14, color: '#1E88E5', textDecoration: 'underline' },
+  brandingNif:  { fontSize: 14, color: '#555', marginLeft: 8 },
+  pageNum: { marginLeft: 'auto', fontSize: 14, color: '#888' },
 })
 
 // ─── Composant Document ───────────────────────────────────────────────────────
 
-export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl }) {
+export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0 }) {
   const company = {
     name:    profile?.company_name    || profile?.name    || 'Mon Entreprise',
     address: profile?.company_address || '',
@@ -296,7 +342,14 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
   const subtotalAfter = subtotalBefore - totalDiscount
   const tvaRate       = 18
   const tvaAmount     = doc.has_tva ? subtotalAfter * (tvaRate / 100) : 0
-  const total         = toNum(doc.total_amount) || (subtotalAfter + tvaAmount)
+  const totalRaw      = toNum(doc.total_amount) || (subtotalAfter + tvaAmount)
+
+  // Devise du document — pas de conversion
+  const cr = conversionRate || 1.0
+  const subtotalBeforeConverted = subtotalBefore * cr
+  const totalDiscountConverted  = totalDiscount * cr
+  const tvaAmountConverted      = tvaAmount * cr
+  const total = totalRaw * cr
 
   // Grouper par catégorie
   const grouped = {}
@@ -348,7 +401,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
           <Text style={[S.thText, { flex: 4, paddingLeft: 6 }]}>Description</Text>
           <Text style={[S.thText, { flex: 1, textAlign: 'center' }]}>QTÉ</Text>
           <Text style={[S.thText, { flex: 2, textAlign: 'center' }]}>Prix unitaire</Text>
-          <Text style={[S.thText, { flex: 2, textAlign: 'right', paddingRight: 8 }]}>Total (XOF)</Text>
+          <Text style={[S.thText, { flex: 2, textAlign: 'right', paddingRight: 8 }]}>Total ({currency})</Text>
         </View>
 
         {/* Corps */}
@@ -367,8 +420,8 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
                     <View key={ii} style={rowStyle}>
                       <Text style={S.tdDesc}>{item.description}</Text>
                       <Text style={S.tdQty}>{item.quantity}</Text>
-                      <Text style={S.tdPrice}>{fmt(item.unit_price)}</Text>
-                      <Text style={S.tdTotal}>{fmt(item._total)}</Text>
+                      <Text style={S.tdPrice}>{fmt(toNum(item.unit_price) * cr)}</Text>
+                      <Text style={S.tdTotal}>{fmt(item._total * cr)}</Text>
                     </View>
                   )
                 })}
@@ -379,7 +432,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
                       Sous-total {cat}
                     </Text>
                     <Text style={[S.tdTotal, { flex: 2, fontFamily: 'Helvetica-Bold' }]}>
-                      {fmt(catTotal)}
+                      {fmtCurrency(catTotal * cr, currency)}
                     </Text>
                   </View>
                 )}
@@ -403,24 +456,24 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
               <View style={S.totalsInner}>
                 <View style={S.totalRow}>
                   <Text style={S.totalLabel}>Sous Total :</Text>
-                  <Text style={S.totalValue}>{fmt(subtotalBefore)}</Text>
+                  <Text style={S.totalValue}>{fmtCurrency(subtotalBeforeConverted, currency)}</Text>
                 </View>
                 {totalDiscount > 0 && (
                   <View style={S.totalRow}>
                     <Text style={S.totalLabel}>Remise :</Text>
-                    <Text style={S.totalValue}>{fmt(totalDiscount)}</Text>
+                    <Text style={S.totalValue}>{fmtCurrency(totalDiscountConverted, currency)}</Text>
                   </View>
                 )}
                 {doc.has_tva && (
                   <View style={S.totalRow}>
                     <Text style={S.totalLabel}>TVA ({tvaRate}%) :</Text>
-                    <Text style={S.totalValue}>{fmt(tvaAmount)}</Text>
+                    <Text style={S.totalValue}>{fmtCurrency(tvaAmountConverted, currency)}</Text>
                   </View>
                 )}
               </View>
               <View style={S.totalFinalBar}>
                 <Text style={S.totalFinalLabel}>Total :</Text>
-                <Text style={S.totalFinalValue}>{fmt(total)}</Text>
+                <Text style={S.totalFinalValue}>{fmtCurrency(total, currency)}</Text>
               </View>
             </View>
           </View>
@@ -464,7 +517,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
               ) : (
                 <View style={{ width: 52, height: 52, backgroundColor: '#f0f0f0' }} />
               )}
-              <View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Link src="https://www.getbudgetpilot.com" style={S.brandingLink}>
                   www.getbudgetpilot.com
                 </Link>
@@ -487,7 +540,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
 
 // ─── Fonction utilitaire pour générer le blob PDF ────────────────────────────
 
-export async function generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl) {
+export async function generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0) {
   const blob = await pdf(
     <MinimalPdfDocument
       doc={doc}
@@ -496,6 +549,8 @@ export async function generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUr
       logoDataUrl={logoDataUrl}
       signatureDataUrl={signatureDataUrl}
       logoBbDataUrl={logoBbDataUrl}
+      currency={currency}
+      conversionRate={conversionRate}
     />
   ).toBlob()
   return blob

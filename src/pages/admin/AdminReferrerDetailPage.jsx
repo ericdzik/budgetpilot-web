@@ -6,6 +6,18 @@ import { Users, Search, SlidersHorizontal, ChevronRight, User, CreditCard, Calen
 
 // ── Sous-composants ───────────────────────────────────────────────────────────
 
+const PAYMENT_METHOD_LABELS = {
+  cash:     'Cash',
+  virement: 'Virement bancaire',
+  cheque:   'Chèque',
+  mobile:   'Mobile Money',
+  autre:    'Autre',
+}
+
+function methodLabel(value) {
+  return PAYMENT_METHOD_LABELS[value] || value || 'Non précisé'
+}
+
 function PlanBadge({ plan }) {
   const colors = { pro: '#1E88E5', basic: '#43A047', freemium: '#9E9E9E', welcome: '#FF9800' }
   const c = colors[plan] || '#9E9E9E'
@@ -47,10 +59,21 @@ function Pagination({ page, lastPage, onChange }) {
 }
 
 // ── Modal ajout versement ─────────────────────────────────────────────────────
+const PAYMENT_METHODS = [
+  { value: 'cash',      label: 'Cash' },
+  { value: 'virement',  label: 'Virement bancaire' },
+  { value: 'cheque',    label: 'Chèque' },
+  { value: 'mobile',    label: 'Mobile Money' },
+  { value: 'autre',     label: 'Autre' },
+]
+
 function VersementModal({ referrerId, onClose, onSuccess }) {
-  const [amount, setAmount] = useState('')
-  const [note, setNote]     = useState('')
-  const [saving, setSaving] = useState(false)
+  const [amount, setAmount]   = useState('')
+  const [method, setMethod]   = useState('')
+  const [saving, setSaving]   = useState(false)
+  const [open, setOpen]       = useState(false)
+
+  const selectedLabel = PAYMENT_METHODS.find((m) => m.value === method)?.label || ''
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -60,7 +83,7 @@ function VersementModal({ referrerId, onClose, onSuccess }) {
     }
     setSaving(true)
     try {
-      await adminService.addVersement(referrerId, { amount: Number(amount), note })
+      await adminService.addVersement(referrerId, { amount: Number(amount), note: method })
       toast.success('Versement ajouté')
       onSuccess()
       onClose()
@@ -84,6 +107,7 @@ function VersementModal({ referrerId, onClose, onSuccess }) {
           Ajouter un versement
         </h3>
         <form onSubmit={handleSubmit}>
+          {/* Montant */}
           <div style={{ marginBottom: '16px' }}>
             <label style={{ fontSize: '13px', color: '#888', display: 'block', marginBottom: '8px' }}>
               Montant (XOF)
@@ -99,20 +123,62 @@ function VersementModal({ referrerId, onClose, onSuccess }) {
               autoFocus
             />
           </div>
-          <div style={{ marginBottom: '24px' }}>
+
+          {/* Méthode de paiement — dropdown custom */}
+          <div style={{ marginBottom: '24px', position: 'relative' }}>
             <label style={{ fontSize: '13px', color: '#888', display: 'block', marginBottom: '8px' }}>
-              Note (optionnel)
+              Méthode de paiement
             </label>
-            <input
-              type="text" value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder="Remarque interne..."
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
               style={{
                 width: '100%', boxSizing: 'border-box', padding: '12px 14px',
-                border: '1.5px solid #e0e0e0', borderRadius: '10px',
-                fontSize: '14px', color: '#333', outline: 'none',
+                border: `1.5px solid ${open ? '#1E88E5' : '#e0e0e0'}`, borderRadius: '10px',
+                backgroundColor: '#fff', fontSize: '14px',
+                color: method ? '#111' : '#aaa',
+                textAlign: 'left', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                outline: 'none', transition: 'border-color 0.15s',
               }}
-            />
+            >
+              <span>{method ? selectedLabel : 'Sélectionner...'}</span>
+              <svg
+                width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="#aaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            {open && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
+                backgroundColor: '#fff', border: '1.5px solid #e0e0e0', borderRadius: '10px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.10)', zIndex: 10, overflow: 'hidden',
+              }}>
+                {PAYMENT_METHODS.map((m) => (
+                  <div
+                    key={m.value}
+                    onClick={() => { setMethod(m.value); setOpen(false) }}
+                    style={{
+                      padding: '11px 14px', fontSize: '14px',
+                      color: method === m.value ? '#1E88E5' : '#111',
+                      fontWeight: method === m.value ? '600' : '400',
+                      backgroundColor: method === m.value ? '#e3f2fd' : 'transparent',
+                      cursor: 'pointer', transition: 'background 0.1s',
+                    }}
+                    onMouseEnter={(e) => { if (method !== m.value) e.currentTarget.style.backgroundColor = '#f5f5f5' }}
+                    onMouseLeave={(e) => { if (method !== m.value) e.currentTarget.style.backgroundColor = 'transparent' }}
+                  >
+                    {m.label}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="button" onClick={onClose} style={{
               flex: 1, padding: '12px',
@@ -242,10 +308,10 @@ export default function AdminReferrerDetailPage() {
         ← Voir son parrain
       </button>
 
-      {/* ── Corps — 2 colonnes ────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+      {/* ── Ligne du haut — infos + KPI côte à côte ─────────────────────── */}
+      <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', marginBottom: '28px' }}>
 
-        {/* Colonne gauche — infos + historique + filleuls */}
+        {/* Infos personnelles + historique versements */}
         <div style={{ flex: 1 }}>
 
           {/* Informations personnelles */}
@@ -273,7 +339,7 @@ export default function AdminReferrerDetailPage() {
           </section>
 
           {/* Historique des versements */}
-          <section style={{ marginBottom: '28px' }}>
+          <section>
             <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#111', margin: '0 0 16px' }}>
               Historique des versements
             </h2>
@@ -281,12 +347,8 @@ export default function AdminReferrerDetailPage() {
               <p style={{ color: '#aaa', fontSize: '13px' }}>Aucun versement enregistré</p>
             ) : (
               <div>
-                {/* Header colonnes */}
-                <div style={{
-                  display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr 1fr',
-                  marginBottom: '8px',
-                }}>
-                  {['Date versement', 'Montant versé', 'Moyen de versement', 'Nombre de filleuls'].map((h) => (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr 1fr', marginBottom: '8px' }}>
+                  {['Date versement', 'Montant versé', 'Méthode de paiement', 'Nombre de filleuls'].map((h) => (
                     <span key={h} style={{ fontSize: '11px', color: '#aaa', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                       {h}
                     </span>
@@ -295,158 +357,152 @@ export default function AdminReferrerDetailPage() {
                 {versements.map((v, i) => (
                   <div key={i} style={{
                     display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr 1fr',
-                    padding: '10px 0',
-                    borderBottom: '1px solid #f5f5f5',
+                    padding: '10px 0', borderBottom: '1px solid #f5f5f5',
                   }}>
                     <span style={{ fontSize: '14px', color: '#111', fontWeight: '500' }}>{v.date || '—'}</span>
                     <span style={{ fontSize: '14px', color: '#111', fontWeight: '500' }}>{fmtN(v.montant)}</span>
-                    <span style={{ fontSize: '14px', color: '#555' }}>{v.moyen}</span>
+                    <span style={{ fontSize: '14px', color: '#555' }}>{methodLabel(v.moyen)}</span>
                     <span style={{ fontSize: '14px', color: '#555' }}>{v.nb_filleuls}</span>
                   </div>
                 ))}
               </div>
             )}
           </section>
-
-          {/* Filtre + recherche */}
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', alignItems: 'center' }}>
-            <button style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '8px 16px', borderRadius: '50px',
-              border: '1px solid #e0e0e0', backgroundColor: '#fff',
-              fontSize: '13px', fontWeight: '500', color: '#333', cursor: 'pointer',
-            }}>
-              <SlidersHorizontal size={13} color="#555" />
-              Filtre
-            </button>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              flex: 1, maxWidth: '320px',
-              padding: '8px 16px', borderRadius: '50px',
-              border: '1px solid #e0e0e0', backgroundColor: '#fff',
-            }}>
-              <Search size={13} color="#aaa" style={{ flexShrink: 0 }} />
-              <input
-                type="text" placeholder="Rechercher..." value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', color: '#333', width: '100%' }}
-              />
-            </div>
-          </div>
-
-          {/* Tableau Filleuls */}
-          <div style={{
-            backgroundColor: '#fff', borderRadius: '16px',
-            border: '1px solid #e8e8e8', overflow: 'hidden',
-          }}>
-            {/* Header */}
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '16px 20px', borderBottom: '1px solid #f0f0f0',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Users size={16} color="#111" />
-                <span style={{ fontSize: '15px', fontWeight: '700', color: '#111' }}>Filleuls</span>
-                <span style={{ fontSize: '13px', color: '#888' }}>
-                  Nombre de filleuls &nbsp;
-                  <strong style={{ color: '#111' }}>{data?.nb_filleuls ?? '—'}</strong>
-                </span>
-              </div>
-              <button style={{ background: 'none', border: 'none', fontSize: '13px', color: '#888', cursor: 'pointer' }}>
-                Tout voir
-              </button>
-            </div>
-
-            {/* Colonnes header */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1.8fr 0.8fr 0.7fr 1fr 1fr 1.2fr 40px',
-              padding: '9px 20px', backgroundColor: '#fafafa', borderBottom: '1px solid #f0f0f0',
-            }}>
-              {[
-                { label: 'Filleul',      icon: <User size={11} color="#555" /> },
-                { label: 'Abonnement',   icon: <CreditCard size={11} color="#555" /> },
-                { label: 'Durée',        icon: <Clock size={11} color="#555" /> },
-                { label: 'Date',         icon: <Calendar size={11} color="#555" /> },
-                { label: 'Expiration',   icon: <Calendar size={11} color="#555" /> },
-                { label: 'Montant dû',   icon: <DollarSign size={11} color="#555" /> },
-                { label: '',             icon: null },
-              ].map((h, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: '#555' }}>
-                  {h.label && h.icon}
-                  {h.label}
-                </div>
-              ))}
-            </div>
-
-            {/* Lignes */}
-            {loading ? (
-              <div style={{ padding: '32px', textAlign: 'center', color: '#aaa', fontSize: '13px' }}>Chargement...</div>
-            ) : filleuls.length === 0 ? (
-              <div style={{ padding: '32px', textAlign: 'center', color: '#aaa', fontSize: '13px' }}>Aucun filleul</div>
-            ) : (
-              filleuls.map((ref, i) => {
-                const commission = ref.commissions?.[0]
-                const sub        = commission?.subscription
-                return (
-                  <div
-                    key={ref.id}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1.8fr 0.8fr 0.7fr 1fr 1fr 1.2fr 40px',
-                      padding: '11px 20px',
-                      borderBottom: i < filleuls.length - 1 ? '1px solid #f5f5f5' : 'none',
-                      alignItems: 'center', cursor: 'pointer', transition: 'background 0.1s',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fafafa' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
-                    onClick={() => ref.referred_id && navigate(`/admin/users/${ref.referred_id}`)}
-                  >
-                    <span style={{ fontSize: '13px', color: '#111', fontWeight: '500' }}>{ref.referred?.name || '—'}</span>
-                    <div>{ref.referred?.plan ? <PlanBadge plan={ref.referred.plan} /> : '—'}</div>
-                    <span style={{ fontSize: '12px', color: '#888' }}>{durationLabel(sub)}</span>
-                    <span style={{ fontSize: '12px', color: '#888' }}>{fmtD(ref.created_at)}</span>
-                    <span style={{ fontSize: '12px', color: '#888' }}>{fmtD(sub?.next_billing_at)}</span>
-                    <span style={{ fontSize: '13px', color: '#111', fontWeight: '500' }}>{commission ? fmtN(commission.amount) : '—'}</span>
-                    <div style={{
-                      width: 26, height: 26, borderRadius: '50%', backgroundColor: '#f0f0f0',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 'auto',
-                      cursor: 'pointer',
-                    }}>
-                      <ChevronRight size={13} color="#666" />
-                    </div>
-                  </div>
-                )
-              })
-            )}
-
-            {/* Pagination */}
-            <Pagination page={page} lastPage={meta.last_page || 1} onChange={changePage} />
-          </div>
         </div>
 
-        {/* Colonne droite — KPI cards */}
-        <div style={{ width: '220px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{
-            border: '1px solid #e0e0e0', borderRadius: '14px',
-            padding: '20px 24px', backgroundColor: '#fff',
-          }}>
+        {/* KPI cards à droite */}
+        <div style={{ width: '180px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ border: '1px solid #e0e0e0', borderRadius: '14px', padding: '20px 24px', backgroundColor: '#fff' }}>
             <p style={{ fontSize: '13px', color: '#888', margin: '0 0 16px', fontWeight: '500' }}>Total à versé</p>
             <p style={{ fontSize: '34px', fontWeight: '700', color: '#111', margin: 0, letterSpacing: '-1px' }}>
               {fmtN(data?.total_pending)}
             </p>
           </div>
-          <div style={{
-            border: '1px solid #e0e0e0', borderRadius: '14px',
-            padding: '20px 24px', backgroundColor: '#fff',
-          }}>
+          <div style={{ border: '1px solid #e0e0e0', borderRadius: '14px', padding: '20px 24px', backgroundColor: '#fff' }}>
             <p style={{ fontSize: '13px', color: '#888', margin: '0 0 16px', fontWeight: '500' }}>Total versé</p>
             <p style={{ fontSize: '34px', fontWeight: '700', color: '#111', margin: 0, letterSpacing: '-1px' }}>
               {fmtN(data?.total_paid)}
             </p>
           </div>
         </div>
+      </div>
 
+      {/* ── Tableau filleuls — pleine largeur ────────────────────────────── */}
+
+      {/* Filtre + recherche */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', alignItems: 'center' }}>
+        <button style={{
+          display: 'flex', alignItems: 'center', gap: '8px',
+          padding: '8px 16px', borderRadius: '50px',
+          border: '1px solid #e0e0e0', backgroundColor: '#fff',
+          fontSize: '13px', fontWeight: '500', color: '#333', cursor: 'pointer',
+        }}>
+          <SlidersHorizontal size={13} color="#555" />
+          Filtre
+        </button>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '8px',
+          flex: 1, maxWidth: '320px',
+          padding: '8px 16px', borderRadius: '50px',
+          border: '1px solid #e0e0e0', backgroundColor: '#fff',
+        }}>
+          <Search size={13} color="#aaa" style={{ flexShrink: 0 }} />
+          <input
+            type="text" placeholder="Rechercher..." value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', color: '#333', width: '100%' }}
+          />
+        </div>
+      </div>
+
+      {/* Tableau Filleuls */}
+      <div style={{
+        backgroundColor: '#fff', borderRadius: '16px',
+        border: '1px solid #e8e8e8', overflow: 'hidden',
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 20px', borderBottom: '1px solid #f0f0f0',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Users size={16} color="#111" />
+            <span style={{ fontSize: '15px', fontWeight: '700', color: '#111' }}>Filleuls</span>
+            <span style={{ fontSize: '13px', color: '#888' }}>
+              Nombre de filleuls &nbsp;
+              <strong style={{ color: '#111' }}>{data?.nb_filleuls ?? '—'}</strong>
+            </span>
+          </div>
+          <button style={{ background: 'none', border: 'none', fontSize: '13px', color: '#888', cursor: 'pointer' }}>
+            Tout voir
+          </button>
+        </div>
+
+        {/* Colonnes header */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '2.2fr 1fr 0.8fr 1.1fr 1.1fr 1.3fr 40px',
+          padding: '9px 20px', backgroundColor: '#fafafa', borderBottom: '1px solid #f0f0f0',
+        }}>
+          {[
+            { label: 'Filleul',      icon: <User size={11} color="#555" /> },
+            { label: 'Abonnement',   icon: <CreditCard size={11} color="#555" /> },
+            { label: 'Durée',        icon: <Clock size={11} color="#555" /> },
+            { label: 'Date',         icon: <Calendar size={11} color="#555" /> },
+            { label: 'Expiration',   icon: <Calendar size={11} color="#555" /> },
+            { label: 'Montant dû',   icon: <DollarSign size={11} color="#555" /> },
+            { label: '',             icon: null },
+          ].map((h, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '600', color: '#555' }}>
+              {h.label && h.icon}
+              {h.label}
+            </div>
+          ))}
+        </div>
+
+        {/* Lignes */}
+        {loading ? (
+          <div style={{ padding: '32px', textAlign: 'center', color: '#aaa', fontSize: '13px' }}>Chargement...</div>
+        ) : filleuls.length === 0 ? (
+          <div style={{ padding: '32px', textAlign: 'center', color: '#aaa', fontSize: '13px' }}>Aucun filleul</div>
+        ) : (
+          filleuls.map((ref, i) => {
+            const commission = ref.commissions?.[0]
+            const sub        = commission?.subscription
+            return (
+              <div
+                key={ref.id}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '2.2fr 1fr 0.8fr 1.1fr 1.1fr 1.3fr 40px',
+                  padding: '11px 20px',
+                  borderBottom: i < filleuls.length - 1 ? '1px solid #f5f5f5' : 'none',
+                  alignItems: 'center', cursor: 'pointer', transition: 'background 0.1s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fafafa' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                onClick={() => ref.referred_id && navigate(`/admin/users/${ref.referred_id}`)}
+              >
+                <span style={{ fontSize: '13px', color: '#111', fontWeight: '500' }}>{ref.referred?.name || '—'}</span>
+                <div>{ref.referred?.plan ? <PlanBadge plan={ref.referred.plan} /> : '—'}</div>
+                <span style={{ fontSize: '12px', color: '#888' }}>{durationLabel(sub)}</span>
+                <span style={{ fontSize: '12px', color: '#888' }}>{fmtD(ref.created_at)}</span>
+                <span style={{ fontSize: '12px', color: '#888' }}>{fmtD(sub?.next_billing_at)}</span>
+                <span style={{ fontSize: '13px', color: '#111', fontWeight: '500' }}>{commission ? fmtN(commission.amount) : '—'}</span>
+                <div style={{
+                  width: 26, height: 26, borderRadius: '50%', backgroundColor: '#f0f0f0',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 'auto',
+                  cursor: 'pointer',
+                }}>
+                  <ChevronRight size={13} color="#666" />
+                </div>
+              </div>
+            )
+          })
+        )}
+
+        {/* Pagination */}
+        <Pagination page={page} lastPage={meta.last_page || 1} onChange={changePage} />
       </div>
     </div>
   )

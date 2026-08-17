@@ -1,6 +1,21 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+// ── Icône contextuelle par champ ────────────────────────────────────────────
+function fieldIcon(field) {
+  switch (field) {
+    case "Nom de l'entreprise": return '🏢'
+    case 'NIF':                 return '🪪'
+    case 'Statut juridique':    return '⚖️'
+    case 'Adresse':             return '📍'
+    case 'Téléphone pro':       return '📞'
+    case 'Email pro':           return '📧'
+    case 'Logo':                return '🖼️'
+    case 'Signature':           return '🖊️'
+    default:                    return 'ℹ️'
+  }
+}
+
 /**
  * Affiché après login si le profil est incomplet
  * Multi-pages avec barre de progression — inspiré du mobile
@@ -87,17 +102,15 @@ export default function WelcomeProfileModal({ open, user, onComplete, onSkip }) 
         {missingFields.map((field, i) => (
           <div key={i} style={{
             display: 'flex', alignItems: 'center', gap: '12px',
-            backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '12px',
-            padding: '14px 16px', marginBottom: '10px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+            padding: '8px 4px', marginBottom: '6px',
           }}>
             <div style={{
-              width: 40, height: 40, borderRadius: '8px',
-              backgroundColor: '#E3F2FD',
+              width: 36, height: 36, borderRadius: '8px',
+              backgroundColor: 'rgba(30,136,229,0.1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
             }}>
-              <span style={{ fontSize: 18 }}>✏️</span>
+              <span style={{ fontSize: 16 }}>{fieldIcon(field)}</span>
             </div>
             <span style={{ fontSize: '14px', fontWeight: '500', color: '#333' }}>{field}</span>
           </div>

@@ -45,7 +45,10 @@ export default function PhoneInputField({
 
   // Initialiser le numéro local depuis la valeur passée
   useEffect(() => {
-    if (!value) return
+    if (!value) {
+      setLocalNumber('')
+      return
+    }
     // Si le numéro commence par +, extraire l'indicatif
     if (value.startsWith('+')) {
       const matched = COUNTRIES.find(c => value.startsWith(`+${c.dial}`))
@@ -56,7 +59,7 @@ export default function PhoneInputField({
       }
     }
     setLocalNumber(value)
-  }, [])
+  }, [value])
 
   // Focus sur la recherche quand le picker s'ouvre
   useEffect(() => {
@@ -112,7 +115,7 @@ export default function PhoneInputField({
             border: '1.5px solid #90CAF9', borderRadius: '20px',
             padding: '4px 8px',
           }}>
-            <span style={{ fontSize: '18px', lineHeight: 1 }}>{country.flag}</span>
+            <img src={`https://flagcdn.com/24x18/${country.code.toLowerCase()}.png`} alt="" style={{ width:20, height:15, borderRadius:2, objectFit:'cover' }} />
             <span style={{ fontSize: '12px', fontWeight: '600', color: '#1E88E5' }}>
               +{country.dial}
             </span>
@@ -216,7 +219,7 @@ export default function PhoneInputField({
                   onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f5f5f5'}
                   onMouseLeave={e => e.currentTarget.style.backgroundColor = c.code === country.code ? '#e3f2fd' : 'transparent'}
                 >
-                  <span style={{ fontSize: '24px', lineHeight: 1, flexShrink: 0 }}>{c.flag}</span>
+                  <img src={`https://flagcdn.com/24x18/${c.code.toLowerCase()}.png`} alt="" style={{ width:24, height:18, borderRadius:2, objectFit:'cover', flexShrink:0 }} />
                   <span style={{ flex: 1, fontSize: '14px', fontWeight: '500', color: '#111', textAlign: 'left' }}>
                     {c.name}
                   </span>

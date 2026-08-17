@@ -3,12 +3,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import {
   Search, SlidersHorizontal, Pencil, Download, Eye,
-  Trash2, ChevronDown, ChevronUp, X, Check, FileText, CircleDollarSign, MoreVertical,
+  Trash2, ChevronDown, ChevronUp, X, Check, FileText, CircleDollarSign, MoreVertical, Calendar,
 } from 'lucide-react'
 import api from '../config/api'
 import PdfPreviewModal from '../components/ui/PdfPreviewModal'
 import UserBadge from '../components/ui/UserBadge'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
+import { RangeDatePicker } from '../components/ui/PeriodDropdown'
+import useCurrencyStore, { formatAmount } from '../store/currencyStore'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -32,14 +34,12 @@ function getMonthKey(dateStr) {
 }
 
 function statusInfo(item, type) {
-  // Règle badge paiement : toujours "Payée", couleur selon état
-  // gris = non payé, orange = partiel, vert = payé
   if (type === 'invoices' || type === 'expenses') {
     const s = item.payment_status || item.status
-    if (s === 'paid')                              return { label: 'Payée', color: '#4CAF50', bg: '#E8F5E9' }
-    if (s === 'partial' || s === 'partially_paid') return { label: 'Payée', color: '#FF9800', bg: '#FFF3E0' }
+    if (s === 'paid')                              return { label: 'Payée',    color: '#4CAF50', bg: '#E8F5E9' }
+    if (s === 'partial' || s === 'partially_paid') return { label: 'En cours', color: '#FF9800', bg: '#FFF3E0' }
     // unpaid, sent, draft, overdue → gris
-    return { label: 'Payée', color: '#9E9E9E', bg: '#F5F5F5' }
+    return { label: 'Impayée', color: '#9E9E9E', bg: '#F5F5F5' }
   }
   if (type === 'quotes') {
     const s = item.status
@@ -99,6 +99,7 @@ function CtxItem({ icon, label, onClick, color, danger }) {
 
 function HistoryCard({ item, type, onRefresh }) {
   const navigate = useNavigate()
+  const { activeCurrency } = useCurrencyStore()
   const [expanded, setExpanded] = useState(false)
   const [detail, setDetail]     = useState(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
@@ -337,6 +338,11 @@ function HistoryCard({ item, type, onRefresh }) {
   const remaining = itemTotalAmount - totalPaid
   const isFullyPaid = remaining <= 0
 
+  // Devise du document — on affiche les montants dans la devise d'origine (logique mobile)
+  const docCurrency = item.currency || detail?.currency || item.display_currency || activeCurrency
+  const totalPaidConverted = totalPaid
+  const remainingConverted = Math.max(0, remaining)
+
   // Utiliser le statut du détail chargé en priorité (plus à jour que item)
   const currentPaymentStatus = detail?.payment_status ?? item.payment_status
   const showPayments = (type === 'invoices' || (type === 'expenses' && currentPaymentStatus !== 'paid')) && expanded
@@ -376,7 +382,7 @@ function HistoryCard({ item, type, onRefresh }) {
 
           {/* Montant */}
           <span style={{ fontSize: '19px', fontWeight: '700', color: '#111', whiteSpace: 'nowrap' }}>
-            {fmt(item.total_amount || item.total || item.amount)} <span style={{ fontSize: '15px', color: '#888', fontWeight: '500' }}>XOF</span>
+            {formatAmount(item.total_amount ?? item.total ?? item.amount, docCurrency)}
           </span>
 
           {/* Statut */}
@@ -384,10 +390,11 @@ function HistoryCard({ item, type, onRefresh }) {
             {status && type !== 'quotes' && type !== 'receipts' ? (
               <span style={{
                 display: 'inline-block',
-                padding: '5px 16px', borderRadius: '20px',
+                minWidth: '90px',
+                padding: '5px 8px', borderRadius: '20px',
                 fontSize: '15px', fontWeight: '600',
                 color: status.color, backgroundColor: status.bg,
-                whiteSpace: 'nowrap',
+                whiteSpace: 'nowrap', textAlign: 'center',
               }}>
                 {status.label}
               </span>
@@ -580,7 +587,7 @@ function HistoryCard({ item, type, onRefresh }) {
                       {payments.length > 0 ? payments.map(p => (
                         <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
                           <span style={{ fontSize: '17px', color: '#666', minWidth: '110px' }}>{fmtDate(p.payment_date)}</span>
-                          <span style={{ fontSize: '18px', fontWeight: '700', minWidth: '100px' }}>{fmt(p.amount)}</span>
+                          <span style={{ fontSize: '18px', fontWeight: '700', minWidth: '100px' }}>{formatAmount(parseFloat(p.amount || 0), docCurrency)}</span>
                           <button onClick={() => handleDeletePayment(p.id)} disabled={deletingPay === p.id}
                             style={{ background: 'none', border: '1px solid #e0e0e0', borderRadius: '4px', width: 24, height: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
                             <Trash2 size={14} color="#aaa" />
@@ -626,12 +633,12 @@ function HistoryCard({ item, type, onRefresh }) {
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '32px', marginBottom: '8px' }}>
                         <span style={{ fontSize: '17px', color: '#555' }}>Montant perçu</span>
-                        <span style={{ fontSize: '18px', fontWeight: '700' }}>{fmt(totalPaid)}</span>
+                        <span style={{ fontSize: '18px', fontWeight: '700' }}>{formatAmount(totalPaidConverted, docCurrency)}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '32px' }}>
                         <span style={{ fontSize: '17px', color: '#555' }}>Montant restant</span>
                         <span style={{ fontSize: '18px', fontWeight: '700', color: remaining > 0 ? '#333' : '#4CAF50' }}>
-                          {fmt(Math.max(0, remaining))}
+                          {formatAmount(remainingConverted, docCurrency)}
                         </span>
                       </div>
                     </div>
@@ -657,7 +664,7 @@ function HistoryCard({ item, type, onRefresh }) {
                 borderTop: detail.notes ? 'none' : '1px solid #f0f0f0',
               }}>
                 {(() => {
-                  // Calculer le sous-total depuis les items
+                  // Calculer le sous-total depuis les items (montants bruts en devise de saisie)
                   const itemsSubtotal = (detail.items || []).reduce((acc, it) => {
                     const total = Number(it.total_price ?? it.total ?? (it.quantity * it.unit_price) ?? 0)
                     return acc + total
@@ -670,12 +677,17 @@ function HistoryCard({ item, type, onRefresh }) {
                   const taxAmt = Number(detail.tax_amount || 0)
                   const total = Number(itemTotalAmount)
 
+                  // Montants bruts de saisie (devise du document) — pas de conversion
+                  const itemsSubtotalConverted = itemsSubtotal
+                  const discountAmtConverted = discountAmt
+                  const taxAmtConverted = taxAmt
+
                   return (
                     <>
                       {itemsSubtotal > 0 && (
                         <span style={{ fontSize: '17px', color: '#555' }}>
                           Sous-Total <strong style={{ fontSize: '19px', color: '#111', marginLeft: '6px' }}>
-                            {fmt(itemsSubtotal)}
+                            {formatAmount(itemsSubtotalConverted, docCurrency)}
                           </strong>
                         </span>
                       )}
@@ -683,7 +695,7 @@ function HistoryCard({ item, type, onRefresh }) {
                         <span style={{ fontSize: '17px', color: '#888' }}>
                           Remise ({discountPct.toFixed(2)}%)
                           <strong style={{ fontSize: '19px', color: '#111', marginLeft: '6px' }}>
-                            {fmt(discountAmt)}
+                            {formatAmount(discountAmtConverted, docCurrency)}
                           </strong>
                         </span>
                       )}
@@ -691,14 +703,14 @@ function HistoryCard({ item, type, onRefresh }) {
                         <span style={{ fontSize: '17px', color: '#888' }}>
                           Taxe
                           <strong style={{ fontSize: '19px', color: '#111', marginLeft: '6px' }}>
-                            {fmt(taxAmt)}
+                            {formatAmount(taxAmtConverted, docCurrency)}
                           </strong>
                         </span>
                       )}
                       <span style={{ fontSize: '18px', color: '#333', fontWeight: '600' }}>
                         Total
                         <strong style={{ fontSize: '28px', color: '#111', marginLeft: '8px' }}>
-                          {fmt(total)}
+                          {formatAmount(total, docCurrency)}
                         </strong>
                       </span>
                     </>
@@ -767,13 +779,20 @@ export default function HistoryPage() {
   const [searchParams] = useSearchParams()
   const initialTab    = searchParams.get('tab')    || 'invoices'
   const initialFilter = searchParams.get('filter') || 'all'
+  const clientIdFilter = searchParams.get('client_id') || null
 
+  const { activeCurrency } = useCurrencyStore()
   const [activeTab, setActiveTab]           = useState(initialTab)
   const [items, setItems]                   = useState([])
   const [loading, setLoading]               = useState(true)
   const [search, setSearch]                 = useState('')
   const [filterStatus, setFilterStatus]     = useState(initialFilter)
   const [filterOpen, setFilterOpen]         = useState(false)
+  const [filterView, setFilterView]         = useState('list') // 'list' | 'calendar'
+  const [customStart, setCustomStart]       = useState(null)   // Date | null
+  const [customEnd, setCustomEnd]           = useState(null)   // Date | null
+  const [localStart, setLocalStart]         = useState(null)   // Date | null
+  const [localEnd, setLocalEnd]             = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -811,6 +830,11 @@ export default function HistoryPage() {
   // Filtrage
   const filtered = items.filter(item => {
     const q = search.toLowerCase()
+
+    // Filtre client (depuis la fiche client)
+    const itemClientId = item.client_id ?? item.client?.id
+    const matchClient = !clientIdFilter || String(itemClientId ?? '') === String(clientIdFilter)
+
     const matchSearch = !q ||
       (item.client_name   || '').toLowerCase().includes(q) ||
       (item.client?.name  || '').toLowerCase().includes(q) ||
@@ -822,19 +846,25 @@ export default function HistoryPage() {
 
     // Filtre statut (factures + dépenses)
     let matchStatus = true
-    if (filterStatus !== 'all' && (activeTab === 'invoices' || activeTab === 'expenses')) {
+    if (filterStatus !== 'all' && filterStatus !== 'custom' && (activeTab === 'invoices' || activeTab === 'expenses')) {
       const s = item.payment_status || item.status
-      if (filterStatus === 'paid')             matchStatus = s === 'paid'
-      if (filterStatus === 'unpaid')           matchStatus = s !== 'paid' && s !== 'partially_paid'
-      if (filterStatus === 'partial')          matchStatus = s === 'partially_paid'
+      if (filterStatus === 'paid')               matchStatus = s === 'paid'
+      if (filterStatus === 'unpaid')             matchStatus = s === 'unpaid' || s === 'draft' || s === 'overdue' || s === 'sent'
+      if (filterStatus === 'partial')            matchStatus = s === 'partially_paid' || s === 'partial'
       if (filterStatus === 'unpaid_and_pending') matchStatus = s !== 'paid'
     }
 
     // Filtre date (devis + recettes)
     let matchDate = true
-    if (filterStatus !== 'all' && (activeTab === 'quotes' || activeTab === 'receipts')) {
-      const d = new Date(item.issue_date || item.date || item.created_at)
-      const now = new Date()
+    const itemDate = new Date(item.issue_date || item.date || item.created_at)
+    const now = new Date()
+    if (filterStatus === 'custom' && customStart && customEnd) {
+      // Filtre personnalisé — date de création (issue_date)
+      const start = new Date(customStart); start.setHours(0, 0, 0, 0)
+      const end   = new Date(customEnd);   end.setHours(23, 59, 59, 999)
+      matchDate = itemDate >= start && itemDate <= end
+    } else if (filterStatus !== 'all' && (activeTab === 'quotes' || activeTab === 'receipts')) {
+      const d = itemDate
       if (filterStatus === 'today') {
         matchDate = d.toDateString() === now.toDateString()
       } else if (filterStatus === 'week') {
@@ -846,7 +876,7 @@ export default function HistoryPage() {
       }
     }
 
-    return matchSearch && matchStatus && matchDate
+    return matchClient && matchSearch && matchStatus && matchDate
   })
 
   // Grouper par mois
@@ -865,7 +895,7 @@ export default function HistoryPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#111', margin: 0 }}>Suivi des opérations</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '15px', fontWeight: '600', color: '#333', cursor: 'pointer' }}>
-            XOF <ChevronDown size={15} color="#1E88E5" />
+            {activeCurrency} <ChevronDown size={15} color="#1E88E5" />
           </div>
         </div>
         {/* Badge Pro + Avatar */}
@@ -877,7 +907,7 @@ export default function HistoryPage() {
       {/* ── Onglets + Recherche ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 28px 16px', flexWrap: 'wrap' }}>
         {TABS.map(tab => (
-          <button key={tab.key} onClick={() => { setActiveTab(tab.key); setFilterStatus('all'); setFilterOpen(false) }}
+          <button key={tab.key} onClick={() => { setActiveTab(tab.key); setFilterStatus('all'); setCustomStart(null); setCustomEnd(null); setFilterView('list'); setFilterOpen(false) }}
             style={{
               padding: '9px 22px', borderRadius: '25px', border: 'none',
               fontSize: '15px', fontWeight: '600', cursor: 'pointer',
@@ -942,47 +972,128 @@ export default function HistoryPage() {
                 position: 'absolute', right: 0, top: 'calc(100% + 8px)', zIndex: 100,
                 backgroundColor: '#fff', borderRadius: '16px',
                 boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
-                padding: '8px', minWidth: '200px',
+                padding: '8px', minWidth: filterView === 'calendar' ? 300 : 200,
               }}>
-                {/* Options selon l'onglet actif */}
-                {((activeTab === 'invoices' || activeTab === 'expenses') ? [
-                  { value: 'all',                label: 'Tout' },
-                  { value: 'paid',               label: 'Payée' },
-                  { value: 'unpaid_and_pending', label: 'Impayées (Toutes)' },
-                ] : [
-                  { value: 'all',   label: 'Tout' },
-                  { value: 'today', label: "Aujourd'hui" },
-                  { value: 'week',  label: 'Cette semaine' },
-                  { value: 'month', label: 'Ce mois' },
-                ]).map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => { setFilterStatus(opt.value); setFilterOpen(false) }}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      width: '100%', padding: '10px 16px',
-                      background: filterStatus === opt.value ? '#e8f4ff' : 'none',
-                      border: 'none', borderRadius: '10px',
-                      fontSize: '15px', fontWeight: filterStatus === opt.value ? '600' : '400',
-                      color: filterStatus === opt.value ? '#1E88E5' : '#333',
-                      cursor: 'pointer', textAlign: 'left',
-                    }}
-                  >
-                    {opt.label}
-                    {filterStatus === opt.value && (
-                      <span style={{
-                        width: 18, height: 18, borderRadius: '50%',
-                        backgroundColor: '#1E88E5',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0,
-                      }}>
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                          <path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
+                {filterView === 'list' ? (
+                  /* Options selon l'onglet actif */
+                  ((activeTab === 'invoices' || activeTab === 'expenses') ? [
+                    { value: 'all',     label: 'Tout' },
+                    { value: 'paid',    label: 'Payée' },
+                    { value: 'partial', label: 'En cours' },
+                    { value: 'unpaid',  label: 'Impayée' },
+                    { value: 'custom',  label: 'Personnaliser' },
+                  ] : [
+                    { value: 'all',   label: 'Tout' },
+                    { value: 'today', label: "Aujourd'hui" },
+                    { value: 'week',  label: 'Cette semaine' },
+                    { value: 'month', label: 'Ce mois' },
+                    { value: 'custom', label: 'Personnaliser' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        if (opt.value === 'custom') {
+                          // Ouvrir la vue calendrier pour choisir une plage de dates
+                          setLocalStart(customStart)
+                          setLocalEnd(customEnd)
+                          setFilterView('calendar')
+                        } else {
+                          setFilterStatus(opt.value)
+                          setFilterOpen(false)
+                        }
+                      }}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        width: '100%', padding: '10px 16px',
+                        background: filterStatus === opt.value ? '#e8f4ff' : 'none',
+                        border: 'none', borderRadius: '10px',
+                        fontSize: '15px', fontWeight: filterStatus === opt.value ? '600' : '400',
+                        color: filterStatus === opt.value ? '#1E88E5' : '#333',
+                        cursor: 'pointer', textAlign: 'left',
+                      }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {opt.value === 'custom' && <Calendar size={15} color="#1E88E5" />}
+                        {opt.label}
                       </span>
-                    )}
-                  </button>
-                ))}
+                      {filterStatus === opt.value && (
+                        <span style={{
+                          width: 18, height: 18, borderRadius: '50%',
+                          backgroundColor: '#1E88E5',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          flexShrink: 0,
+                        }}>
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                            <path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </span>
+                      )}
+                    </button>
+                  ))
+                ) : (
+                  /* Vue calendrier — filtre personnalisé par date de création */
+                  <div style={{ padding: '8px 4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+                      <button
+                        onClick={() => setFilterView('list')}
+                        style={{
+                          width: 28, height: 28, borderRadius: '50%',
+                          border: '1px solid #ddd', background: '#fff', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        }}
+                      >
+                        <ChevronDown size={14} color="#555" style={{ transform: 'rotate(90deg)' }} />
+                      </button>
+                      <span style={{ flex: 1, textAlign: 'center', fontSize: 14, fontWeight: 700, color: '#1A1A2E' }}>
+                        Personnaliser
+                      </span>
+                      <div style={{ width: 28 }} />
+                    </div>
+
+                    {/* Même calendrier que le dashboard */}
+                    <RangeDatePicker
+                      startDate={localStart}
+                      endDate={localEnd}
+                      onRangeChange={(s, e) => { setLocalStart(s); setLocalEnd(e) }}
+                      accentColor="#1E88E5"
+                    />
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: 12, padding: '0 4px' }}>
+                      {filterStatus === 'custom' && (
+                        <button
+                          onClick={() => { setFilterStatus('all'); setCustomStart(null); setCustomEnd(null); setFilterView('list') }}
+                          style={{
+                            padding: '9px 16px', background: 'transparent', color: '#888',
+                            border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                          }}
+                        >
+                          Effacer
+                        </button>
+                      )}
+                      <div style={{ flex: 1 }} />
+                      <button
+                        disabled={!localStart}
+                        onClick={() => {
+                          const end = localEnd || localStart
+                          setCustomStart(localStart)
+                          setCustomEnd(end)
+                          setFilterStatus('custom')
+                          setFilterView('list')
+                          setFilterOpen(false)
+                        }}
+                        style={{
+                          padding: '9px 24px',
+                          backgroundColor: localStart ? '#1E88E5' : '#e0e0e0',
+                          color: '#fff', border: 'none', borderRadius: 10,
+                          fontSize: 14, fontWeight: 600,
+                          cursor: localStart ? 'pointer' : 'not-allowed',
+                        }}
+                      >
+                        Valider
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}

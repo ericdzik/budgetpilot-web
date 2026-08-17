@@ -4,9 +4,13 @@ import { toast } from 'react-hot-toast'
 import { Plus, Trash2 } from 'lucide-react'
 import api from '../config/api'
 import { EXPENSE_CATEGORIES } from '../config/constants'
+import useCurrencyStore, { ALL_CURRENCIES, formatAmount } from '../store/currencyStore'
 import UserBadge from '../components/ui/UserBadge'
 import FloatInput from '../components/ui/FloatInput'
+import PhoneInputField from '../components/ui/PhoneInputField'
 import CustomSelect from '../components/ui/CustomSelect'
+
+const CURRENCY_OPTIONS = ALL_CURRENCIES.map(c => ({ value: c.code, label: `${c.code} - ${c.name} (${c.symbol})` }))
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -47,6 +51,7 @@ export default function ExpenseFormPage() {
   const { id }    = useParams()
   const isEditing = !!id
   const pageTitle = isEditing ? 'Modifier la dépense' : 'Créer une nouvelle dépense'
+  const { activeCurrency } = useCurrencyStore()
 
   const today = new Date().toISOString().slice(0, 10)
 
@@ -72,6 +77,9 @@ export default function ExpenseFormPage() {
 
   // ── Items ──
   const [items, setItems] = useState([newItem()])
+
+  // ── Devise ──
+  const [expCurrency, setExpCurrency] = useState(activeCurrency)
 
   // ── Détails ──
   const [installments,  setInstallments]  = useState(false)
@@ -199,6 +207,7 @@ export default function ExpenseFormPage() {
       setRefNumber(exp.reference_number || `EXP-${String(exp.id).padStart(3, '0')}`)
       setRefLoading(false)
       setIssueDate(exp.date?.slice(0, 10) || today)
+      setExpCurrency(exp.currency || activeCurrency)
       setClientName(exp.supplier_name || '')
       setClientPhone(exp.supplier_phone || '')
       setClientEmail(exp.supplier_email || '')
@@ -231,6 +240,7 @@ export default function ExpenseFormPage() {
     setClientName(''); setClientEmail(''); setClientPhone('')
     setClientNif(''); setClientAddress(''); setClientSector('')
     setItems([newItem()])
+    setExpCurrency(activeCurrency)
     setDiscount(0); setTaxPercent(0); setNotes('')
     setPaymentMethod('cash'); setInstallments(false)
     if (!isEditing) {
@@ -260,6 +270,7 @@ export default function ExpenseFormPage() {
         description:    mainDescription,
         category:       mainCategory,
         date:           issueDate,
+        currency:       expCurrency,
         payment_method: paymentMethod,
         payment_status: installments ? 'unpaid' : 'paid',
         notes:          notes.trim() || null,
@@ -361,6 +372,13 @@ export default function ExpenseFormPage() {
             onChange={(e) => setIssueDate(e.target.value)}
             style={{ ...inputStyle, width: '180px' }}
           />
+          <div style={{ minWidth: '200px' }}>
+            <CustomSelect
+              value={expCurrency}
+              onChange={setExpCurrency}
+              options={CURRENCY_OPTIONS}
+            />
+          </div>
         </div>
       </div>
 
@@ -396,7 +414,7 @@ export default function ExpenseFormPage() {
               )}
             </div>
             <input type="email" placeholder="Adresse e-mail" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} style={inputStyle} />
-            <FloatInput placeholder="Numéro de téléphone" required value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} style={inputStyle} type="tel" />
+            <PhoneInputField value={clientPhone} onChange={setClientPhone} />
             <input type="text" placeholder="NIF (Numéro d'immatriculation)" value={clientNif} onChange={(e) => setClientNif(e.target.value)} style={inputStyle} />
             <input type="text" placeholder="Adresse" value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} style={inputStyle} />
             <CustomSelect
@@ -491,7 +509,7 @@ export default function ExpenseFormPage() {
           <p style={sectionTitle}>Détails</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
 
-            {/* Col 1 : Règlement en tranches + méthode paiement */}
+            {/* Col 1 : Règlement en tranches + méthode paiement + devise */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
                 <input
@@ -528,8 +546,8 @@ export default function ExpenseFormPage() {
                 </div>
               ))}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', fontSize: '16px', fontWeight: '800', color: '#111' }}>
-                <span>Total (XOF)</span>
-                <span>{fmt(total)}</span>
+                <span>Total ({expCurrency})</span>
+                <span>{formatAmount(total, expCurrency)}</span>
               </div>
             </div>
 

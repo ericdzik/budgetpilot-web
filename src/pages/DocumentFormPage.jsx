@@ -4,14 +4,18 @@ import { toast } from 'react-hot-toast'
 import { Plus, Trash2 } from 'lucide-react'
 import api from '../config/api'
 import useAuthStore from '../store/authStore'
+import useCurrencyStore, { ALL_CURRENCIES, formatAmount } from '../store/currencyStore'
 import UserBadge from '../components/ui/UserBadge'
 import FloatInput from '../components/ui/FloatInput'
+import PhoneInputField from '../components/ui/PhoneInputField'
 import CustomSelect from '../components/ui/CustomSelect'
+
+const CURRENCY_OPTIONS = ALL_CURRENCIES.map(c => ({ value: c.code, label: `${c.code} - ${c.name} (${c.symbol})` }))
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 const CATEGORIES = ['Produits/Services', "Main d'oeuvre", 'Transport', 'Autres']
-const UNITS = ['unité', 'g', 'kg', 'T', 'ml', 'L', 'm', 'h']
+const UNITS = ['unité', 'g', 'kg', 'T', 'ml', 'L', 'm', 'km', 'cm', 'm²', 'm³', '°C', 'h']
 const PAYMENT_METHODS = ['Espèces', 'Virement', 'Chèque', 'Carte bancaire', 'Mobile Money']
 const SECTORS = [
   'Agriculture', 'Commerce', 'Construction', 'Éducation', 'Énergie',
@@ -46,6 +50,7 @@ export default function DocumentFormPage() {
   const [searchParams] = useSearchParams()
   const { id } = useParams()
   const isEditing = !!id
+  const { activeCurrency } = useCurrencyStore()
 
   // En mode édition, le type vient du document chargé
   const [type, setType] = useState(searchParams.get('type') === 'invoice' ? 'invoice' : 'quote')
@@ -81,6 +86,9 @@ export default function DocumentFormPage() {
   // ── Items ──
   const [items, setItems] = useState([newItem()])
 
+  // ── Devise du document ──
+  const [docCurrency, setDocCurrency] = useState(activeCurrency)
+
   // ── Détails ──
   const [discountType, setDiscountType] = useState('percentage') // 'percentage' | 'fixed'
   const [discount, setDiscount] = useState(0)
@@ -100,6 +108,7 @@ export default function DocumentFormPage() {
         setType(doc.type)
         setRefNumber(doc.reference_number || '')
         setIssueDate(doc.issue_date?.slice(0, 10) || new Date().toISOString().slice(0, 10))
+        setDocCurrency(doc.currency || activeCurrency)
         setPaymentMethod(doc.payment_method || 'Espèces')
         setDiscount(doc.discount_percent || 0)
         setDiscountType(doc.discount_type || 'percentage')
@@ -157,6 +166,25 @@ export default function DocumentFormPage() {
       setItems([newItem()])
       setDiscount(0); setTaxPercent(0); setNotes('')
       setPaymentMethod('Espèces'); setDiscountType('percentage')
+
+      // Pré-remplissage depuis la fiche client (client_id dans l'URL)
+      const clientId = searchParams.get('client_id')
+      if (clientId) {
+        api.get(`/clients/${clientId}`)
+          .then(res => {
+            const c = res.data?.client ?? res.data
+            if (c) {
+              setSelectedClient(c)
+              setClientName(c.name ?? '')
+              setClientPhone(c.phone ?? '')
+              setClientEmail(c.email ?? '')
+              setClientNif(c.registration_number ?? c.nif ?? '')
+              setClientAddress(c.address ?? '')
+              setClientSector(c.sector ?? '')
+            }
+          })
+          .catch(() => {})
+      }
     }
   }, [id, isEditing]) // ← type retiré des dépendances pour éviter le reset au changement de type
 
@@ -377,6 +405,13 @@ export default function DocumentFormPage() {
       toast.error('Le numéro de téléphone est obligatoire')
       return
     }
+    if (!selectedClient && clientPhone.trim()) {
+      const digits = clientPhone.replace(/\D/g, '')
+      if (digits.length < 8) {
+        toast.error('Le numéro de téléphone doit contenir au moins 8 chiffres')
+        return
+      }
+    }
     for (const it of items) {
       if (!it.description.trim()) { toast.error('Chaque item doit avoir un intitulé'); return }
       if (!it.forfait && (!it.quantity || Number(it.quantity) <= 0)) { toast.error('La quantité doit être > 0'); return }
@@ -405,6 +440,7 @@ export default function DocumentFormPage() {
         type,
         status: 'sent',
         issue_date: issueDate,
+        currency: docCurrency,
         discount_percent: Number(discount),
         discount_type: discountType,
         tax_percent: Number(taxPercent),
@@ -504,6 +540,13 @@ export default function DocumentFormPage() {
           </div>
           <input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)}
             style={{ ...inputStyle, width: '180px' }} />
+          <div style={{ minWidth: '200px' }}>
+            <CustomSelect
+              value={docCurrency}
+              onChange={setDocCurrency}
+              options={CURRENCY_OPTIONS}
+            />
+          </div>
         </div>
       </div>
 
@@ -544,7 +587,7 @@ export default function DocumentFormPage() {
               )}
             </div>
             <input type="email" placeholder="Adresse e-mail" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} style={inputStyle} />
-            <FloatInput placeholder="Numéro de téléphone" required value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} style={inputStyle} type="tel" />
+            <PhoneInputField value={clientPhone} onChange={setClientPhone} />
             <input type="text" placeholder="NIF (Numéro d'immatriculation)" value={clientNif} onChange={(e) => setClientNif(e.target.value)} style={inputStyle} />
             <input type="text" placeholder="Adresse" value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} style={inputStyle} />
             <CustomSelect
@@ -730,7 +773,7 @@ export default function DocumentFormPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {/* Sélecteur type remise — vide la valeur si on change, comme mobile */}
               <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                {[{ value: 'percentage', label: '%' }, { value: 'fixed', label: 'XOF' }].map((opt) => (
+                {[{ value: 'percentage', label: '%' }, { value: 'fixed', label: docCurrency }].map((opt) => (
                   <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px' }}>
                     <input type="radio" name="discountType" value={opt.value}
                       checked={discountType === opt.value}
@@ -742,7 +785,7 @@ export default function DocumentFormPage() {
               </div>
               <div>
                 <label style={labelStyle}>
-                  Remise globale {discountType === 'percentage' ? '(%)' : '(XOF)'}
+                  Remise globale {discountType === 'percentage' ? '(%)' : `(${docCurrency})`}
                 </label>
                 <input
                   type="number" min="0"
@@ -833,8 +876,8 @@ export default function DocumentFormPage() {
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', fontSize: '16px', fontWeight: '800', color: '#111' }}>
-                <span>Total (XOF)</span>
-                <span>{fmt(total)}</span>
+                <span>Total ({docCurrency})</span>
+                <span>{formatAmount(total, docCurrency)}</span>
               </div>
             </div>
 

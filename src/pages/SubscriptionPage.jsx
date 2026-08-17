@@ -4,7 +4,13 @@ import { toast } from 'react-hot-toast'
 import { subscriptionService } from '../services/subscriptionService'
 import UserBadge from '../components/ui/UserBadge'
 import useAuthStore from '../store/authStore'
+import useCurrencyStore from '../store/currencyStore'
 import { useNavigate } from 'react-router-dom'
+import {
+  getSubscriptionPrice,
+  formatSubscriptionPrice,
+  formatSubscriptionPerMonth,
+} from '../data/subscriptionPrices'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -173,34 +179,35 @@ export default function SubscriptionPage() {
     }
   }
 
-  // Calcul économie trimestrielle
-  const proTrimSavings  = (5000 * 3) - 13500  // 1500
-  const basicTrimSavings = (3000 * 3) - 8000  // 1000
+  // ── Prix statiques par devise active (fallback USD) ──
+  const { activeCurrency } = useCurrencyStore()
+  const priceFor = (plan, cycle) => getSubscriptionPrice(activeCurrency, plan, cycle)
 
-  const savingsMessage = {
-    pro: {
-      monthly:   'Débloque toutes les fonctionnalités',
-      yearly:    'Économise 10.000F\n2 mois offerts',
-      '3months': `Économise ${proTrimSavings.toLocaleString('fr-FR')}F immédiatement`,
-    },
-    basic: {
-      monthly:   'Débloque toutes les fonctionnalités',
-      yearly:    'Économise 6.000F\n2 mois offerts',
-      '3months': `Économise ${basicTrimSavings.toLocaleString('fr-FR')}F immédiatement`,
-    },
-  }
   const proPrices = [
-    { key: 'monthly',  label: 'Mensuel',     price: '5.000 F',  sub: null },
-    { key: 'yearly',   label: 'Annuel',      price: '50.000 F', sub: '4.200 F par mois' },
-    { key: '3months',  label: 'Trimestriel', price: '13.500 F', sub: '4.500 F par mois' },
+    { key: 'monthly',  label: 'Mensuel',     price: formatSubscriptionPrice(priceFor('pro', 'monthly'), activeCurrency),  sub: null },
+    { key: 'yearly',   label: 'Annuel',      price: formatSubscriptionPrice(priceFor('pro', 'yearly'), activeCurrency),   sub: formatSubscriptionPerMonth(priceFor('pro', 'yearly'), 12, activeCurrency) },
+    { key: '3months',  label: 'Trimestriel', price: formatSubscriptionPrice(priceFor('pro', '3months'), activeCurrency),  sub: formatSubscriptionPerMonth(priceFor('pro', '3months'), 3, activeCurrency) },
   ]
 
   // Plans Basic
   const basicPrices = [
-    { key: 'monthly',  label: 'Mensuel',     price: '3.000 F',  sub: null },
-    { key: 'yearly',   label: 'Annuel',      price: '30.000 F', sub: '2.500 F par mois' },
-    { key: '3months',  label: 'Trimestriel', price: '8.000 F',  sub: '2.667 F par mois' },
+    { key: 'monthly',  label: 'Mensuel',     price: formatSubscriptionPrice(priceFor('basic', 'monthly'), activeCurrency),  sub: null },
+    { key: 'yearly',   label: 'Annuel',      price: formatSubscriptionPrice(priceFor('basic', 'yearly'), activeCurrency),   sub: formatSubscriptionPerMonth(priceFor('basic', 'yearly'), 12, activeCurrency) },
+    { key: '3months',  label: 'Trimestriel', price: formatSubscriptionPrice(priceFor('basic', '3months'), activeCurrency),  sub: formatSubscriptionPerMonth(priceFor('basic', '3months'), 3, activeCurrency) },
   ]
+
+  const savingsMessage = {
+    pro: {
+      monthly:   'Débloque toutes les fonctionnalités',
+      yearly:    `Économise ${formatSubscriptionPrice(priceFor('pro', 'monthly') * 12 - priceFor('pro', 'yearly'), activeCurrency)}\n2 mois offerts`,
+      '3months': `Économise ${formatSubscriptionPrice(priceFor('pro', 'monthly') * 3 - priceFor('pro', '3months'), activeCurrency)} immédiatement`,
+    },
+    basic: {
+      monthly:   'Débloque toutes les fonctionnalités',
+      yearly:    `Économise ${formatSubscriptionPrice(priceFor('basic', 'monthly') * 12 - priceFor('basic', 'yearly'), activeCurrency)}\n2 mois offerts`,
+      '3months': `Économise ${formatSubscriptionPrice(priceFor('basic', 'monthly') * 3 - priceFor('basic', '3months'), activeCurrency)} immédiatement`,
+    },
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>

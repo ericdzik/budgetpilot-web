@@ -5,12 +5,19 @@ import QRCode from 'qrcode'
 import api from '../../config/api'
 import { STORAGE_BASE_URL } from '../../config/constants'
 import { generateMinimalPdfBlob } from './MinimalPdfDocument'
+import { formatAmount } from '../../store/currencyStore'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function fmt(n) {
   if (!n && n !== 0) return '0'
-  return Number(n).toLocaleString('fr-FR').replace(/\s/g, '.')
+  const num = Number(n)
+  // Si le nombre a des décimales significatives (montants convertis en petite devise),
+  // garder 2 décimales. Sinon, arrondir à l'entier.
+  const hasDecimals = Math.abs(num) < 1000 && num !== Math.round(num)
+  const parts = num.toFixed(hasDecimals ? 2 : 0).split('.')
+  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return parts[1] && parts[1] !== '00' ? `${intPart},${parts[1]}` : intPart
 }
 
 function fmtDate(d) {
@@ -27,7 +34,7 @@ function statusLabel(s) {
 
 // ─── Template Minimal (aperçu uniquement — pas utilisé pour générer le PDF) ──
 
-function MinimalTemplate({ doc, profile, qrDataUrl }) {
+function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversionRate = 1.0 }) {
   const company = {
     name:    profile?.company_name    || profile?.name    || 'Mon Entreprise',
     address: profile?.company_address || '',
@@ -61,7 +68,14 @@ function MinimalTemplate({ doc, profile, qrDataUrl }) {
   const subtotalAfter = subtotalBefore - totalDiscount
   const tvaRate       = 18
   const tvaAmount     = doc.has_tva ? subtotalAfter * (tvaRate / 100) : 0
-  const total         = toNum(doc.total_amount) || (subtotalAfter + tvaAmount)
+  const totalRaw      = toNum(doc.total_amount) || (subtotalAfter + tvaAmount)
+
+  // Devise du document — pas de conversion
+  const cr = conversionRate || 1.0
+  const subtotalBeforeConverted = subtotalBefore * cr
+  const totalDiscountConverted  = totalDiscount * cr
+  const tvaAmountConverted      = tvaAmount * cr
+  const total = totalRaw * cr
 
   const logoUrl      = profile?.logo_path ? `${STORAGE_BASE_URL}/${profile.logo_path}` : null
   const signatureUrl = profile?.signature_path && profile.signature_path !== '0'
@@ -98,8 +112,8 @@ function MinimalTemplate({ doc, profile, qrDataUrl }) {
         {/* Col 1 : Logo + Ref + Date */}
         <div style={{ flex: 1 }}>
           {logoUrl
-            ? <img src={logoUrl} alt="Logo" style={{ width: 28, height: 28, objectFit: 'contain', marginBottom: 6, display: 'block' }} />
-            : <div style={{ width: 28, height: 28, background: '#4CAF50', borderRadius: 4, marginBottom: 6 }} />
+            ? <img src={logoUrl} alt="Logo" style={{ width: 44, height: 44, objectFit: 'contain', marginBottom: 6, display: 'block' }} />
+            : <div style={{ width: 44, height: 44, background: '#4CAF50', borderRadius: 4, marginBottom: 6 }} />
           }
           <div style={{ fontSize: 9, color: '#555', lineHeight: 1.6 }}>
             <div style={{ fontWeight: 'bold', color: '#000' }}>{doc.reference_number}</div>
@@ -138,7 +152,7 @@ function MinimalTemplate({ doc, profile, qrDataUrl }) {
           <div style={{ flex: 4, color: '#fff', fontWeight: 'bold', fontSize: 10, paddingLeft: 6 }}>Description</div>
           <div style={{ flex: 1, color: '#fff', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>QTÉ</div>
           <div style={{ flex: 2, color: '#fff', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>Prix unitaire</div>
-          <div style={{ flex: 2, color: '#fff', fontWeight: 'bold', fontSize: 10, textAlign: 'right', paddingRight: 8 }}>Total (XOF)</div>
+          <div style={{ flex: 2, color: '#fff', fontWeight: 'bold', fontSize: 10, textAlign: 'right', paddingRight: 8 }}>Total ({currency})</div>
         </div>
 
         {/* Corps + Pied dans un seul conteneur bordé */}
@@ -159,14 +173,14 @@ function MinimalTemplate({ doc, profile, qrDataUrl }) {
                     }}>
                       <div style={{ flex: 4, paddingLeft: 6, fontSize: 10 }}>{item.description}</div>
                       <div style={{ flex: 1, textAlign: 'center', fontSize: 10 }}>{item.quantity}</div>
-                      <div style={{ flex: 2, textAlign: 'center', fontSize: 10 }}>{fmt(item.unit_price)}</div>
-                      <div style={{ flex: 2, textAlign: 'right', paddingRight: 8, fontSize: 10 }}>{fmt(item.total)}</div>
+                      <div style={{ flex: 2, textAlign: 'center', fontSize: 10 }}>{fmt(toNum(item.unit_price) * cr)}</div>
+                      <div style={{ flex: 2, textAlign: 'right', paddingRight: 8, fontSize: 10 }}>{fmt(toNum(item.total ?? item._total ?? (toNum(item.quantity) * toNum(item.unit_price))) * cr)}</div>
                     </div>
                   ))}
                   {showCatSubtotal && (
                     <div style={{ display: 'flex', padding: '5px 10px', background: '#f0f0f0' }}>
                       <div style={{ flex: 7, paddingLeft: 6, fontWeight: 'bold', fontSize: 10 }}>Sous-total {cat}</div>
-                      <div style={{ flex: 2, textAlign: 'right', paddingRight: 8, fontWeight: 'bold', fontSize: 10 }}>{fmt(catTotal)}</div>
+                      <div style={{ flex: 2, textAlign: 'right', paddingRight: 8, fontWeight: 'bold', fontSize: 10 }}>{formatAmount(catTotal * cr, currency)}</div>
                     </div>
                   )}
                 </div>
@@ -205,24 +219,24 @@ function MinimalTemplate({ doc, profile, qrDataUrl }) {
                   <div style={{ padding: '8px 14px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                       <span style={{ fontSize: 10, color: '#000' }}>Sous Total :</span>
-                      <span style={{ fontSize: 10, color: '#000' }}>{fmt(subtotalBefore)}</span>
+                      <span style={{ fontSize: 10, color: '#000' }}>{formatAmount(subtotalBeforeConverted, currency)}</span>
                     </div>
                     {totalDiscount > 0 && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                         <span style={{ fontSize: 10, color: '#000' }}>Remise :</span>
-                        <span style={{ fontSize: 10, color: '#000' }}>{fmt(totalDiscount)}</span>
+                        <span style={{ fontSize: 10, color: '#000' }}>{formatAmount(totalDiscountConverted, currency)}</span>
                       </div>
                     )}
                     {doc.has_tva && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                         <span style={{ fontSize: 10, color: '#000' }}>TVA ({tvaRate}%) :</span>
-                        <span style={{ fontSize: 10, color: '#000' }}>{fmt(tvaAmount)}</span>
+                        <span style={{ fontSize: 10, color: '#000' }}>{formatAmount(tvaAmountConverted, currency)}</span>
                       </div>
                     )}
                   </div>
                   <div style={{ background: '#000', padding: '8px 14px', display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: 11, color: '#fff', fontWeight: 'bold' }}>Total :</span>
-                    <span style={{ fontSize: 11, color: '#fff', fontWeight: 'bold' }}>{fmt(total)}</span>
+                    <span style={{ fontSize: 11, color: '#fff', fontWeight: 'bold' }}>{formatAmount(total, currency)}</span>
                   </div>
                 </div>
               </div>
@@ -273,28 +287,28 @@ function MinimalTemplate({ doc, profile, qrDataUrl }) {
 
           {/* Conçu par + logo Pilot */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 11, color: '#000' }}>Conçu par</span>
+            <span style={{ fontSize: 14, color: '#000' }}>Conçu par</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <img src="/logo_bb.svg" alt="Budget Pilot"
-                style={{ width: 26, height: 26, objectFit: 'contain', filter: 'brightness(0) saturate(100%)' }} />
-              <span style={{ fontWeight: 'bold', fontSize: 16, color: '#000' }}>Pilot</span>
+                style={{ width: 32, height: 32, objectFit: 'contain', filter: 'brightness(0) saturate(100%)' }} />
+              <span style={{ fontWeight: 'bold', fontSize: 20, color: '#000' }}>Pilot</span>
             </div>
           </div>
 
           {/* Séparateur */}
-          <div style={{ width: 1, height: 52, background: '#e0e0e0', flexShrink: 0 }} />
+          <div style={{ width: 1, height: 60, background: '#e0e0e0', flexShrink: 0 }} />
 
           {/* QR + lien */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
-            <div style={{ width: 70, height: 70, flexShrink: 0 }}>
+            <div style={{ width: 80, height: 80, flexShrink: 0 }}>
               {qrDataUrl
-                ? <img src={qrDataUrl} alt="QR" style={{ width: 70, height: 70, display: 'block' }} />
-                : <div style={{ width: 70, height: 70, background: '#f0f0f0', border: '1px solid #ccc' }} />
+                ? <img src={qrDataUrl} alt="QR" style={{ width: 80, height: 80, display: 'block' }} />
+                : <div style={{ width: 80, height: 80, background: '#f0f0f0', border: '1px solid #ccc' }} />
               }
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <a href="https://www.getbudgetpilot.com" target="_blank" rel="noreferrer"
-                style={{ color: '#1E88E5', textDecoration: 'underline', fontSize: 12, cursor: 'pointer' }}>
+                style={{ color: '#1E88E5', textDecoration: 'underline', fontSize: 14, cursor: 'pointer' }}>
                 www.getbudgetpilot.com
               </a>
               {company.nif && (
@@ -304,7 +318,7 @@ function MinimalTemplate({ doc, profile, qrDataUrl }) {
           </div>
 
           {/* Numéro de page à droite */}
-          <div style={{ marginLeft: 'auto', fontSize: 11, color: '#888' }}>Page 1</div>
+          <div style={{ marginLeft: 'auto', fontSize: 14, color: '#888' }}>Page 1</div>
 
         </div>
       </div>
@@ -407,8 +421,8 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
     }
   }
 
-  // Génère le blob PDF via @react-pdf/renderer (MinimalPdfDocument)
-  const buildPdfBlob = () => generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUrl, sigDataUrl, logoBbDataUrl)
+  // Génère le blob PDF via @react-pdf/renderer (MinimalPdfDocument) — devise du document
+  const buildPdfBlob = () => generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUrl, sigDataUrl, logoBbDataUrl, doc?.currency || 'XOF', 1.0)
 
   const handleDownload = async () => {
     setDownloading(true)
@@ -540,7 +554,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
             </div>
           ) : doc ? (
             <div style={{ background: '#fff', boxShadow: '0 4px 24px rgba(0,0,0,0.15)', borderRadius: 4 }}>
-              <MinimalTemplate doc={doc} profile={profile} qrDataUrl={qrDataUrl || ''} />
+              <MinimalTemplate doc={doc} profile={profile} qrDataUrl={qrDataUrl || ''} currency={doc?.currency || 'XOF'} conversionRate={1.0} />
             </div>
           ) : null}
         </div>
