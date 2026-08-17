@@ -69,39 +69,115 @@ const COUNTRIES = [
   { flag: '🇹🇳', name: 'Tunisie',            dial: '216' },
   { flag: '🇪🇬', name: 'Égypte',             dial: '20'  },
   { flag: '🇪🇹', name: 'Éthiopie',           dial: '251' },
-  { flag: '🇰🇪', name: 'Kenya',              dial: '254' },
-  { flag: '🇹🇿', name: 'Tanzanie',           dial: '255' },
-  { flag: '🇺🇬', name: 'Ouganda',            dial: '256' },
-  { flag: '🇿🇦', name: 'Afrique du Sud',     dial: '27'  },
-  { flag: '🇿🇲', name: 'Zambie',             dial: '260' },
+  { code: 'TG', name: 'Togo',               dial: '228' },
+  { code: 'BJ', name: 'Bénin',              dial: '229' },
+  { code: 'CI', name: "Côte d'Ivoire",      dial: '225' },
+  { code: 'SN', name: 'Sénégal',            dial: '221' },
+  { code: 'ML', name: 'Mali',               dial: '223' },
+  { code: 'BF', name: 'Burkina Faso',       dial: '226' },
+  { code: 'NE', name: 'Niger',              dial: '227' },
+  // ── Afrique (XAF) ──
+  { code: 'CM', name: 'Cameroun',           dial: '237' },
+  { code: 'GA', name: 'Gabon',              dial: '241' },
+  { code: 'CG', name: 'Congo',              dial: '242' },
+  { code: 'CF', name: 'Centrafrique',       dial: '236' },
+  { code: 'TD', name: 'Tchad',              dial: '235' },
+  { code: 'GQ', name: 'Guinée Équatoriale', dial: '240' },
+  // ── Afrique (autres) ──
+  { code: 'GN', name: 'Guinée',             dial: '224' },
+  { code: 'CD', name: 'RD Congo',           dial: '243' },
+  { code: 'NG', name: 'Nigeria',            dial: '234' },
+  { code: 'GH', name: 'Ghana',              dial: '233' },
+  { code: 'MA', name: 'Maroc',              dial: '212' },
+  { code: 'DZ', name: 'Algérie',            dial: '213' },
+  { code: 'TN', name: 'Tunisie',            dial: '216' },
+  { code: 'EG', name: 'Égypte',             dial: '20'  },
+  { code: 'ET', name: 'Éthiopie',           dial: '251' },
+  { code: 'KE', name: 'Kenya',              dial: '254' },
+  { code: 'TZ', name: 'Tanzanie',           dial: '255' },
+  { code: 'UG', name: 'Ouganda',            dial: '256' },
+  { code: 'ZA', name: 'Afrique du Sud',     dial: '27'  },
+  { code: 'ZM', name: 'Zambie',             dial: '260' },
   // ── Europe ──
-  { flag: '🇫🇷', name: 'France',             dial: '33'  },
-  { flag: '🇧🇪', name: 'Belgique',           dial: '32'  },
-  { flag: '🇨🇭', name: 'Suisse',             dial: '41'  },
-  { flag: '🇩🇪', name: 'Allemagne',          dial: '49'  },
-  { flag: '🇬🇧', name: 'Royaume-Uni',        dial: '44'  },
-  { flag: '🇵🇹', name: 'Portugal',           dial: '351' },
-  { flag: '🇪🇸', name: 'Espagne',            dial: '34'  },
-  { flag: '🇮🇹', name: 'Italie',             dial: '39'  },
+  { code: 'FR', name: 'France',             dial: '33'  },
+  { code: 'BE', name: 'Belgique',           dial: '32'  },
+  { code: 'CH', name: 'Suisse',             dial: '41'  },
+  { code: 'DE', name: 'Allemagne',          dial: '49'  },
+  { code: 'GB', name: 'Royaume-Uni',        dial: '44'  },
+  { code: 'PT', name: 'Portugal',           dial: '351' },
+  { code: 'ES', name: 'Espagne',            dial: '34'  },
+  { code: 'IT', name: 'Italie',             dial: '39'  },
   // ── Amériques ──
-  { flag: '🇺🇸', name: 'États-Unis',         dial: '1'   },
-  { flag: '🇨🇦', name: 'Canada',             dial: '1'   },
-  { flag: '🇧🇷', name: 'Brésil',             dial: '55'  },
+  { code: 'US', name: 'États-Unis',         dial: '1'   },
+  { code: 'CA', name: 'Canada',             dial: '1'   },
+  { code: 'BR', name: 'Brésil',             dial: '55'  },
   // ── Moyen-Orient ──
-  { flag: '🇸🇦', name: 'Arabie Saoudite',    dial: '966' },
-  { flag: '🇦🇪', name: 'Émirats Arabes',     dial: '971' },
+  { code: 'SA', name: 'Arabie Saoudite',    dial: '966' },
+  { code: 'AE', name: 'Émirats Arabes',     dial: '971' },
+]
+
+// Couleurs de badge par code pays (fond + texte)
+const COUNTRY_COLORS = {
+  TG:'#006A4E',BJ:'#008751',CI:'#F77F00',SN:'#00853F',ML:'#009A00',BF:'#EF2B2D',NE:'#E05206',
+  CM:'#007A5E',GA:'#009E60',CG:'#009543',CF:'#003082',TD:'#002664',GQ:'#3E9A00',
+  GN:'#CE1126',CD:'#007FFF',NG:'#008751',GH:'#006B3F',MA:'#C1272D',DZ:'#006233',TN:'#E70013',
+  EG:'#CE1126',ET:'#078930',KE:'#006600',TZ:'#1EB53A',UG:'#000000',ZA:'#007A4D',ZM:'#198A00',
+  FR:'#002395',BE:'#000000',CH:'#FF0000',DE:'#000000',GB:'#012169',PT:'#006600',ES:'#AA151B',IT:'#009246',
+  US:'#3C3B6E',CA:'#FF0000',BR:'#009C3B',SA:'#006C35',AE:'#00732F',
+}
+
+// ─── Devise avec symbole ──────────────────────────────────────────────────────
+const CURRENCY_LIST = [
+  { code: 'XOF', label: 'Franc CFA BCEAO', symbol: 'FCFA' },
+  { code: 'XAF', label: 'Franc CFA BEAC',  symbol: 'FCFA' },
+  { code: 'EUR', label: 'Euro',             symbol: '€'    },
+  { code: 'USD', label: 'Dollar US',        symbol: '$'    },
+  { code: 'GBP', label: 'Livre sterling',   symbol: '£'    },
+  { code: 'GHS', label: 'Cedi ghanéen',     symbol: '₵'    },
+  { code: 'NGN', label: 'Naira nigérian',   symbol: '₦'    },
+  { code: 'MAD', label: 'Dirham marocain',  symbol: 'DH'   },
+  { code: 'DZD', label: 'Dinar algérien',   symbol: 'DA'   },
+  { code: 'TND', label: 'Dinar tunisien',   symbol: 'DT'   },
+  { code: 'KES', label: 'Shilling kényan',  symbol: 'KSh'  },
+  { code: 'ZAR', label: 'Rand sud-africain',symbol: 'R'    },
+  { code: 'CHF', label: 'Franc suisse',     symbol: 'Fr'   },
+  { code: 'CAD', label: 'Dollar canadien',  symbol: 'CA$'  },
+  { code: 'GNF', label: 'Franc guinéen',    symbol: 'FG'   },
+  { code: 'CDF', label: 'Franc congolais',  symbol: 'FC'   },
+  { code: 'EGP', label: 'Livre égyptienne', symbol: 'E£'   },
+  { code: 'ETB', label: 'Birr éthiopien',   symbol: 'Br'   },
+  { code: 'SAR', label: 'Riyal saoudien',   symbol: '﷼'    },
+  { code: 'AED', label: 'Dirham émirien',   symbol: 'AED'  },
 ]
 
 // ─── Composants partagés ────────────────────────────────────────────────────
 
-/** Sélecteur de pays avec drapeau et indicatif */
-function CountryPicker({ dialCode, countryFlag, onSelect }) {
+/** Badge code pays 2 lettres */
+function CountryBadge({ code, size = 28 }) {
+  const bg = COUNTRY_COLORS[code] || '#1E88E5'
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '6px',
+      backgroundColor: bg,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexShrink: 0,
+    }}>
+      <span style={{ fontSize: size * 0.38, fontWeight: '700', color: '#fff', letterSpacing: '0.5px' }}>
+        {code}
+      </span>
+    </div>
+  )
+}
+
+/** Sélecteur de pays avec badge code + indicatif */
+function CountryPicker({ dialCode, countryCode, onSelect }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
 
   const filtered = COUNTRIES.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.dial.includes(search)
+    c.dial.includes(search) ||
+    c.code.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
@@ -111,15 +187,15 @@ function CountryPicker({ dialCode, countryFlag, onSelect }) {
         type="button"
         onClick={() => { setOpen(o => !o); setSearch('') }}
         style={{
-          display: 'flex', alignItems: 'center', gap: '6px',
+          display: 'flex', alignItems: 'center', gap: '8px',
           height: '100%', minHeight: '50px',
-          padding: '0 14px',
+          padding: '0 16px',
           backgroundColor: '#fff', border: 'none',
           borderRadius: '25px', cursor: 'pointer',
-          fontSize: '18px', whiteSpace: 'nowrap',
+          whiteSpace: 'nowrap',
         }}
       >
-        <span>{countryFlag}</span>
+        <CountryBadge code={countryCode || 'TG'} />
         <ChevronDown size={14} color="#9e9e9e" />
       </button>
 
@@ -127,9 +203,9 @@ function CountryPicker({ dialCode, countryFlag, onSelect }) {
       {open && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 6px)', left: 0,
-          width: '260px', backgroundColor: '#fff',
-          borderRadius: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-          zIndex: 100, overflow: 'hidden',
+          width: '270px', backgroundColor: '#fff',
+          borderRadius: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+          zIndex: 200, overflow: 'hidden',
         }}>
           {/* Recherche */}
           <div style={{ padding: '10px 12px', borderBottom: '1px solid #f0f0f0' }}>
@@ -138,7 +214,7 @@ function CountryPicker({ dialCode, countryFlag, onSelect }) {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Rechercher..."
+              placeholder="Pays ou indicatif..."
               style={{
                 width: '100%', boxSizing: 'border-box',
                 border: '1.5px solid #e0e0e0', borderRadius: '20px',
@@ -148,24 +224,141 @@ function CountryPicker({ dialCode, countryFlag, onSelect }) {
           </div>
           {/* Liste */}
           <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
-            {filtered.map((c, i) => (
-              <div
-                key={i}
-                onClick={() => { onSelect(c.dial, c.flag); setOpen(false) }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '10px',
-                  padding: '10px 14px', cursor: 'pointer',
-                  backgroundColor: c.dial === dialCode ? '#f0f7ff' : 'transparent',
-                  transition: 'background 0.1s',
-                }}
-                onMouseEnter={e => { if (c.dial !== dialCode) e.currentTarget.style.backgroundColor = '#fafafa' }}
-                onMouseLeave={e => { if (c.dial !== dialCode) e.currentTarget.style.backgroundColor = 'transparent' }}
-              >
-                <span style={{ fontSize: '20px', flexShrink: 0 }}>{c.flag}</span>
-                <span style={{ fontSize: '13px', color: '#111', flex: 1 }}>{c.name}</span>
-                <span style={{ fontSize: '12px', color: '#888', flexShrink: 0 }}>+{c.dial}</span>
+            {filtered.map((c, i) => {
+              const selected = c.code === countryCode
+              return (
+                <div
+                  key={i}
+                  onClick={() => { onSelect(c.dial, c.code); setOpen(false) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '10px 14px', cursor: 'pointer',
+                    backgroundColor: selected ? '#f0f7ff' : 'transparent',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => { if (!selected) e.currentTarget.style.backgroundColor = '#fafafa' }}
+                  onMouseLeave={e => { if (!selected) e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <CountryBadge code={c.code} size={26} />
+                  <span style={{ fontSize: '13px', color: '#111', flex: 1 }}>{c.name}</span>
+                  <span style={{ fontSize: '12px', color: '#888', flexShrink: 0, fontWeight: '600' }}>+{c.dial}</span>
+                </div>
+              )
+            })}
+            {filtered.length === 0 && (
+              <div style={{ padding: '16px', textAlign: 'center', color: '#aaa', fontSize: '13px' }}>
+                Aucun résultat
               </div>
-            ))}
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Sélecteur de devise — même style que CountryPicker */
+function CurrencyPicker({ value, onChange: onChangeProp }) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+
+  const filtered = CURRENCY_LIST.filter(c =>
+    c.label.toLowerCase().includes(search.toLowerCase()) ||
+    c.code.toLowerCase().includes(search.toLowerCase()) ||
+    c.symbol.toLowerCase().includes(search.toLowerCase())
+  )
+
+  const selected = CURRENCY_LIST.find(c => c.code === value) || CURRENCY_LIST[0]
+
+  return (
+    <div style={{ position: 'relative' }}>
+      {/* Bouton */}
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setSearch('') }}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+          minHeight: '50px', padding: '0 20px',
+          backgroundColor: '#fff', border: 'none',
+          borderRadius: '25px', cursor: 'pointer',
+        }}
+      >
+        {/* Badge symbole */}
+        <div style={{
+          width: 36, height: 28, borderRadius: '6px',
+          backgroundColor: '#1E88E5',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <span style={{ fontSize: '12px', fontWeight: '700', color: '#fff' }}>
+            {selected.symbol.slice(0, 4)}
+          </span>
+        </div>
+        <span style={{ flex: 1, textAlign: 'left', fontSize: '14px', color: '#111', fontWeight: '500' }}>
+          {selected.label} ({selected.code})
+        </span>
+        <ChevronDown size={14} color="#9e9e9e" style={{ flexShrink: 0 }} />
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
+          backgroundColor: '#fff',
+          borderRadius: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+          zIndex: 200, overflow: 'hidden',
+        }}>
+          {/* Recherche */}
+          <div style={{ padding: '10px 12px', borderBottom: '1px solid #f0f0f0' }}>
+            <input
+              autoFocus
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Devise ou code..."
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                border: '1.5px solid #e0e0e0', borderRadius: '20px',
+                padding: '8px 14px', fontSize: '13px', outline: 'none',
+              }}
+            />
+          </div>
+          {/* Liste */}
+          <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+            {filtered.map((c) => {
+              const isSelected = c.code === value
+              return (
+                <div
+                  key={c.code}
+                  onClick={() => { onChangeProp(c.code); setOpen(false) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '10px 14px', cursor: 'pointer',
+                    backgroundColor: isSelected ? '#f0f7ff' : 'transparent',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => { if (!isSelected) e.currentTarget.style.backgroundColor = '#fafafa' }}
+                  onMouseLeave={e => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <div style={{
+                    width: 36, height: 26, borderRadius: '6px',
+                    backgroundColor: isSelected ? '#1E88E5' : '#e8f0fe',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0, transition: 'background 0.15s',
+                  }}>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: isSelected ? '#fff' : '#1E88E5' }}>
+                      {c.symbol.slice(0, 4)}
+                    </span>
+                  </div>
+                  <span style={{ flex: 1, fontSize: '13px', color: '#111', fontWeight: isSelected ? '600' : '400' }}>
+                    {c.label}
+                  </span>
+                  <span style={{ fontSize: '12px', color: '#888', flexShrink: 0, fontWeight: '600' }}>
+                    {c.code}
+                  </span>
+                </div>
+              )
+            })}
             {filtered.length === 0 && (
               <div style={{ padding: '16px', textAlign: 'center', color: '#aaa', fontSize: '13px' }}>
                 Aucun résultat
@@ -475,10 +668,10 @@ function Step2({ data, onChange, onSubmit, onBack, loading }) {
             {/* Sélecteur pays */}
             <CountryPicker
               dialCode={data.dialCode || '228'}
-              countryFlag={data.countryFlag || '🇹🇬'}
-              onSelect={(dial, flag) => {
+              countryCode={data.countryCode || 'TG'}
+              onSelect={(dial, code) => {
                 onChange('dialCode', dial)
-                onChange('countryFlag', flag)
+                onChange('countryCode', code)
                 const full = '+' + dial + (data.localPhone || '')
                 onChange('phone', full)
                 onChange('currency', DIAL_TO_CURRENCY[dial] || 'XOF')
@@ -519,38 +712,10 @@ function Step2({ data, onChange, onSubmit, onBack, loading }) {
           <label style={{ display: 'block', fontSize: '13px', fontWeight: '400', color: 'rgba(255,255,255,0.8)', marginBottom: '7px' }}>
             Devise <span style={{ fontSize: '11px', opacity: 0.7 }}>(détectée automatiquement)</span>
           </label>
-          <div style={{
-            display: 'flex', alignItems: 'center',
-            borderRadius: '25px', padding: '0 20px',
-            backgroundColor: '#fff', position: 'relative',
-          }}>
-            <select
-              value={data.currency || 'XOF'}
-              onChange={e => onChange('currency', e.target.value)}
-              style={{
-                flex: 1, border: 'none', outline: 'none',
-                fontSize: '14px', color: '#111', fontWeight: '500',
-                padding: '14px 0', backgroundColor: 'transparent',
-                appearance: 'none', cursor: 'pointer', width: '100%',
-              }}
-            >
-              {Object.entries({
-                XOF: 'Franc CFA BCEAO (XOF)', XAF: 'Franc CFA BEAC (XAF)',
-                EUR: 'Euro (EUR)', USD: 'Dollar américain (USD)',
-                GBP: 'Livre sterling (GBP)', GHS: 'Cedi ghanéen (GHS)',
-                NGN: 'Naira nigérian (NGN)', MAD: 'Dirham marocain (MAD)',
-                DZD: 'Dinar algérien (DZD)', TND: 'Dinar tunisien (TND)',
-                KES: 'Shilling kényan (KES)', ZAR: 'Rand sud-africain (ZAR)',
-                CHF: 'Franc suisse (CHF)', CAD: 'Dollar canadien (CAD)',
-                GNF: 'Franc guinéen (GNF)', CDF: 'Franc congolais (CDF)',
-                EGP: 'Livre égyptienne (EGP)', ETB: 'Birr éthiopien (ETB)',
-                SAR: 'Riyal saoudien (SAR)', AED: 'Dirham émirien (AED)',
-              }).map(([code, label]) => (
-                <option key={code} value={code}>{label}</option>
-              ))}
-            </select>
-            <ChevronDown size={16} color="#9e9e9e" style={{ flexShrink: 0, pointerEvents: 'none' }} />
-          </div>
+          <CurrencyPicker
+            value={data.currency || 'XOF'}
+            onChange={v => onChange('currency', v)}
+          />
         </div>
 
         <FieldBlue label="E-mail" value={data.email} onChange={v => onChange('email', v)}
@@ -637,7 +802,7 @@ export default function RegisterPage() {
       phone: '', email: '', activity: '',
       currency: 'XOF',
       dialCode: '228',
-      countryFlag: '🇹🇬',
+      countryCode: 'TG',
       localPhone: '',
       referral_code: refCode.toUpperCase(),
     }
