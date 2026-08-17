@@ -100,7 +100,7 @@ export default function AdminLoginPage() {
               type="text"
               value={form.email}
               onChange={set('email')}
-              placeholder="admin@budgetpilot.com"
+              placeholder=""
               autoComplete="username"
               style={{
                 width: '100%',
