@@ -35,8 +35,9 @@ const fmtN = (n) => n != null ? Number(n).toLocaleString('fr-FR') : '—'
 function cycleDuration(cycle) {
   if (!cycle) return '—'
   if (cycle === 'monthly' || cycle === '1_month') return '1 mois'
-  if (cycle === 'quarterly' || cycle === '3_months') return '3 mois'
+  if (cycle === 'quarterly' || cycle === '3_months' || cycle === '3months') return '3 mois'
   if (cycle === 'yearly' || cycle === '12_months') return '1 an'
+  if (cycle === 'welcome') return 'Welcome'
   return cycle
 }
 
@@ -122,6 +123,8 @@ function StatBox({ label, value }) {
 }
 
 function SubRow({ sub }) {
+  // started_at peut être null sur les anciennes données — fallback sur created_at
+  const startedAt = sub.started_at || sub.created_at
   return (
     <div style={{
       display: 'grid',
@@ -133,7 +136,7 @@ function SubRow({ sub }) {
     }}>
       <FieldGroup label="Type d'abonnement" value={sub.plan || sub.name} />
       <FieldGroup label="Durée" value={cycleDuration(sub.billing_cycle)} />
-      <FieldGroup label="Date de souscription" value={fmt(sub.started_at)} />
+      <FieldGroup label="Date de souscription" value={fmt(startedAt)} />
       <FieldGroup label="Date d'expiration" value={fmt(sub.next_billing_at || sub.ends_at)} />
       <FieldGroup label="Moyen de paiement" value={paymentSource(sub.source)} />
       <FieldGroup label="Pays" value={sub.country || '—'} />
