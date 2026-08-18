@@ -100,14 +100,55 @@ function QRCard({ link, onToggle, onDelete }) {
 
       {/* Stats */}
       <div style={{
-        display: 'flex', gap: '16px',
-        padding: '8px 16px',
+        display: 'flex', flexDirection: 'column', gap: '6px',
+        padding: '10px 16px',
         backgroundColor: '#f9f9f9',
         borderRadius: '10px',
         fontSize: '13px', color: '#555',
+        width: '100%',
       }}>
-        <span><strong style={{ color: '#111' }}>{link.total_scans}</strong> scans</span>
-        <span><strong style={{ color: '#111' }}>{link.unique_scans}</strong> uniques</span>
+        {/* Ligne scans */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ fontSize: '14px' }}>👁️</span> Scans
+          </span>
+          <span>
+            <strong style={{ color: '#111' }}>{link.total_scans}</strong>
+            <span style={{ color: '#aaa', fontSize: '11px', marginLeft: '4px' }}>
+              ({link.unique_scans} uniques)
+            </span>
+          </span>
+        </div>
+        {/* Séparateur */}
+        <div style={{ height: '1px', backgroundColor: '#eee' }} />
+        {/* Ligne installations */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ fontSize: '14px' }}>📲</span> Installations
+          </span>
+          <span>
+            <strong style={{ color: '#111' }}>{link.total_installs ?? 0}</strong>
+            <span style={{ color: '#aaa', fontSize: '11px', marginLeft: '4px' }}>
+              ({link.unique_installs ?? 0} uniques)
+            </span>
+          </span>
+        </div>
+        {/* Taux de conversion */}
+        {link.total_scans > 0 && (
+          <>
+            <div style={{ height: '1px', backgroundColor: '#eee' }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ fontSize: '14px' }}>📈</span> Conversion
+              </span>
+              <strong style={{ color: '#4CAF50' }}>
+                {link.total_scans > 0
+                  ? Math.round(((link.total_installs ?? 0) / link.total_scans) * 100)
+                  : 0}%
+              </strong>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Actions */}
@@ -398,19 +439,25 @@ export default function TrackingQRCodesPage() {
       </div>
 
       {/* Stats rapides */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
         {[
-          { label: 'Total scans', value: links.reduce((s, l) => s + (l.total_scans || 0), 0), color: '#111' },
-          { label: 'Getdenis', value: getdenisCount + ' liens', color: COLORS.getdenis },
-          { label: 'Clients', value: clientCount + ' liens', color: COLORS.client },
+          { label: 'Total scans',        value: links.reduce((s, l) => s + (l.total_scans    || 0), 0), color: '#111',         icon: '👁️' },
+          { label: 'Scans uniques',      value: links.reduce((s, l) => s + (l.unique_scans   || 0), 0), color: '#555',         icon: '🎯' },
+          { label: 'Installations',      value: links.reduce((s, l) => s + (l.total_installs || 0), 0), color: '#1565C0',      icon: '📲' },
+          { label: 'Installs uniques',   value: links.reduce((s, l) => s + (l.unique_installs|| 0), 0), color: '#1565C0',      icon: '✅' },
         ].map(stat => (
           <div key={stat.label} style={{
             backgroundColor: '#fff', borderRadius: '12px',
             padding: '14px 20px',
             boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+            minWidth: '120px',
           }}>
-            <p style={{ fontSize: '12px', color: '#888', margin: 0 }}>{stat.label}</p>
-            <p style={{ fontSize: '20px', fontWeight: '700', color: stat.color, margin: '2px 0 0' }}>{stat.value}</p>
+            <p style={{ fontSize: '12px', color: '#888', margin: 0 }}>
+              {stat.icon} {stat.label}
+            </p>
+            <p style={{ fontSize: '22px', fontWeight: '700', color: stat.color, margin: '2px 0 0' }}>
+              {stat.value}
+            </p>
           </div>
         ))}
       </div>
