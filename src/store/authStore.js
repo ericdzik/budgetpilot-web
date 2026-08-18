@@ -31,6 +31,13 @@ const useAuthStore = create(
 
       googleLogin: async ({ google_id, email, name, avatar_url }) => {
         const response = await api.post('/auth/google', { google_id, email, name, avatar_url })
+
+        // Nouvel utilisateur : le backend ne crée pas le compte, il renvoie is_new_user: true
+        // Le composant appelant doit gérer la redirection vers l'inscription
+        if (response.data.is_new_user) {
+          return response.data
+        }
+
         const { user, token } = response.data
         localStorage.setItem('token', token)
         set({ user, token, isAuthenticated: true })

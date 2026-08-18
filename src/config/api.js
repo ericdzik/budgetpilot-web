@@ -2,7 +2,7 @@ import axios from 'axios'
 import useTrackingAuthStore from '../store/trackingAuthStore'
 import useAdminAuthStore from '../store/adminAuthStore'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://192.168.1.69:8000/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://192.168.1.68:8000/api'
 
 const api = axios.create({
   baseURL: API_BASE_URL,

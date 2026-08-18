@@ -370,10 +370,17 @@ function HistoryCard({ item, type, onRefresh }) {
             {item.client_name || item.client?.name || item.supplier_name || item.client || item.description || 'Sans nom'}
           </span>
 
-          {/* Référence */}
-          <span style={{ fontSize: '17px', fontWeight: '600', color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {shortRef(item.reference_number)}
-          </span>
+          {/* Référence + Titre */}
+          <div>
+            <span style={{ fontSize: '17px', fontWeight: '600', color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+              {shortRef(item.reference_number)}
+            </span>
+            {item.title && (
+              <span style={{ fontSize: '13px', color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', marginTop: '2px' }}>
+                {item.title}
+              </span>
+            )}
+          </div>
 
           {/* Date */}
           <span style={{ fontSize: '17px', color: '#888', whiteSpace: 'nowrap' }}>
@@ -760,7 +767,7 @@ const menuItem = {
 }
 
 // Colonnes identiques header + cartes : Nom | Référence | Date | Montant | Statut | Actions
-const COL_TEMPLATE = '1fr 130px 150px 150px 100px 1fr'
+const COL_TEMPLATE = '1fr 180px 150px 150px 100px 1fr'
 const COL_GAP = '12px'
 const COL_PADDING = '16px 20px'
 

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import { X, Eye, EyeOff, User, Lock, Phone, Mail, Gift, ChevronDown } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
@@ -789,6 +789,7 @@ function Step2({ data, onChange, onBatchChange, onSubmit, onBack, loading }) {
 
 export default function RegisterPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { register } = useAuthStore()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -807,8 +808,37 @@ export default function RegisterPage() {
       countryCode: 'TG',
       localPhone: '',
       referral_code: refCode.toUpperCase(),
+      // Données Google (remplies si redirection depuis le bouton Google)
+      google_id: null,
+      avatar_url_google: null,
     }
   })
+
+  // Pré-remplir les champs depuis les données Google si l'utilisateur vient du flux Google
+  useEffect(() => {
+    const googleData = location.state?.googleData
+    if (!googleData) return
+
+    const nameParts = (googleData.fullName || '').trim().split(' ')
+    const username = (googleData.email || '').split('@')[0]
+    const tempPassword = `Google@${Date.now()}`
+
+    setForm(p => ({
+      ...p,
+      google_id: googleData.google_id || null,
+      avatar_url_google: googleData.avatar_url || null,
+      email: googleData.email || '',
+      firstName: googleData.firstName || '',
+      lastName: googleData.lastName || '',
+      // Générer un identifiant depuis l'email et un mot de passe temporaire
+      name: username,
+      password: tempPassword,
+      password_confirmation: tempPassword,
+    }))
+
+    // Passer directement à l'étape 2 (infos personnelles)
+    setStep(2)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (field, value) => setForm(p => ({ ...p, [field]: value }))
   const setBatch = (updates) => setForm(p => ({ ...p, ...updates }))
@@ -828,8 +858,12 @@ export default function RegisterPage() {
         activity: form.activity,
         avatar_id: form.avatar_id,
         gender: isFemalAvatar ? 'female' : 'male',
-        avatar_url: `assets/images/avatars/${avatarFileName}`,
+        avatar_url: form.avatar_url_google || `assets/images/avatars/${avatarFileName}`,
         currency: form.currency || 'XOF',
+      }
+      if (form.google_id) {
+        payload.google_id = form.google_id
+        payload.provider = 'google'
       }
       if (form.referral_code?.trim()) {
         payload.referral_code = form.referral_code.trim().toUpperCase()

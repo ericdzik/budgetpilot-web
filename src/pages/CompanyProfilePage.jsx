@@ -6,7 +6,7 @@ import { authService } from '../services/authService'
 import PhoneInputField from '../components/ui/PhoneInputField'
 
 // URL de base du stockage — même logique que le mobile
-const STORAGE_BASE = (import.meta.env.VITE_API_URL || 'http://192.168.1.69:8000/api').replace('/api', '/storage')
+const STORAGE_BASE = (import.meta.env.VITE_API_URL || 'http://192.168.1.68:8000/api').replace('/api', '/storage')
 
 function storageUrl(path) {
   if (!path || path === '0') return null

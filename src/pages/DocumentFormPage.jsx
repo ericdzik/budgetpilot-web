@@ -94,6 +94,7 @@ export default function DocumentFormPage() {
   const [discount, setDiscount] = useState(0)
   const [taxPercent, setTaxPercent] = useState(0)
   const [notes, setNotes] = useState('')
+  const [docTitle, setDocTitle] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('Espèces')
 
   // ── UI ──
@@ -114,6 +115,7 @@ export default function DocumentFormPage() {
         setDiscountType(doc.discount_type || 'percentage')
         setTaxPercent(doc.tax_percent || 0)
         setNotes(doc.notes || '')
+        setDocTitle(doc.title || '')
         // Client
         const client = doc.client
         if (client) {
@@ -165,6 +167,7 @@ export default function DocumentFormPage() {
       setSelectedClient(null)
       setItems([newItem()])
       setDiscount(0); setTaxPercent(0); setNotes('')
+      setDocTitle('')
       setPaymentMethod('Espèces'); setDiscountType('percentage')
 
       // Pré-remplissage depuis la fiche client (client_id dans l'URL)
@@ -394,6 +397,7 @@ export default function DocumentFormPage() {
     setSelectedClient(null)
     setItems([newItem()])
     setDiscount(0); setTaxPercent(0); setNotes('')
+    setDocTitle('')
     setPaymentMethod('Espèces')
     setDiscountType('percentage')
   }
@@ -445,6 +449,7 @@ export default function DocumentFormPage() {
         discount_type: discountType,
         tax_percent: Number(taxPercent),
         notes: notes.trim() || null,
+        title: docTitle.trim() || null,
         ...(isInvoice ? { payment_method: paymentMethod } : {}),
         items: items.map((it) => ({
           description: it.description.trim(),
@@ -602,6 +607,22 @@ export default function DocumentFormPage() {
         {/* Produits ou services */}
         <div style={{ marginBottom: '28px' }}>
           <p style={sectionTitle}>Produits ou services</p>
+
+          {/* Titre du document */}
+          <div style={{ marginBottom: '16px' }}>
+            <input
+              type="text"
+              placeholder={isInvoice ? 'Titre de la facture (optionnel)' : 'Titre du devis (optionnel)'}
+              value={docTitle}
+              onChange={(e) => setDocTitle(e.target.value)}
+              style={{
+                ...inputStyle,
+                fontSize: '16px',
+                fontWeight: '500',
+                padding: '12px 16px',
+              }}
+            />
+          </div>
 
           {items.map((it, idx) => (
             <div key={it.id} style={{ backgroundColor: BG_WHITE, borderRadius: '14px', padding: '16px 20px', marginBottom: '12px', border: '1px solid #e8eaed' }}>

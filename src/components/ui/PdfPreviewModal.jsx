@@ -117,22 +117,23 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
           }
           <div style={{ fontSize: 9, color: '#555', lineHeight: 1.6 }}>
             <div style={{ fontWeight: 'bold', color: '#000' }}>{doc.reference_number}</div>
-            <div>{fmtDate(doc.issue_date || doc.created_at)}</div>
+            <div>Date : {fmtDate(doc.issue_date || doc.created_at)}</div>
             {doc.due_date && <div>Éch. {fmtDate(doc.due_date)}</div>}
           </div>
         </div>
 
         {/* Col 2 : Émetteur */}
         <div style={{ flex: 1, fontSize: 9, lineHeight: 1.6 }}>
-          <div style={{ fontWeight: 'bold', color: '#000', marginBottom: 2 }}>{company.name}</div>
+          <div style={{ fontWeight: 'bold', color: '#000', marginBottom: 2 }}>ÉMETTEUR</div>
+          <div style={{ color: '#444' }}>{company.name}</div>
           {company.phone   && <div style={{ color: '#444' }}>{company.phone}</div>}
           {company.address && <div style={{ color: '#444' }}>{company.address}</div>}
-          {company.nif     && <div style={{ color: '#444' }}>NIF : {company.nif}</div>}
         </div>
 
         {/* Col 3 : Destinataire */}
         <div style={{ flex: 1, fontSize: 9, lineHeight: 1.6 }}>
-          <div style={{ fontWeight: 'bold', color: '#000', marginBottom: 2 }}>{client.name || '—'}</div>
+          <div style={{ fontWeight: 'bold', color: '#000', marginBottom: 2 }}>DESTINATAIRE</div>
+          <div style={{ color: '#444' }}>{client.name || '—'}</div>
           {client.phone   && <div style={{ color: '#444' }}>{client.phone}</div>}
           {client.email   && <div style={{ color: '#444' }}>{client.email}</div>}
           {client.address && <div style={{ color: '#444' }}>{client.address}</div>}
@@ -141,6 +142,20 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
 
       {/* ── TABLEAU PRINCIPAL ── */}
       <div style={{ position: 'relative' }}>
+
+        {/* Titre du document — au-dessus du tableau */}
+        {doc.title && (
+          <div style={{
+            textAlign: 'center',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            color: '#000',
+            marginBottom: '8px',
+            letterSpacing: '0.3px',
+          }}>
+            {doc.title}
+          </div>
+        )}
 
         {/* En-tête noir arrondi */}
         <div style={{
@@ -318,7 +333,7 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
           </div>
 
           {/* Numéro de page à droite */}
-          <div style={{ marginLeft: 'auto', fontSize: 14, color: '#888' }}>Page 1</div>
+          <div style={{ marginLeft: 'auto', fontSize: 14, color: '#888' }}>1 / 1</div>
 
         </div>
       </div>

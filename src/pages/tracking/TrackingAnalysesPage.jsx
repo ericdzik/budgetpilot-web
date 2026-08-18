@@ -558,6 +558,11 @@ export default function TrackingAnalysesPage() {
 
   const total        = stats?.total_scans  || 0
   const byGroup      = stats?.by_group     || {}
+  // by_group retourne des objets { scans, installs } — on extrait les scans pour l'affichage
+  const byGroupScans = {
+    getdenis: byGroup?.getdenis?.scans ?? byGroup?.getdenis ?? 0,
+    client:   byGroup?.client?.scans   ?? byGroup?.client   ?? 0,
+  }
   const byCommercial = stats?.by_commercial || []
   const daily        = stats?.daily        || []
   const clientLinks  = byCommercial.filter(l => l.group === 'client')
@@ -628,7 +633,7 @@ export default function TrackingAnalysesPage() {
               )}
 
               {/* Getdenis */}
-              <StatCard label="Getdenis" value={byGroup.getdenis || 0} icon={Users} />
+              <StatCard label="Getdenis" value={byGroupScans.getdenis} icon={Users} />
 
               {/* Commercial 2 (deuxième client) */}
               {clientLinks[1] ? (
@@ -683,13 +688,13 @@ export default function TrackingAnalysesPage() {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12 }}>
                 <p style={{ fontSize: 13, color: '#666', margin: 0 }}>Répartition des scans</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <DonutChart byGroup={byGroup} total={total} />
+                  <DonutChart byGroup={byGroupScans} total={total} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {/* Getdenis */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: COLORS.getdenis, flexShrink: 0 }} />
                       <span style={{ fontSize: 12, color: '#555', fontWeight: 600 }}>
-                        {total ? Math.round(((byGroup.getdenis || 0) / total) * 100) : 0}%
+                        {total ? Math.round(((byGroupScans.getdenis) / total) * 100) : 0}%
                       </span>
                     </div>
                     <span style={{ fontSize: 11, color: '#aaa', marginLeft: 16, marginBottom: 4 }}>Getdenis</span>
@@ -697,7 +702,7 @@ export default function TrackingAnalysesPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: COLORS.client, flexShrink: 0 }} />
                       <span style={{ fontSize: 12, color: '#555', fontWeight: 600 }}>
-                        {total ? Math.round(((byGroup.client || 0) / total) * 100) : 0}%
+                        {total ? Math.round(((byGroupScans.client) / total) * 100) : 0}%
                       </span>
                     </div>
                     <span style={{ fontSize: 11, color: '#aaa', marginLeft: 16 }}>Budget Pilot</span>

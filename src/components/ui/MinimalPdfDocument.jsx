@@ -374,21 +374,22 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
               : <View style={S.logoBox} />
             }
             <Text style={S.refNum}>{doc.reference_number}</Text>
-            <Text style={S.refSmall}>{fmtDate(doc.issue_date || doc.created_at)}</Text>
+            <Text style={S.refSmall}>Date : {fmtDate(doc.issue_date || doc.created_at)}</Text>
             {doc.due_date && <Text style={S.refSmall}>Éch. {fmtDate(doc.due_date)}</Text>}
           </View>
 
           {/* Col 2 : Émetteur */}
           <View style={S.headerCol}>
-            <Text style={S.companyName}>{company.name}</Text>
+            <Text style={[S.companyName, { marginBottom: 2 }]}>ÉMETTEUR</Text>
+            <Text style={S.companyDetail}>{company.name}</Text>
             {!!company.phone   && <Text style={S.companyDetail}>{company.phone}</Text>}
             {!!company.address && <Text style={S.companyDetail}>{company.address}</Text>}
-            {!!company.nif     && <Text style={S.companyDetail}>NIF : {company.nif}</Text>}
           </View>
 
           {/* Col 3 : Destinataire */}
           <View style={S.headerCol}>
-            <Text style={S.companyName}>{client.name || '—'}</Text>
+            <Text style={[S.companyName, { marginBottom: 2 }]}>DESTINATAIRE</Text>
+            <Text style={S.companyDetail}>{client.name || '—'}</Text>
             {!!client.phone   && <Text style={S.companyDetail}>{client.phone}</Text>}
             {!!client.email   && <Text style={S.companyDetail}>{client.email}</Text>}
             {!!client.address && <Text style={S.companyDetail}>{client.address}</Text>}
@@ -396,6 +397,15 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
         </View>
 
         {/* ── TABLEAU ── */}
+        {/* Titre du document — au-dessus du tableau */}
+        {!!doc.title && (
+          <View style={{ marginBottom: 6, alignItems: 'center' }}>
+            <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: '#000', letterSpacing: 0.3 }}>
+              {doc.title}
+            </Text>
+          </View>
+        )}
+
         {/* En-tête noir arrondi */}
         <View style={S.tableHeader}>
           <Text style={[S.thText, { flex: 4, paddingLeft: 6 }]}>Description</Text>
@@ -517,7 +527,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
               ) : (
                 <View style={{ width: 52, height: 52, backgroundColor: '#f0f0f0' }} />
               )}
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Link src="https://www.getbudgetpilot.com" style={S.brandingLink}>
                   www.getbudgetpilot.com
                 </Link>
@@ -528,7 +538,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
             </View>
 
             <Text style={S.pageNum} render={({ pageNumber, totalPages }) =>
-              `Page ${pageNumber} / ${totalPages}`
+              `${pageNumber} / ${totalPages}`
             } fixed />
           </View>
         </View>

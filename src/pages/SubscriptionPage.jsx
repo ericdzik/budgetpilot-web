@@ -320,6 +320,9 @@ export default function SubscriptionPage() {
                     'Opérations illimitées',
                     'Supprime les publicités',
                     'Données stockées 10ans',
+                    'Multi-devises',
+                    'Carnet clients',
+                    'Programme de parrainage',
                     'Support prioritaire VIP',
                   ].map((f, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -433,6 +436,9 @@ export default function SubscriptionPage() {
                   <CheckItem text="Opérations illimitées" light />
                   <CheckItem text="Données stockées 10 ans" light />
                   <CheckItem text="Supprime les publicités" light />
+                  <CheckItem text="Multi-devises" light />
+                  <CheckItem text="Carnet clients" light />
+                  <CheckItem text="Programme de parrainage" light />
                   <CheckItem text="Support prioritaire VIP" light />
                 </div>
 
@@ -509,6 +515,9 @@ export default function SubscriptionPage() {
                 <CheckItemBlue text="30 opérations par mois" />
                 <CheckItemBlue text="Données stockées 1 an" />
                 <CheckItemBlue text="Supprime les publicités" />
+                <CheckItemBlue text="Multi-devises" />
+                <CheckItemBlue text="Carnet clients" />
+                <CheckItemBlue text="Programme de parrainage" />
                 <CheckItemBlue text="Support prioritaire VIP" />
               </div>
 

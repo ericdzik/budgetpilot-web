@@ -1,5 +1,5 @@
 export const STORAGE_BASE_URL =
-  (import.meta.env.VITE_API_URL || 'http://192.168.1.69:8000/api').replace('/api', '/storage')
+  (import.meta.env.VITE_API_URL || 'http://192.168.1.68:8000/api').replace('/api', '/storage')
 
 export const PAYMENT_METHODS = {
   cash: 'Espèces',

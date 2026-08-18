@@ -5,7 +5,7 @@ import useAuthStore from '../store/authStore'
 import UserBadge from '../components/ui/UserBadge'
 import { authService } from '../services/authService'
 
-const STORAGE_BASE = (import.meta.env.VITE_API_URL || 'http://192.168.1.69:8000/api').replace('/api', '/storage')
+const STORAGE_BASE = (import.meta.env.VITE_API_URL || 'http://192.168.1.68:8000/api').replace('/api', '/storage')
 function storageUrl(path) {
   if (!path || path === '0') return null
   if (path.startsWith('http')) return path

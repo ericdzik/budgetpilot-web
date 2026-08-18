@@ -22,12 +22,34 @@ export default function GoogleAuthButton({ label = 'Continuer avec Google', styl
         const profile = await res.json()
 
         // Envoyer au backend
-        await googleLogin({
+        const data = await googleLogin({
           google_id: profile.sub,
           email: profile.email,
           name: profile.name,
           avatar_url: profile.picture,
         })
+
+        // Nouvel utilisateur : rediriger vers l'inscription avec les données pré-remplies
+        if (data.is_new_user) {
+          const fullName = data.name || ''
+          const parts = fullName.trim().split(' ')
+          const firstName = parts[0] || ''
+          const lastName = parts.slice(1).join(' ') || ''
+
+          navigate('/register', {
+            state: {
+              googleData: {
+                google_id: data.google_id,
+                email: data.email,
+                fullName,
+                firstName,
+                lastName,
+                avatar_url: data.avatar_url,
+              },
+            },
+          })
+          return
+        }
 
         toast.success('Connexion réussie 🎉')
         navigate('/dashboard')
