@@ -153,7 +153,7 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
             marginBottom: '8px',
             letterSpacing: '0.3px',
           }}>
-            {doc.title}
+            {doc.title.toUpperCase()}
           </div>
         )}
 
@@ -439,11 +439,27 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   // Génère le blob PDF via @react-pdf/renderer (MinimalPdfDocument) — devise du document
   const buildPdfBlob = () => generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUrl, sigDataUrl, logoBbDataUrl, doc?.currency || 'XOF', 1.0)
 
+  const buildFilename = () => {
+    const type = doc?.type === 'invoice' ? 'Facture' : 'Devis'
+    const ref  = doc?.reference_number || docId
+    if (doc?.title) {
+      const rawTitle = doc.title
+        .toUpperCase()
+        .normalize('NFD')                    // décompose les accents (é → e + ́)
+        .replace(/[\u0300-\u036f]/g, '')     // supprime les diacritiques
+        .replace(/[^A-Z0-9]/g, '_')          // remplace tout le reste par _
+        .replace(/_+/g, '_')                 // évite les __ multiples
+        .replace(/^_|_$/g, '')              // trim les _ en début/fin
+      const title = rawTitle.length > 30 ? rawTitle.substring(0, 30) + '...' : rawTitle
+      return `${title}_${ref}.pdf`
+    }
+    return `${ref}.pdf`  }
+
   const handleDownload = async () => {
     setDownloading(true)
     try {
       const blob     = await buildPdfBlob()
-      const filename = `${doc?.type === 'invoice' ? 'Facture' : 'Devis'}-${doc?.reference_number || docId}.pdf`
+      const filename = buildFilename()
       const url      = URL.createObjectURL(blob)
       const a        = document.createElement('a')
       a.href         = url
@@ -462,7 +478,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
     setSharing(true)
     try {
       const blob     = await buildPdfBlob()
-      const filename = `${doc?.type === 'invoice' ? 'Facture' : 'Devis'}-${doc?.reference_number || docId}.pdf`
+      const filename = buildFilename()
       const file     = new File([blob], filename, { type: 'application/pdf' })
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {

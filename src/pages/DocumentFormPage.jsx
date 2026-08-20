@@ -612,7 +612,7 @@ export default function DocumentFormPage() {
           <div style={{ marginBottom: '16px' }}>
             <input
               type="text"
-              placeholder={isInvoice ? 'Titre de la facture (optionnel)' : 'Titre du devis (optionnel)'}
+              placeholder={isInvoice ? 'Titre de la facture' : 'Titre du devis'}
               value={docTitle}
               onChange={(e) => setDocTitle(e.target.value)}
               style={{

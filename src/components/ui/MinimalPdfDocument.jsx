@@ -401,7 +401,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
         {!!doc.title && (
           <View style={{ marginBottom: 6, alignItems: 'center' }}>
             <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: '#000', letterSpacing: 0.3 }}>
-              {doc.title}
+              {doc.title.toUpperCase()}
             </Text>
           </View>
         )}
