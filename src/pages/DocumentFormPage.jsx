@@ -592,7 +592,7 @@ export default function DocumentFormPage() {
               )}
             </div>
             <input type="email" placeholder="Adresse e-mail" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} style={inputStyle} />
-            <PhoneInputField value={clientPhone} onChange={setClientPhone} />
+            <PhoneInputField value={clientPhone} onChange={setClientPhone} label="" />
             <div style={{ alignSelf: 'center' }}>
               <input type="text" placeholder="NIF (Numéro d'immatriculation)" value={clientNif} onChange={(e) => setClientNif(e.target.value)} style={inputStyle} />
             </div>
