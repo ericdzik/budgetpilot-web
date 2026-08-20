@@ -95,8 +95,9 @@ export default function PhoneInputField({
       <div style={{
         display: 'flex', alignItems: 'center',
         border: focused ? '2px solid #1E88E5' : '1.5px solid #e0e0e0',
-        borderRadius: '8px', backgroundColor: '#fff',
+        borderRadius: '10px', backgroundColor: '#fff',
         overflow: 'hidden', transition: 'border 0.15s',
+        height: '42px', boxSizing: 'border-box',
       }}>
         {/* Bouton pays */}
         <button
@@ -104,7 +105,7 @@ export default function PhoneInputField({
           onClick={() => !disabled && setShowPicker(v => !v)}
           style={{
             display: 'flex', alignItems: 'center', gap: '5px',
-            padding: '10px 8px 10px 10px',
+            padding: '0px 8px 0px 10px',
             backgroundColor: 'transparent', border: 'none',
             cursor: disabled ? 'default' : 'pointer',
             flexShrink: 0,
@@ -140,10 +141,10 @@ export default function PhoneInputField({
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           style={{
-            flex: 1, padding: '11px 12px',
+            flex: 1, padding: '0 12px',
             border: 'none', outline: 'none',
             fontSize: '15px', fontWeight: '500', color: '#111',
-            backgroundColor: 'transparent',
+            backgroundColor: 'transparent', height: '100%',
           }}
         />
       </div>
