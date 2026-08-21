@@ -1,93 +1,75 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useSearchParams, useParams } from 'react-router-dom'
 
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.budget.budgetpilot'
 const APP_STORE_URL  = 'https://apps.apple.com/app/b-pilot/id6760863629'
 const WEBSITE_URL    = 'https://www.getbudgetpilot-web.com'
 
+const ua = navigator.userAgent.toLowerCase()
+const isIOS     = /iphone|ipad|ipod/.test(ua)
+const isAndroid = /android/.test(ua)
+
 /**
  * Page de redirection universelle
  *
- * Supporte deux formats :
- *   - /app?ref=CODE        (format actuel)
- *   - /app/ref/CODE        (ancien format, rétrocompatibilité)
- *
- * Android  → Play Store direct (referrer transmis automatiquement)
+ * iOS      → Page intermédiaire affichée immédiatement (rendu synchrone, pas de useEffect)
+ *            Bouton tap → deep link budgetpilot:// → fallback App Store après 2.5s
+ * Android  → Play Store direct avec referrer (redirect immédiate)
  * Desktop  → Site web
- * iOS      → Page intermédiaire avec bouton "Ouvrir l'app"
- *            (window.location.href vers custom scheme doit être déclenché par un tap)
  */
 export default function AppRedirectPage() {
   const [searchParams] = useSearchParams()
-  const params = useParams()
-  const [iosReady, setIosReady] = useState(false)
+  const params         = useParams()
   const [appOpened, setAppOpened] = useState(false)
 
-  // Priorité : query param ?ref=CODE, sinon path param /app/ref/:code
   const refCode = searchParams.get('ref') || params.code || ''
 
-  const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase())
-  const isAndroid = /android/.test(navigator.userAgent.toLowerCase())
-
-  const deepLink = refCode
+  const deepLink   = refCode
     ? `budgetpilot://ref/${encodeURIComponent(refCode)}`
     : 'budgetpilot://home'
 
   const appStoreUrl = APP_STORE_URL +
     (refCode ? `?ct=${encodeURIComponent('ref_' + refCode)}&pt=referral` : '')
 
-  useEffect(() => {
-    if (isAndroid) {
-      // Android → Play Store direct avec referrer
-      let url = PLAY_STORE_URL
-      if (refCode) url += `&referrer=${encodeURIComponent('ref=' + refCode)}`
-      window.location.replace(url)
-    } else if (!isIOS) {
-      // Desktop → site web
-      let url = WEBSITE_URL
-      if (refCode) url += `?ref=${encodeURIComponent(refCode)}`
-      window.location.replace(url)
-    } else {
-      // iOS → afficher la page intermédiaire
-      setIosReady(true)
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Android → redirect immédiate côté rendu (pas de useEffect) ──────────────
+  if (isAndroid) {
+    let url = PLAY_STORE_URL
+    if (refCode) url += `&referrer=${encodeURIComponent('ref=' + refCode)}`
+    window.location.replace(url)
+    return <div style={styles.container}><p style={styles.subtitle}>Redirection…</p></div>
+  }
 
-  // Handler du bouton principal — déclenché par un vrai tap (iOS l'autorise)
+  // ── Desktop → redirect immédiate ────────────────────────────────────────────
+  if (!isIOS) {
+    let url = WEBSITE_URL
+    if (refCode) url += `?ref=${encodeURIComponent(refCode)}`
+    window.location.replace(url)
+    return <div style={styles.container}><p style={styles.subtitle}>Redirection…</p></div>
+  }
+
+  // ── iOS → page intermédiaire, rendu immédiat sans aucun useEffect ────────────
   const handleOpenApp = () => {
     setAppOpened(true)
     window.location.href = deepLink
-
-    // Si l'app ne répond pas après 2.5s → fallback App Store
     setTimeout(() => {
-      if (!document.hidden) {
-        window.location.replace(appStoreUrl)
-      }
+      if (!document.hidden) window.location.replace(appStoreUrl)
     }, 2500)
   }
 
-  // Android et Desktop sont redirigés dans useEffect — rien à afficher
-  if (!isIOS) {
-    return (
-      <div style={styles.container}>
-        <img src="/logo_bb.svg" alt="Budget Pilot" style={styles.logo}
-          onError={e => { e.target.style.display = 'none' }} />
-        <p style={styles.subtitle}>Redirection en cours…</p>
-      </div>
-    )
-  }
-
-  // iOS — page intermédiaire
   return (
     <div style={styles.container}>
-      <img src="/logo_bb.svg" alt="Budget Pilot" style={styles.logo}
-        onError={e => { e.target.style.display = 'none' }} />
+      <img
+        src="/logo_bb.svg"
+        alt="Budget Pilot"
+        style={styles.logo}
+        onError={e => { e.target.style.display = 'none' }}
+      />
 
       <h1 style={styles.title}>Budget Pilot</h1>
       <p style={styles.subtitle}>
         {refCode
           ? 'Tu as été invité à rejoindre Budget Pilot !'
-          : 'Ouvre l\'application Budget Pilot'}
+          : "Ouvre l'application Budget Pilot"}
       </p>
 
       {refCode && (
@@ -97,12 +79,12 @@ export default function AppRedirectPage() {
         </div>
       )}
 
-      {!appOpened ? (
+      {appOpened ? (
+        <p style={styles.openingText}>Ouverture en cours…</p>
+      ) : (
         <button style={styles.btnPrimary} onClick={handleOpenApp}>
           Ouvrir l'application
         </button>
-      ) : (
-        <p style={styles.openingText}>Ouverture en cours…</p>
       )}
 
       <a href={appStoreUrl} style={styles.btnSecondary}>
