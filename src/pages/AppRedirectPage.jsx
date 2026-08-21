@@ -27,29 +27,47 @@ export default function AppRedirectPage() {
   useEffect(() => {
     const ua = navigator.userAgent.toLowerCase()
 
-    let targetUrl
-
     if (/iphone|ipad|ipod/.test(ua)) {
-      // iOS → App Store
-      targetUrl = APP_STORE_URL
-      if (refCode) {
-        targetUrl += `?ct=${encodeURIComponent('ref_' + refCode)}&pt=referral`
+      // iOS : tenter d'ouvrir l'app via deep link, fallback App Store après 2s
+      const deepLink = refCode
+        ? `budgetpilot://ref/${encodeURIComponent(refCode)}`
+        : 'budgetpilot://home'
+
+      const appStoreUrl = APP_STORE_URL +
+        (refCode ? `?ct=${encodeURIComponent('ref_' + refCode)}&pt=referral` : '')
+
+      // Ouvrir le deep link — si l'app est installée, iOS switche vers elle
+      window.location.href = deepLink
+
+      // Fallback App Store si l'app n'est pas installée (après 2.2s)
+      const timer = setTimeout(() => {
+        // Si on arrive ici, l'app n'a pas intercepté le deep link
+        window.location.replace(appStoreUrl)
+      }, 2200)
+
+      // Annuler le fallback si l'app a bien été ouverte (la page perd le focus)
+      const cancelFallback = () => {
+        if (document.hidden) clearTimeout(timer)
       }
+      document.addEventListener('visibilitychange', cancelFallback, { once: true })
+
+      return () => {
+        clearTimeout(timer)
+        document.removeEventListener('visibilitychange', cancelFallback)
+      }
+
     } else if (/android/.test(ua)) {
-      // Android → Play Store
-      targetUrl = PLAY_STORE_URL
-      if (refCode) {
-        targetUrl += `&referrer=${encodeURIComponent('ref=' + refCode)}`
-      }
+      // Android → Play Store avec referrer
+      let targetUrl = PLAY_STORE_URL
+      if (refCode) targetUrl += `&referrer=${encodeURIComponent('ref=' + refCode)}`
+      window.location.replace(targetUrl)
+
     } else {
       // Desktop → site web
-      targetUrl = WEBSITE_URL
-      if (refCode) {
-        targetUrl += `?ref=${encodeURIComponent(refCode)}`
-      }
+      let targetUrl = WEBSITE_URL
+      if (refCode) targetUrl += `?ref=${encodeURIComponent(refCode)}`
+      window.location.replace(targetUrl)
     }
-
-    window.location.replace(targetUrl)
   }, [refCode])
 
   // Affichage pendant la redirection (généralement < 1 seconde)
