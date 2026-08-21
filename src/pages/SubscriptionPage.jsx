@@ -356,8 +356,8 @@ export default function SubscriptionPage() {
           </div>
         </div>
 
-        {/* ── Pack de démarrage — visible seulement si jamais abonné ── */}
-        {!loading && !status?.started_at && (
+        {/* ── Pack de démarrage — visible seulement si welcome actif ── */}
+        {!loading && status?.billing_cycle === 'welcome' && status?.status === 'active' && (
         <div>
           <p style={{ fontSize: '16px', fontWeight: '700', color: '#111', margin: '0 0 12px' }}>
             Pack de démarrage
