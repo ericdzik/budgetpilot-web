@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+﻿import { useEffect, useState, useCallback, useRef } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { adminService } from '../../services/adminService'
 import { toast } from 'react-hot-toast'
 
@@ -43,15 +43,79 @@ function PlanBadge({ plan }) {
   )
 }
 
+function formatLastActivity(d) {
+  if (!d) return '—'
+  const now = new Date()
+  const date = new Date(d)
+  const diffMs = now - date
+  if (diffMs < 0) return 'À l\'instant'
+
+  const diffSecs = Math.floor(diffMs / 1000)
+  const diffMins = Math.floor(diffSecs / 60)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+  const diffMonths = Math.floor(diffDays / 30)
+  const diffYears = Math.floor(diffDays / 365)
+
+  if (diffSecs < 60) return `Il y a ${diffSecs}s`
+  if (diffMins < 60) return `Il y a ${diffMins} min`
+  if (diffHours < 24) return `Il y a ${diffHours}h`
+  if (diffDays < 30) return `Il y a ${diffDays}j`
+  if (diffMonths < 12) return `Il y a ${diffMonths} mois`
+  return `Il y a ${diffYears} an${diffYears > 1 ? 's' : ''}`
+}
+
 export default function AdminUsersPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [users, setUsers]     = useState([])
   const [meta, setMeta]       = useState({})
   const [loading, setLoading] = useState(true)
-  const [search, setSearch]   = useState('')
-  const [planFilter, setPlanFilter] = useState('')
-  const [page, setPage]       = useState(1)
+  const [search, setSearch]   = useState(
+    searchParams.get('search') || sessionStorage.getItem('admin_users_search') || ''
+  )
+  const [planFilter, setPlanFilter] = useState(
+    searchParams.get('plan') || sessionStorage.getItem('admin_users_plan') || ''
+  )
+  const [churnFilter, setChurnFilter] = useState(
+    searchParams.get('churn') || sessionStorage.getItem('admin_users_churn') || ''
+  )
+  const [page, setPage]       = useState(() => {
+    const paramPage = searchParams.get('page')
+    if (paramPage) return parseInt(paramPage, 10)
+    const storedPage = sessionStorage.getItem('admin_users_page')
+    return storedPage ? parseInt(storedPage, 10) : 1
+  })
+  const [planOpen, setPlanOpen]   = useState(false)
+  const [churnOpen, setChurnOpen] = useState(false)
+  const planRef  = useRef(null)
+  const churnRef = useRef(null)
+
+  // Fermer les menus au clic extérieur
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (planRef.current  && !planRef.current.contains(e.target))  setPlanOpen(false)
+      if (churnRef.current && !churnRef.current.contains(e.target)) setChurnOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  // Synchroniser l'état avec sessionStorage et l'URL
+  useEffect(() => {
+    sessionStorage.setItem('admin_users_page', String(page))
+    sessionStorage.setItem('admin_users_search', search)
+    sessionStorage.setItem('admin_users_plan', planFilter)
+    sessionStorage.setItem('admin_users_churn', churnFilter)
+
+    const params = {}
+    if (page > 1) params.page = String(page)
+    if (search) params.search = search
+    if (planFilter) params.plan = planFilter
+    if (churnFilter) params.churn = churnFilter
+    setSearchParams(params, { replace: true })
+  }, [page, search, planFilter, churnFilter, setSearchParams])
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
@@ -59,6 +123,7 @@ export default function AdminUsersPage() {
       const r = await adminService.getUsers({
         search: search || undefined,
         plan:   planFilter || undefined,
+        churn:  churnFilter || undefined,
         page,
         per_page: 20,
       })
@@ -73,12 +138,18 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, planFilter, page])
+  }, [search, planFilter, churnFilter, page])
 
   useEffect(() => { fetchUsers() }, [fetchUsers])
 
+  const isInitialSearchMount = useRef(true)
+
   // Debounce search
   useEffect(() => {
+    if (isInitialSearchMount.current) {
+      isInitialSearchMount.current = false
+      return
+    }
     const t = setTimeout(() => setPage(1), 300)
     return () => clearTimeout(t)
   }, [search])
@@ -115,23 +186,133 @@ export default function AdminUsersPage() {
             backgroundColor: '#fff',
           }}
         />
-        <select
-          value={planFilter}
-          onChange={(e) => { setPlanFilter(e.target.value); setPage(1) }}
-          style={{
-            padding: '10px 16px',
-            border: '1.5px solid #e0e0e0',
-            borderRadius: '10px',
-            fontSize: '14px', color: '#333', outline: 'none',
-            backgroundColor: '#fff', cursor: 'pointer',
-          }}
-        >
-          <option value="">Tous les plans</option>
-          <option value="pro">Pro</option>
-          <option value="basic">Basic</option>
-          <option value="freemium">Freemium</option>
-          <option value="welcome">Welcome (essai)</option>
-        </select>
+        <div ref={planRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => { setPlanOpen((o) => !o); setChurnOpen(false) }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '10px 14px',
+              border: planFilter ? '1.5px solid #1E88E5' : '1.5px solid #e0e0e0',
+              borderRadius: '10px',
+              fontSize: '14px',
+              color: planFilter ? '#1E88E5' : '#333',
+              outline: 'none',
+              backgroundColor: planFilter ? '#E3F2FD' : '#fff',
+              cursor: 'pointer',
+              fontWeight: planFilter ? '600' : '400',
+            }}
+          >
+            Plan
+            {planFilter && (
+              <span style={{
+                backgroundColor: '#1E88E5', color: '#fff', borderRadius: '50%',
+                width: '18px', height: '18px', fontSize: '11px', fontWeight: '700',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>1</span>
+            )}
+            <span style={{ fontSize: '10px', color: '#888' }}>▼</span>
+          </button>
+          {planOpen && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 9999,
+              backgroundColor: '#fff', borderRadius: '12px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
+              padding: '6px', minWidth: '180px',
+            }}>
+              {[
+                { v: '', l: 'Tous les plans' },
+                { v: 'pro', l: 'Pro' },
+                { v: 'basic', l: 'Basic' },
+                { v: 'freemium', l: 'Freemium' },
+                { v: 'welcome', l: 'Welcome (essai)' },
+              ].map((o) => (
+                <button
+                  key={'plan-' + o.v}
+                  onClick={() => { setPlanFilter(o.v); setPage(1); setPlanOpen(false) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    width: '100%', padding: '10px 14px',
+                    border: 'none', borderRadius: '8px',
+                    cursor: 'pointer', textAlign: 'left',
+                    backgroundColor: planFilter === o.v ? '#E3F2FD' : 'transparent',
+                    color: planFilter === o.v ? '#1E88E5' : '#333',
+                    fontSize: '14px',
+                  }}>
+                  {o.l}
+                  {planFilter === o.v && (
+                    <svg width="16" height="16" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 5l2.5 2.5L8 3" stroke="#1E88E5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div ref={churnRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => { setChurnOpen((o) => !o); setPlanOpen(false) }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '10px 14px',
+              border: churnFilter ? '1.5px solid #1E88E5' : '1.5px solid #e0e0e0',
+              borderRadius: '10px',
+              fontSize: '14px',
+              color: churnFilter ? '#1E88E5' : '#333',
+              outline: 'none',
+              backgroundColor: churnFilter ? '#E3F2FD' : '#fff',
+              cursor: 'pointer',
+              fontWeight: churnFilter ? '600' : '400',
+            }}
+          >
+            Risque
+            {churnFilter && (
+              <span style={{
+                backgroundColor: '#1E88E5', color: '#fff', borderRadius: '50%',
+                width: '18px', height: '18px', fontSize: '11px', fontWeight: '700',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>1</span>
+            )}
+            <span style={{ fontSize: '10px', color: '#888' }}>▼</span>
+          </button>
+          {churnOpen && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 9999,
+              backgroundColor: '#fff', borderRadius: '12px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
+              padding: '6px', minWidth: '180px',
+            }}>
+              {[
+                { v: '', l: 'Tous les risques' },
+                { v: 'low', l: 'Faible' },
+                { v: 'medium', l: 'Moyen' },
+                { v: 'high', l: 'Élevé' },
+                { v: 'churned', l: 'Churné' },
+              ].map((o) => (
+                <button
+                  key={'churn-' + o.v}
+                  onClick={() => { setChurnFilter(o.v); setPage(1); setChurnOpen(false) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    width: '100%', padding: '10px 14px',
+                    border: 'none', borderRadius: '8px',
+                    cursor: 'pointer', textAlign: 'left',
+                    backgroundColor: churnFilter === o.v ? '#E3F2FD' : 'transparent',
+                    color: churnFilter === o.v ? '#1E88E5' : '#333',
+                    fontSize: '14px',
+                  }}>
+                  {o.l}
+                  {churnFilter === o.v && (
+                    <svg width="16" height="16" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 5l2.5 2.5L8 3" stroke="#1E88E5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Tableau */}
@@ -144,7 +325,7 @@ export default function AdminUsersPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
             <tr style={{ backgroundColor: '#f8f9fb' }}>
-              {['Utilisateur', 'Plan', 'Inscription', 'Clients', 'Docs', 'Dépenses', 'Risque churn', ''].map((h) => (
+              {['Utilisateur', 'Plan', 'Inscription', 'Clients', 'Docs', 'Dernière activité', 'Risque churn', ''].map((h) => (
                 <th key={h} style={{
                   padding: '12px 16px', textAlign: 'left',
                   fontSize: '12px', fontWeight: '600', color: '#888',
@@ -199,8 +380,23 @@ export default function AdminUsersPage() {
                   <td style={{ padding: '14px 16px' }}><PlanBadge plan={u.display_plan || u.plan} /></td>
                   <td style={{ padding: '14px 16px', color: '#555' }}>{formatDate(u.created_at)}</td>
                   <td style={{ padding: '14px 16px', color: '#555', textAlign: 'center' }}>{u.clients_count ?? 0}</td>
-                  <td style={{ padding: '14px 16px', color: '#555', textAlign: 'center' }}>{u.documents_count ?? 0}</td>
-                  <td style={{ padding: '14px 16px', color: '#555', textAlign: 'center' }}>{u.expenses_count ?? 0}</td>
+                  <td style={{ padding: '14px 16px', color: '#555', textAlign: 'center' }}>
+                    {((u.documents_count ?? 0) + (u.expenses_count ?? 0) + (u.revenues_count ?? 0))}
+                  </td>
+                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                    {u.last_activity_at ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: '#111' }}>
+                          {formatDate(u.last_activity_at)}
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#888' }}>
+                          {formatLastActivity(u.last_activity_at)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ color: '#555' }}>—</span>
+                    )}
+                  </td>
                   <td style={{ padding: '14px 16px' }}><ChurnBadge risk={u.churn_risk} /></td>
                   <td style={{ padding: '14px 16px' }}>
                     <button
@@ -228,37 +424,94 @@ export default function AdminUsersPage() {
         {/* Pagination */}
         {meta.last_page > 1 && (
           <div style={{
-            display: 'flex', justifyContent: 'center', alignItems: 'center',
-            gap: '8px', padding: '16px',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '16px 20px',
             borderTop: '1px solid #f0f0f0',
+            flexWrap: 'wrap', gap: '12px',
           }}>
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              style={{
-                padding: '6px 16px', borderRadius: '8px',
-                border: '1.5px solid #e0e0e0', backgroundColor: '#fff',
-                fontSize: '13px', cursor: page === 1 ? 'not-allowed' : 'pointer',
-                color: page === 1 ? '#ccc' : '#333',
-              }}
-            >
-              ← Précédent
-            </button>
-            <span style={{ fontSize: '13px', color: '#888' }}>
-              Page {meta.current_page} / {meta.last_page}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(meta.last_page, p + 1))}
-              disabled={page === meta.last_page}
-              style={{
-                padding: '6px 16px', borderRadius: '8px',
-                border: '1.5px solid #e0e0e0', backgroundColor: '#fff',
-                fontSize: '13px', cursor: page === meta.last_page ? 'not-allowed' : 'pointer',
-                color: page === meta.last_page ? '#ccc' : '#333',
-              }}
-            >
-              Suivant →
-            </button>
+            {/* Infos & Aller à la page */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '13px', color: '#888' }}>
+                Page {meta.current_page} / {meta.last_page} — {meta.total} utilisateurs
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '13px', color: '#666' }}>Aller à :</span>
+                <select
+                  value={page}
+                  onChange={(e) => setPage(Number(e.target.value))}
+                  style={{
+                    padding: '4px 8px', borderRadius: '6px',
+                    border: '1px solid #d0d0d0', fontSize: '13px',
+                    backgroundColor: '#fff', cursor: 'pointer', outline: 'none',
+                  }}
+                >
+                  {Array.from({ length: meta.last_page }, (_, i) => i + 1).map((p) => (
+                    <option key={p} value={p}>Page {p}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Boutons numérotés + Précédent / Suivant */}
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                style={{
+                  padding: '6px 12px', borderRadius: '8px',
+                  border: '1.5px solid #e0e0e0', backgroundColor: '#fff',
+                  fontSize: '13px', cursor: page === 1 ? 'not-allowed' : 'pointer',
+                  color: page === 1 ? '#ccc' : '#333',
+                }}
+              >
+                ← Précédent
+              </button>
+
+              {/* Numéros de page avec ellipsis */}
+              {Array.from({ length: meta.last_page }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === meta.last_page || Math.abs(p - page) <= 2)
+                .reduce((acc, p, idx, arr) => {
+                  if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...')
+                  acc.push(p)
+                  return acc
+                }, [])
+                .map((p, i) =>
+                  p === '...' ? (
+                    <span key={`ellipsis-${i}`} style={{ fontSize: '13px', color: '#aaa', padding: '0 4px' }}>…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      style={{
+                        width: 32, height: 32,
+                        borderRadius: '8px',
+                        border: '1px solid ' + (p === page ? '#1E88E5' : '#e0e0e0'),
+                        backgroundColor: p === page ? '#1E88E5' : '#fff',
+                        color: p === page ? '#fff' : '#333',
+                        fontSize: '13px', fontWeight: p === page ? '600' : '400',
+                        cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      {p}
+                    </button>
+                  )
+                )
+              }
+
+              <button
+                onClick={() => setPage((p) => Math.min(meta.last_page, p + 1))}
+                disabled={page === meta.last_page}
+                style={{
+                  padding: '6px 12px', borderRadius: '8px',
+                  border: '1.5px solid #e0e0e0', backgroundColor: '#fff',
+                  fontSize: '13px', cursor: page === meta.last_page ? 'not-allowed' : 'pointer',
+                  color: page === meta.last_page ? '#ccc' : '#333',
+                }}
+              >
+                Suivant →
+              </button>
+            </div>
           </div>
         )}
       </div>

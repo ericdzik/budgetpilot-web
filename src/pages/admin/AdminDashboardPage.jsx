@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { adminService } from '../../services/adminService'
 import { toast } from 'react-hot-toast'
@@ -169,6 +169,10 @@ export default function AdminDashboardPage() {
         <KpiPill value={subscriptionRevenue}  label="Revenus abonnements"            icon={Wallet}     iconColor="#8E24AA" />
         <KpiPill value={totalReferrers}       label="Parrains"                       icon={Share2}     iconColor="#F4511E" />
         <KpiPill value={`${avgValue}`}        label="Valeur moyenne par utilisateur" icon={TrendingUp} iconColor="#FF9800" />
+        <KpiPill value={data?.users_by_plan?.welcome ?? '-'}   label="Welcome"  icon={User} iconColor="#FF9800" />
+        <KpiPill value={data?.users_by_plan?.pro ?? '-'}     label="Pro"      icon={User} iconColor="#1E88E5" />
+        <KpiPill value={data?.users_by_plan?.basic ?? '-'}   label="Basic"    icon={User} iconColor="#43A047" />
+        <KpiPill value={data?.users_by_plan?.freemium ?? '-'} label="Freemium" icon={User} iconColor="#9E9E9E" />
       </div>
 
       {/* Actions courantes */}

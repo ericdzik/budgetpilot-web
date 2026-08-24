@@ -701,7 +701,7 @@ export default function AdminUserDetailPage() {
     return (
       <div style={{ textAlign: 'center', marginTop: 80 }}>
         <p style={{ color: '#888' }}>Utilisateur introuvable.</p>
-        <button onClick={() => navigate('/admin/users')} style={{ marginTop: 16, color: '#1E88E5', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14 }}>
+        <button onClick={() => { if (window.history.length > 2) navigate(-1); else navigate('/admin/users'); }} style={{ marginTop: 16, color: '#1E88E5', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14 }}>
           ← Retour
         </button>
       </div>
@@ -729,7 +729,7 @@ export default function AdminUserDetailPage() {
       {/* ── En-tête ──────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '28px', flexWrap: 'wrap' }}>
         <button
-          onClick={() => navigate('/admin/users')}
+          onClick={() => { if (window.history.length > 2) navigate(-1); else navigate('/admin/users'); }}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: '20px', padding: 0, lineHeight: 1 }}
         >
           ←
