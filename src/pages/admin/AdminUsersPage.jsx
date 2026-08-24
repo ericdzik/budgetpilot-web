@@ -210,7 +210,7 @@ export default function AdminUsersPage() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>1</span>
             )}
-            <span style={{ fontSize: '10px', color: '#888' }}>▼</span>
+            <span style={{ fontSize: '10px', color: '#1E88E5' }}>▼</span>
           </button>
           {planOpen && (
             <div style={{
@@ -274,7 +274,7 @@ export default function AdminUsersPage() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>1</span>
             )}
-            <span style={{ fontSize: '10px', color: '#888' }}>▼</span>
+            <span style={{ fontSize: '10px', color: '#1E88E5' }}>▼</span>
           </button>
           {churnOpen && (
             <div style={{
