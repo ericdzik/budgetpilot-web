@@ -288,7 +288,6 @@ export default function AdminUsersPage() {
                 { v: 'low', l: 'Faible' },
                 { v: 'medium', l: 'Moyen' },
                 { v: 'high', l: 'Élevé' },
-                { v: 'churned', l: 'Churné' },
               ].map((o) => (
                 <button
                   key={'churn-' + o.v}
