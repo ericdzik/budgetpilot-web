@@ -873,8 +873,8 @@ export default function AdminUserDetailPage() {
           marginBottom: '24px',
         }}>
           <StatBox label="Nombre de clients"    value={fmtN(user.clients_count)} />
-          <StatBox label="Nombre de devis"      value={fmtN(user.documents_count)} />
-          <StatBox label="Nombre de factures"   value={fmtN(user.documents_count)} />
+          <StatBox label="Nombre de devis"      value={fmtN(user.quotes_count)} />
+          <StatBox label="Nombre de factures"   value={fmtN(user.invoices_count)} />
           <StatBox label="Nombre de dépenses"   value={fmtN(user.expenses_count)} />
           <StatBox label="Nombre de recettes"   value={fmtN(user.revenues_count)} />
         </div>
