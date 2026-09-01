@@ -427,16 +427,28 @@ export default function DocumentFormPage() {
       let clientId = selectedClient?.id ?? null
 
       if (!clientId) {
-        const clientRes = await api.post('/clients', {
-          name: clientName.trim(),
-          phone: clientPhone.trim() || '',           // jamais null — le backend l'exige
-          email: clientEmail.trim() || null,
-          registration_number: clientNif.trim() || null,  // nif → registration_number
-          address: clientAddress.trim() || null,
-          sector: clientSector || null,
-        })
-        clientId = clientRes.data?.client?.id ?? clientRes.data?.data?.id ?? clientRes.data?.id
-        if (!clientId) throw new Error('Impossible de récupérer l\'ID du client créé')
+        // Chercher d'abord un client existant avec le même téléphone (dédoublonnage)
+        const phoneDigits = clientPhone.trim().replace(/\D/g, '')
+        const existing = phoneDigits.length >= 6
+          ? allClients.find(c => c.phone?.replace(/\D/g, '') === phoneDigits)
+          : null
+
+        if (existing) {
+          clientId = existing.id
+        } else {
+          const clientRes = await api.post('/clients', {
+            name: clientName.trim(),
+            phone: clientPhone.trim() || '',
+            email: clientEmail.trim() || null,
+            registration_number: clientNif.trim() || null,
+            address: clientAddress.trim() || null,
+            sector: clientSector || null,
+          })
+          clientId = clientRes.data?.client?.id ?? clientRes.data?.data?.id ?? clientRes.data?.id
+          if (!clientId) throw new Error('Impossible de récupérer l\'ID du client créé')
+          // Ajouter le nouveau client à la liste locale pour éviter d'autres doublons dans la même session
+          setAllClients(prev => [...prev, { id: clientId, name: clientName.trim(), phone: clientPhone.trim() }])
+        }
       }
 
       const payload = {
