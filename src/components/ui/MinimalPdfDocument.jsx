@@ -80,6 +80,94 @@ function fmtCurrency(amount, currencyCode = 'XOF') {
   return `${sym}${formatted}`
 }
 
+// ─── Montant en lettres (français) ───────────────────────────────────────────
+
+const UNITS = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf',
+  'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize',
+  'dix-sept', 'dix-huit', 'dix-neuf']
+const DIZAINES = ['', '', 'vingt', 'trente', 'quarante', 'cinquante',
+  'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt']
+
+function belowThousand(n) {
+  if (n === 0) return ''
+  if (n < 20) return UNITS[n]
+  const d = Math.floor(n / 10)
+  const u = n % 10
+  if (d === 7) return u === 0 ? 'soixante-dix' : `soixante-${UNITS[10 + u]}`
+  if (d === 9) return u === 0 ? 'quatre-vingt-dix' : `quatre-vingt-${UNITS[10 + u]}`
+  if (d === 8 && u === 0) return 'quatre-vingts'
+  if (d === 8) return `quatre-vingt-${UNITS[u]}`
+  if (u === 1 && d >= 2 && d <= 6) return `${DIZAINES[d]}-et-un`
+  if (u === 0) return DIZAINES[d]
+  return `${DIZAINES[d]}-${UNITS[u]}`
+}
+
+function belowMillion(n) {
+  if (n === 0) return ''
+  const hundreds = Math.floor(n / 100)
+  const rest = n % 100
+  const parts = []
+  if (hundreds > 0) {
+    parts.push(hundreds === 1 ? 'cent' : `${UNITS[hundreds]} cent${rest === 0 ? 's' : ''}`)
+  }
+  if (rest > 0) parts.push(belowThousand(rest))
+  return parts.join(' ')
+}
+
+function intToWords(n) {
+  if (n === 0) return 'zéro'
+  const parts = []
+  const milliards = Math.floor(n / 1_000_000_000)
+  const millions  = Math.floor((n % 1_000_000_000) / 1_000_000)
+  const milliers  = Math.floor((n % 1_000_000) / 1_000)
+  const reste     = n % 1_000
+  if (milliards > 0) parts.push(milliards === 1 ? 'un milliard' : `${belowMillion(milliards)} milliards`)
+  if (millions  > 0) parts.push(millions  === 1 ? 'un million'  : `${belowMillion(millions)} millions`)
+  if (milliers  > 0) parts.push(milliers  === 1 ? 'mille'       : `${belowMillion(milliers)} mille`)
+  if (reste     > 0) parts.push(belowMillion(reste))
+  return parts.join(' ')
+}
+
+export function amountToWords(amount, currencyCode = 'XOF') {
+  const code = (currencyCode || 'XOF').toUpperCase()
+  const abs = Math.abs(Number(amount) || 0)
+  const intPart = Math.trunc(abs)
+  const decPart = Math.round((abs - intPart) * 100)
+  const negative = amount < 0
+
+  const UNITS_MAP = {
+    XOF: { unit: 'franc CFA',       plural: 'francs CFA',       cent: 'centime',  centP: 'centimes',  dec: false },
+    XAF: { unit: 'franc CFA',       plural: 'francs CFA',       cent: 'centime',  centP: 'centimes',  dec: false },
+    EUR: { unit: 'euro',            plural: 'euros',            cent: 'centime',  centP: 'centimes',  dec: true  },
+    USD: { unit: 'dollar',          plural: 'dollars',          cent: 'cent',     centP: 'cents',     dec: true  },
+    CAD: { unit: 'dollar canadien', plural: 'dollars canadiens',cent: 'cent',     centP: 'cents',     dec: true  },
+    AUD: { unit: 'dollar',          plural: 'dollars',          cent: 'cent',     centP: 'cents',     dec: true  },
+    GBP: { unit: 'livre sterling',  plural: 'livres sterling',  cent: 'penny',    centP: 'pence',     dec: true  },
+    CHF: { unit: 'franc suisse',    plural: 'francs suisses',   cent: 'centime',  centP: 'centimes',  dec: true  },
+    MAD: { unit: 'dirham',          plural: 'dirhams',          cent: 'centime',  centP: 'centimes',  dec: true  },
+    DZD: { unit: 'dinar algérien',  plural: 'dinars algériens', cent: 'centime',  centP: 'centimes',  dec: true  },
+    TND: { unit: 'dinar tunisien',  plural: 'dinars tunisiens', cent: 'millime',  centP: 'millimes',  dec: true  },
+    NGN: { unit: 'naira',           plural: 'nairas',           cent: 'kobo',     centP: 'kobos',     dec: true  },
+    GHS: { unit: 'cedi',            plural: 'cedis',            cent: 'pesewa',   centP: 'pesewas',   dec: true  },
+    GNF: { unit: 'franc',           plural: 'francs',           cent: 'centime',  centP: 'centimes',  dec: false },
+    CDF: { unit: 'franc',           plural: 'francs',           cent: 'centime',  centP: 'centimes',  dec: false },
+  }
+
+  const info = UNITS_MAP[code] || { unit: code.toLowerCase(), plural: `${code.toLowerCase()}s`, cent: 'centime', centP: 'centimes', dec: true }
+
+  const intWords = intToWords(intPart)
+  const unitLabel = intPart <= 1 ? info.unit : info.plural
+  let result = `${negative ? 'moins ' : ''}${intWords} ${unitLabel}`
+
+  if (info.dec && decPart > 0) {
+    const centWords = intToWords(decPart)
+    const centLabel = decPart <= 1 ? info.cent : info.centP
+    result += ` et ${centWords} ${centLabel}`
+  }
+
+  return result.charAt(0).toUpperCase() + result.slice(1)
+}
+
 function fmtDate(d) {
   if (!d) return '—'
   try {
@@ -248,11 +336,15 @@ const S = StyleSheet.create({
     backgroundColor: '#000',
     paddingVertical: 8,
     paddingHorizontal: 14,
+    flexDirection: 'column',
+  },
+  totalFinalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   totalFinalLabel: { fontSize: 11, color: '#fff', fontFamily: 'Helvetica-Bold' },
   totalFinalValue: { fontSize: 11, color: '#fff', fontFamily: 'Helvetica-Bold' },
+  totalFinalWords: { fontSize: 8, color: '#fff', fontFamily: 'Helvetica-Oblique', marginTop: 4 },
 
   // ── Footer fixe ──
   footer: {
@@ -466,27 +558,41 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
               <View style={S.totalsInner}>
                 <View style={S.totalRow}>
                   <Text style={S.totalLabel}>Sous Total :</Text>
-                  <Text style={S.totalValue}>{fmtCurrency(subtotalBeforeConverted, currency)}</Text>
+                  <Text style={S.totalValue}>{fmt(subtotalBeforeConverted)}</Text>
                 </View>
                 {totalDiscount > 0 && (
                   <View style={S.totalRow}>
                     <Text style={S.totalLabel}>Remise :</Text>
-                    <Text style={S.totalValue}>{fmtCurrency(totalDiscountConverted, currency)}</Text>
+                    <Text style={S.totalValue}>{fmt(totalDiscountConverted)}</Text>
                   </View>
                 )}
                 {doc.has_tva && (
                   <View style={S.totalRow}>
                     <Text style={S.totalLabel}>TVA ({tvaRate}%) :</Text>
-                    <Text style={S.totalValue}>{fmtCurrency(tvaAmountConverted, currency)}</Text>
+                    <Text style={S.totalValue}>{fmt(tvaAmountConverted)}</Text>
                   </View>
                 )}
               </View>
               <View style={S.totalFinalBar}>
-                <Text style={S.totalFinalLabel}>Total :</Text>
-                <Text style={S.totalFinalValue}>{fmtCurrency(total, currency)}</Text>
+                <View style={S.totalFinalRow}>
+                  <Text style={S.totalFinalLabel}>Total :</Text>
+                  <Text style={S.totalFinalValue}>{fmt(total)}</Text>
+                </View>
               </View>
             </View>
           </View>
+        </View>
+
+        {/* Montant en lettres — en dehors du tableau, sous la zone Paiement */}
+        <View style={{ marginTop: 8, marginHorizontal: 15, flexDirection: 'row', flexWrap: 'wrap' }}>
+          <Text style={{ fontSize: 9, color: '#000', fontFamily: 'Helvetica-Bold' }}>Total : </Text>
+          <Text style={{
+            fontSize: (() => { const l = amountToWords(total, currency).length; return l <= 40 ? 11 : l <= 60 ? 10 : l <= 80 ? 9 : 8 })(),
+            color: '#000',
+            fontFamily: 'Helvetica-Oblique',
+          }}>
+            {amountToWords(total, currency)}
+          </Text>
         </View>
 
         {/* ── FOOTER FIXE ── */}

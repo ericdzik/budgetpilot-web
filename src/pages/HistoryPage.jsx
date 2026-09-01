@@ -901,9 +901,6 @@ export default function HistoryPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#111', margin: 0 }}>Suivi des opérations</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '15px', fontWeight: '600', color: '#333', cursor: 'pointer' }}>
-            {activeCurrency} <ChevronDown size={15} color="#1E88E5" />
-          </div>
         </div>
         {/* Badge Pro + Avatar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

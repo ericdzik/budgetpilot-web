@@ -206,7 +206,7 @@ export default function StatsPage() {
               <StatCard count={operations.invoices ?? 0}  label="Factures" icon="/operation2.svg"   onClick={() => navigate('/history?tab=invoices')} />
               <StatCard count={operations.quotes ?? 0}    label="Devis"    icon="/devisicone.svg"   onClick={() => navigate('/history?tab=quotes')} />
               <StatCard count={operations.expenses ?? 0}  label="Dépenses" icon="/depenseicone.svg" onClick={() => navigate('/history?tab=expenses')} />
-              <StatCard count={operations.clients ?? 0}   label="Clients"  icon="/operation4.svg" />
+              <StatCard count={operations.clients ?? 0}   label="Clients"  icon="/operation4.svg" onClick={() => navigate('/clients')} />
             </div>
 
             {/* ── Grille principale : Recette + Impayées + Top Clients + Trésorerie ── */}
@@ -310,7 +310,11 @@ export default function StatsPage() {
                   </div>
                 ) : (
                   topClients.map((client, i) => (
-                    <div key={client.id ?? i} onClick={() => { if (requirePremium('La gestion des clients')) navigate('/clients', { state: { selectedId: client.id } }) }} style={{
+                    <div key={client.id ?? i} onClick={() => {
+                      if (!client.id) return
+                      if (!requirePremium('La fiche client')) return
+                      navigate(`/clients/${client.id}`)
+                    }} style={{
                       display: 'grid',
                       gridTemplateColumns: '1.5fr 1fr 1.2fr',
                       alignItems: 'center',

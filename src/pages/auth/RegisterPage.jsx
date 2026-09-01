@@ -508,12 +508,20 @@ function Step1({ data, onChange, onNext }) {
       {/* Bouton Google */}
       <GoogleAuthButton label="S'inscrire avec Google" style={{ marginBottom: '16px' }} />
 
-      <p style={{ textAlign: 'center', fontSize: '13px', color: '#757575', marginTop: '8px' }}>
-        Déjà un compte ?{' '}
-        <Link to="/login" style={{ color: '#1E88E5', fontWeight: '600', textDecoration: 'none' }}>
-          Se connecter
-        </Link>
+      <p style={{ textAlign: 'center', fontSize: '13px', color: '#757575', marginTop: '8px', marginBottom: '8px' }}>
+        Déjà un compte ?
       </p>
+      <Link to="/login" style={{ textDecoration: 'none', display: 'block', marginBottom: '4px' }}>
+        <button style={{
+          width: '100%', padding: '14px',
+          backgroundColor: '#1E88E5', color: '#fff',
+          border: 'none', borderRadius: '25px',
+          fontSize: '15px', fontWeight: '700', cursor: 'pointer',
+          boxShadow: '0 4px 12px rgba(30,136,229,0.3)',
+        }}>
+          Se connecter
+        </button>
+      </Link>
       <p style={{ textAlign: 'center', marginTop: '10px' }}>
         <Link to="/terms" style={{ fontSize: '12px', color: '#9e9e9e', textDecoration: 'underline' }}>
           Termes & Conditions

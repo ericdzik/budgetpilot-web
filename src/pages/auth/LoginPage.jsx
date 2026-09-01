@@ -209,12 +209,20 @@ export default function LoginPage() {
           <GoogleAuthButton style={{ marginBottom: '32px' }} />
 
           {/* Lien inscription */}
-          <p style={{ textAlign: 'center', fontSize: '14px', color: '#757575' }}>
-            Vous n'avez pas de compte ?{' '}
-            <Link to="/register" style={{ color: '#1E88E5', fontWeight: '600', textDecoration: 'none' }}>
-              S'inscrire
-            </Link>
+          <p style={{ textAlign: 'center', fontSize: '14px', color: '#757575', marginBottom: '8px' }}>
+            Vous n'avez pas de compte ?
           </p>
+          <Link to="/register" style={{ textDecoration: 'none', display: 'block' }}>
+            <button style={{
+              width: '100%', padding: '15px',
+              backgroundColor: '#1E88E5', color: '#fff',
+              border: 'none', borderRadius: '25px',
+              fontSize: '15px', fontWeight: '700', cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(30,136,229,0.3)',
+            }}>
+              S'inscrire
+            </button>
+          </Link>
         </form>
       </div>
     </div>

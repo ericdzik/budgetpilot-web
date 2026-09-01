@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast'
 import QRCode from 'qrcode'
 import api from '../../config/api'
 import { STORAGE_BASE_URL } from '../../config/constants'
-import { generateMinimalPdfBlob } from './MinimalPdfDocument'
+import { generateMinimalPdfBlob, amountToWords } from './MinimalPdfDocument'
 import { formatAmount } from '../../store/currencyStore'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -234,24 +234,26 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
                   <div style={{ padding: '8px 14px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                       <span style={{ fontSize: 10, color: '#000' }}>Sous Total :</span>
-                      <span style={{ fontSize: 10, color: '#000' }}>{formatAmount(subtotalBeforeConverted, currency)}</span>
+                      <span style={{ fontSize: 10, color: '#000' }}>{fmt(subtotalBeforeConverted)}</span>
                     </div>
                     {totalDiscount > 0 && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                         <span style={{ fontSize: 10, color: '#000' }}>Remise :</span>
-                        <span style={{ fontSize: 10, color: '#000' }}>{formatAmount(totalDiscountConverted, currency)}</span>
+                        <span style={{ fontSize: 10, color: '#000' }}>{fmt(totalDiscountConverted)}</span>
                       </div>
                     )}
                     {doc.has_tva && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                         <span style={{ fontSize: 10, color: '#000' }}>TVA ({tvaRate}%) :</span>
-                        <span style={{ fontSize: 10, color: '#000' }}>{formatAmount(tvaAmountConverted, currency)}</span>
+                        <span style={{ fontSize: 10, color: '#000' }}>{fmt(tvaAmountConverted)}</span>
                       </div>
                     )}
                   </div>
-                  <div style={{ background: '#000', padding: '8px 14px', display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 11, color: '#fff', fontWeight: 'bold' }}>Total :</span>
-                    <span style={{ fontSize: 11, color: '#fff', fontWeight: 'bold' }}>{formatAmount(total, currency)}</span>
+                  <div style={{ background: '#000', padding: '8px 14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 11, color: '#fff', fontWeight: 'bold' }}>Total :</span>
+                      <span style={{ fontSize: 11, color: '#fff', fontWeight: 'bold' }}>{fmt(total)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -260,6 +262,18 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
           </div>
 
         </div>
+      </div>
+
+      {/* Montant en lettres — en dehors du tableau */}
+      <div style={{ padding: '10px 0 0 0' }}>
+        <span style={{ fontWeight: 'bold', fontSize: 9, color: '#000' }}>Total : </span>
+        <span style={{
+          fontSize: (() => { const l = amountToWords(total, currency).length; return l <= 40 ? 11 : l <= 60 ? 10 : l <= 80 ? 9 : 8 })(),
+          color: '#000',
+          fontStyle: 'italic',
+        }}>
+          {amountToWords(total, currency)}
+        </span>
       </div>
 
       {/* ── PIED DE PAGE FIXE ── */}

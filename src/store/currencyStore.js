@@ -109,3 +109,18 @@ export function formatAmount(amount, currencyCode = 'XOF') {
   if (symbolAfter.includes(code)) return `${formatted}\u00A0${sym}`
   return `${sym}${formatted}`
 }
+
+/**
+ * Formate un montant SANS le symbole/suffixe de devise
+ */
+export function formatAmountOnly(amount, currencyCode = 'XOF') {
+  const code = (currencyCode || 'XOF').toUpperCase()
+  const num = Number(amount) || 0
+
+  const noDecimal = ['XOF', 'XAF', 'JPY', 'KRW', 'VND', 'IDR', 'UGX', 'TZS', 'GNF', 'MMK']
+  if (noDecimal.includes(code)) {
+    return Math.round(num).toLocaleString('fr-FR').replace(/\s/g, '\u202F')
+  }
+
+  return num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '\u202F')
+}

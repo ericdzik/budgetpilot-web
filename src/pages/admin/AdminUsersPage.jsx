@@ -72,6 +72,7 @@ export default function AdminUsersPage() {
   const [users, setUsers]     = useState([])
   const [meta, setMeta]       = useState({})
   const [loading, setLoading] = useState(true)
+  const [sortCriteria, setSortCriteria] = useState([{ key: 'created_at', dir: 'desc' }])
   const [search, setSearch]   = useState(
     searchParams.get('search') || sessionStorage.getItem('admin_users_search') || ''
   )
@@ -120,12 +121,18 @@ export default function AdminUsersPage() {
   const fetchUsers = useCallback(async () => {
     setLoading(true)
     try {
+      // Encode les critères de tri : sort[]=clients_count:desc&sort[]=created_at:asc
+      const sortParams = sortCriteria.length > 0
+        ? sortCriteria.map((c) => `${c.key}:${c.dir}`)
+        : undefined
+
       const r = await adminService.getUsers({
         search: search || undefined,
         plan:   planFilter || undefined,
         churn:  churnFilter || undefined,
         page,
         per_page: 20,
+        sort: sortParams,
       })
       setUsers(r.data.data || [])
       setMeta({
@@ -138,7 +145,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, planFilter, churnFilter, page])
+  }, [search, planFilter, churnFilter, page, sortCriteria])
 
   useEffect(() => { fetchUsers() }, [fetchUsers])
 
@@ -155,6 +162,54 @@ export default function AdminUsersPage() {
   }, [search])
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—'
+
+  // Tri côté client — multi-colonnes
+  // 1er clic : ajoute la colonne au tri (desc)
+  // Re-clic : toggle desc → asc
+  // Double-clic : retire la colonne du tri
+  const handleSort = (key) => {
+    setSortCriteria(prev => {
+      const existing = prev.findIndex((c) => c.key === key)
+      if (existing >= 0) {
+        // Colonne déjà active → toggle direction
+        const updated = [...prev]
+        updated[existing] = { key, dir: prev[existing].dir === 'desc' ? 'asc' : 'desc' }
+        return updated
+      } else {
+        // Nouvelle colonne → ajouter à la fin
+        return [...prev, { key, dir: 'desc' }]
+      }
+    })
+  }
+
+  const handleSortRemove = (key) => {
+    setSortCriteria(prev => {
+      const next = prev.filter((c) => c.key !== key)
+      return next.length > 0 ? next : []
+    })
+  }
+
+  const SortIcon = ({ colKey }) => {
+    const idx = sortCriteria.findIndex((c) => c.key === colKey)
+    const active = idx >= 0
+    const dir = active ? sortCriteria[idx].dir : null
+    const showRank = active
+    return (
+      <span style={{ marginLeft: 4, display: 'inline-flex', alignItems: 'center', gap: 2, opacity: active ? 1 : 0.3, fontSize: 11 }}>
+        {active ? (dir === 'asc' ? '↑' : '↓') : '↓'}
+        {showRank && (
+          <span style={{
+            fontSize: 9, fontWeight: 700, lineHeight: 1,
+            backgroundColor: '#1E88E5', color: '#fff',
+            borderRadius: '50%', width: 13, height: 13,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {idx + 1}
+          </span>
+        )}
+      </span>
+    )
+  }
 
   return (
     <div>
@@ -318,6 +373,45 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
+      {/* Indicateur tri multi-colonnes */}
+      {sortCriteria.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '12px', color: '#888' }}>Tri actif :</span>
+          {sortCriteria.map((c, i) => {
+            const labels = { created_at: 'Inscription', clients_count: 'Clients', docs_count: 'Docs', last_activity_at: 'Dernière activité' }
+            return (
+              <span key={c.key} style={{
+                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                padding: '2px 10px', borderRadius: '20px',
+                backgroundColor: '#E3F2FD', color: '#1E88E5',
+                fontSize: '12px', fontWeight: '600',
+              }}>
+                <span style={{
+                  backgroundColor: '#1E88E5', color: '#fff', borderRadius: '50%',
+                  width: 14, height: 14, fontSize: 9, fontWeight: 700,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                }}>{i + 1}</span>
+                {labels[c.key]} {c.dir === 'asc' ? '↑' : '↓'}
+                <span
+                  onClick={() => handleSortRemove(c.key)}
+                  style={{ cursor: 'pointer', marginLeft: 2, opacity: 0.6, lineHeight: 1 }}
+                  title="Retirer ce tri"
+                >×</span>
+              </span>
+            )
+          })}
+          <button
+            onClick={() => setSortCriteria([])}
+            style={{
+              fontSize: '12px', color: '#888', background: 'none', border: 'none',
+              cursor: 'pointer', textDecoration: 'underline', padding: 0,
+            }}
+          >
+            Réinitialiser
+          </button>
+        </div>
+      )}
+
       {/* Tableau */}
       <div style={{
         backgroundColor: '#fff',
@@ -328,14 +422,26 @@ export default function AdminUsersPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
           <thead>
             <tr style={{ backgroundColor: '#f8f9fb' }}>
-              {['Utilisateur', 'Plan', 'Inscription', 'Clients', 'Docs', 'Dernière activité', 'Risque churn', ''].map((h) => (
-                <th key={h} style={{
+              {[
+                { label: 'Utilisateur', key: null },
+                { label: 'Plan', key: null },
+                { label: 'Inscription', key: 'created_at' },
+                { label: 'Clients', key: 'clients_count' },
+                { label: 'Docs', key: 'docs_count' },
+                { label: 'Dernière activité', key: 'last_activity_at' },
+                { label: 'Risque churn', key: null },
+                { label: '', key: null },
+              ].map(({ label, key }) => (
+                <th key={label} onClick={key ? () => handleSort(key) : undefined} onDoubleClick={key ? (e) => { e.preventDefault(); handleSortRemove(key) } : undefined} title={key ? 'Clic : trier · Double-clic : retirer du tri' : undefined} style={{
                   padding: '12px 16px', textAlign: 'left',
                   fontSize: '12px', fontWeight: '600', color: '#888',
                   textTransform: 'uppercase', letterSpacing: '0.4px',
                   borderBottom: '1px solid #f0f0f0',
+                  cursor: key ? 'pointer' : 'default',
+                  userSelect: 'none',
+                  whiteSpace: 'nowrap',
                 }}>
-                  {h}
+                  {label}{key && <SortIcon colKey={key} />}
                 </th>
               ))}
             </tr>

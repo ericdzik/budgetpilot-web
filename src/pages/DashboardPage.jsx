@@ -5,7 +5,7 @@ import { Download, Eye, Plus } from 'lucide-react'
 import { dashboardService } from '../services/dashboardService'
 import { subscriptionService } from '../services/subscriptionService'
 import useAuthStore from '../store/authStore'
-import useCurrencyStore, { formatAmount } from '../store/currencyStore'
+import useCurrencyStore, { formatAmount, formatAmountOnly } from '../store/currencyStore'
 import PdfPreviewModal from '../components/ui/PdfPreviewModal'
 import UserBadge from '../components/ui/UserBadge'
 import WelcomeProModal from '../components/ui/WelcomeProModal'
@@ -252,7 +252,7 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
                   <div style={{ fontSize: '42px', fontWeight: '700', letterSpacing: '-1px' }}>
-                    {formatAmount(caisse, displayCurrency)}
+                    {formatAmountOnly(caisse, displayCurrency)}
                   </div>
                 </div>
                 <div style={{ fontSize: '13px', opacity: 0.8, marginTop: '4px', marginBottom: '6px' }}>
@@ -312,7 +312,7 @@ export default function DashboardPage() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                     <div style={{ fontSize: '42px', fontWeight: '700', color: '#111', letterSpacing: '-0.5px' }}>
-                      {formatAmount(recettes, displayCurrency)}
+                      {formatAmountOnly(recettes, displayCurrency)}
                     </div>
                   </div>
                 </div>
@@ -334,7 +334,7 @@ export default function DashboardPage() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                     <div style={{ fontSize: '42px', fontWeight: '700', color: '#111', letterSpacing: '-0.5px' }}>
-                      {formatAmount(depenses, displayCurrency)}
+                      {formatAmountOnly(depenses, displayCurrency)}
                     </div>
                   </div>
                 </div>
