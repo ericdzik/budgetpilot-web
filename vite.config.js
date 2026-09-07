@@ -8,4 +8,16 @@ export default defineConfig({
     host: true, // écoute sur 0.0.0.0 (réseau local accessible)
     port: 5173,
   },
+  define: {
+    // Polyfill Buffer pour @react-pdf/renderer en browser
+    global: 'globalThis',
+  },
+  optimizeDeps: {
+    include: ['buffer'],
+  },
+  resolve: {
+    alias: {
+      buffer: 'buffer',
+    },
+  },
 })

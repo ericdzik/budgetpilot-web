@@ -1,3 +1,8 @@
+import { Buffer } from 'buffer'
+if (typeof window !== 'undefined' && !window.Buffer) {
+  window.Buffer = Buffer
+}
+
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'

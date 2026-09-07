@@ -196,7 +196,7 @@ const S = StyleSheet.create({
     color: '#000',
     backgroundColor: '#fff',
     paddingTop: 20,
-    paddingBottom: 110, // espace pour le footer fixe
+    paddingBottom: 140, // espace pour le footer fixe (signatures + branding)
     paddingHorizontal: 24,
   },
 
@@ -269,14 +269,14 @@ const S = StyleSheet.create({
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 6,
+    paddingVertical: 4,
     paddingHorizontal: 10,
     backgroundColor: '#fff',
     borderBottom: '1px solid #f0f0f0',
   },
   tableRowLast: {
     flexDirection: 'row',
-    paddingVertical: 6,
+    paddingVertical: 4,
     paddingHorizontal: 10,
     backgroundColor: '#fff',
   },
@@ -295,7 +295,6 @@ const S = StyleSheet.create({
   footerZone: {
     flexDirection: 'row',
     minHeight: 70,
-    position: 'relative',
   },
   paymentBox: {
     flex: 1,
@@ -311,16 +310,16 @@ const S = StyleSheet.create({
     color: '#444',
     marginTop: 1,
   },
-  // Bloc totaux — position absolute à droite, reproduit la superposition
+  // Bloc totaux — en flux normal, aligné à droite
   totalsBox: {
-    position: 'absolute',
-    bottom: -30,
-    right: 20,
     width: 210,
     border: '2px solid #000',
     borderRadius: 10,
     backgroundColor: '#fff',
     overflow: 'hidden',
+    alignSelf: 'flex-end',
+    marginBottom: 4,
+    marginRight: 4,
   },
   totalsInner: {
     padding: 8,
@@ -453,203 +452,203 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
   const groupEntries   = Object.entries(grouped)
   const showCatSubtotal = groupEntries.length > 1
 
-  return (
-    <Document>
-      <Page size="A4" style={S.page}>
+  // ── Pagination manuelle : max 16 lignes par page ──────────────────────────
+  const ITEMS_PER_PAGE = 20
 
-        {/* ── HEADER ── */}
-        <View style={S.headerRow}>
-          {/* Col 1 : Logo + Ref */}
-          <View style={S.headerCol}>
-            {logoDataUrl
-              ? <Image src={logoDataUrl} style={S.logoImg} />
-              : <View style={S.logoBox} />
-            }
-            <Text style={S.refNum}>{doc.reference_number}</Text>
-            <Text style={S.refSmall}>Date : {fmtDate(doc.issue_date || doc.created_at)}</Text>
-            {doc.due_date && <Text style={S.refSmall}>Éch. {fmtDate(doc.due_date)}</Text>}
-          </View>
+  // Aplatir tous les items avec leur catégorie
+  const flatItems = []
+  groupEntries.forEach(([cat, catItems]) => {
+    catItems.forEach(item => flatItems.push({ ...item, _cat: cat }))
+    flatItems.push({ __subtotal: true, _cat: cat, _catItems: catItems })
+  })
 
-          {/* Col 2 : Émetteur */}
-          <View style={S.headerCol}>
-            <Text style={[S.companyName, { marginBottom: 2 }]}>ÉMETTEUR</Text>
-            <Text style={S.companyDetail}>{company.name}</Text>
-            {!!company.phone   && <Text style={S.companyDetail}>{company.phone}</Text>}
-            {!!company.address && <Text style={S.companyDetail}>{company.address}</Text>}
-          </View>
+  // Découper en tranches de ITEMS_PER_PAGE
+  const pageSlices = []
+  for (let i = 0; i < flatItems.length; i += ITEMS_PER_PAGE) {
+    pageSlices.push(flatItems.slice(i, i + ITEMS_PER_PAGE))
+  }
+  if (pageSlices.length === 0) pageSlices.push([])
+  const totalPagesCount = pageSlices.length
 
-          {/* Col 3 : Destinataire */}
-          <View style={S.headerCol}>
-            <Text style={[S.companyName, { marginBottom: 2 }]}>DESTINATAIRE</Text>
-            <Text style={S.companyDetail}>{client.name || '—'}</Text>
-            {!!client.phone   && <Text style={S.companyDetail}>{client.phone}</Text>}
-            {!!client.email   && <Text style={S.companyDetail}>{client.email}</Text>}
-            {!!client.address && <Text style={S.companyDetail}>{client.address}</Text>}
-          </View>
-        </View>
+  // ── Composants réutilisables ─────────────────────────────────────────────
 
-        {/* ── TABLEAU ── */}
-        {/* Titre du document — au-dessus du tableau */}
-        {!!doc.title && (
-          <View style={{ marginBottom: 6, alignItems: 'center' }}>
-            <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: '#000', letterSpacing: 0.3 }}>
-              {doc.title.toUpperCase()}
-            </Text>
-          </View>
-        )}
+  const PageHeader = () => (
+    <View style={S.headerRow}>
+      <View style={S.headerCol}>
+        {logoDataUrl
+          ? <Image src={logoDataUrl} style={S.logoImg} />
+          : <View style={S.logoBox} />
+        }
+        <Text style={S.refNum}>{doc.reference_number}</Text>
+        <Text style={S.refSmall}>Date : {fmtDate(doc.issue_date || doc.created_at)}</Text>
+        {doc.due_date && <Text style={S.refSmall}>Éch. {fmtDate(doc.due_date)}</Text>}
+      </View>
+      <View style={S.headerCol}>
+        <Text style={[S.companyName, { marginBottom: 2 }]}>ÉMETTEUR</Text>
+        <Text style={S.companyDetail}>{company.name}</Text>
+        {!!company.phone   && <Text style={S.companyDetail}>{company.phone}</Text>}
+        {!!company.address && <Text style={S.companyDetail}>{company.address}</Text>}
+      </View>
+      <View style={S.headerCol}>
+        <Text style={[S.companyName, { marginBottom: 2 }]}>DESTINATAIRE</Text>
+        <Text style={S.companyDetail}>{client.name || '—'}</Text>
+        {!!client.phone   && <Text style={S.companyDetail}>{client.phone}</Text>}
+        {!!client.email   && <Text style={S.companyDetail}>{client.email}</Text>}
+        {!!client.address && <Text style={S.companyDetail}>{client.address}</Text>}
+      </View>
+    </View>
+  )
 
-        {/* En-tête noir arrondi */}
-        <View style={S.tableHeader}>
-          <Text style={[S.thText, { flex: 4, paddingLeft: 6 }]}>Description</Text>
-          <Text style={[S.thText, { flex: 1, textAlign: 'center' }]}>QTÉ</Text>
-          <Text style={[S.thText, { flex: 2, textAlign: 'center' }]}>Prix unitaire</Text>
-          <Text style={[S.thText, { flex: 2, textAlign: 'right', paddingRight: 8 }]}>Total ({currency})</Text>
-        </View>
-
-        {/* Corps */}
-        <View style={S.tableBody}>
-          {groupEntries.map(([cat, catItems], gi) => {
-            const catTotal    = catItems.reduce((s, i) => s + i._total, 0)
-            const isLastGroup = gi === groupEntries.length - 1
-
-            return (
-              <View key={gi}>
-                {catItems.map((item, ii) => {
-                  const isLastInGroup = ii === catItems.length - 1
-                  const isVeryLast    = isLastGroup && isLastInGroup && !showCatSubtotal
-                  const rowStyle      = isVeryLast ? S.tableRowLast : S.tableRow
-                  return (
-                    <View key={ii} style={rowStyle}>
-                      <Text style={S.tdDesc}>{item.description}</Text>
-                      <Text style={S.tdQty}>{item.quantity}</Text>
-                      <Text style={S.tdPrice}>{fmt(toNum(item.unit_price) * cr)}</Text>
-                      <Text style={S.tdTotal}>{fmt(item._total * cr)}</Text>
-                    </View>
-                  )
-                })}
-
-                {showCatSubtotal && (
-                  <View style={S.subtotalRow}>
-                    <Text style={[S.tdDesc, { flex: 7, fontFamily: 'Helvetica-Bold' }]}>
-                      Sous-total {cat}
-                    </Text>
-                    <Text style={[S.tdTotal, { flex: 2, fontFamily: 'Helvetica-Bold' }]}>
-                      {fmtCurrency(catTotal * cr, currency)}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )
-          })}
-
-          {/* Zone Paiement + Totaux superposés */}
-          <View style={S.footerZone}>
-            {/* Paiement (gauche) */}
-            <View style={S.paymentBox}>
-              <Text style={S.paymentTitle}>Paiement</Text>
-              <Text style={S.paymentDetail}>Statut : <Text style={{ fontFamily: 'Helvetica-Bold' }}>{statusLabel(doc.status)}</Text></Text>
-              {!!doc.due_date && (
-                <Text style={S.paymentDetail}>Échéance : <Text style={{ fontFamily: 'Helvetica-Bold' }}>{fmtDate(doc.due_date)}</Text></Text>
-              )}
-            </View>
-
-            {/* Bloc totaux — superposé, position absolute */}
-            <View style={S.totalsBox}>
-              <View style={S.totalsInner}>
-                <View style={S.totalRow}>
-                  <Text style={S.totalLabel}>Sous Total :</Text>
-                  <Text style={S.totalValue}>{fmt(subtotalBeforeConverted)}</Text>
-                </View>
-                {totalDiscount > 0 && (
-                  <View style={S.totalRow}>
-                    <Text style={S.totalLabel}>Remise :</Text>
-                    <Text style={S.totalValue}>{fmt(totalDiscountConverted)}</Text>
-                  </View>
-                )}
-                {doc.has_tva && (
-                  <View style={S.totalRow}>
-                    <Text style={S.totalLabel}>TVA ({tvaRate}%) :</Text>
-                    <Text style={S.totalValue}>{fmt(tvaAmountConverted)}</Text>
-                  </View>
-                )}
-              </View>
-              <View style={S.totalFinalBar}>
-                <View style={S.totalFinalRow}>
-                  <Text style={S.totalFinalLabel}>Total :</Text>
-                  <Text style={S.totalFinalValue}>{fmt(total)}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Montant en lettres — en dehors du tableau, sous la zone Paiement */}
-        <View style={{ marginTop: 8, marginHorizontal: 15, flexDirection: 'row', flexWrap: 'wrap' }}>
-          <Text style={{ fontSize: 9, color: '#000', fontFamily: 'Helvetica-Bold' }}>Total : </Text>
-          <Text style={{
-            fontSize: (() => { const l = amountToWords(total, currency).length; return l <= 40 ? 11 : l <= 60 ? 10 : l <= 80 ? 9 : 8 })(),
-            color: '#000',
-            fontFamily: 'Helvetica-Oblique',
-          }}>
-            {amountToWords(total, currency)}
+  const TableHead = () => (
+    <>
+      {!!doc.title && (
+        <View style={{ marginBottom: 6, alignItems: 'center' }}>
+          <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: '#000', letterSpacing: 0.3 }}>
+            {doc.title.toUpperCase()}
           </Text>
         </View>
+      )}
+      <View style={S.tableHeader}>
+        <Text style={[S.thText, { flex: 4, paddingLeft: 6 }]}>Description</Text>
+        <Text style={[S.thText, { flex: 1, textAlign: 'center' }]}>QTÉ</Text>
+        <Text style={[S.thText, { flex: 2, textAlign: 'center' }]}>Prix unitaire</Text>
+        <Text style={[S.thText, { flex: 2, textAlign: 'right', paddingRight: 8 }]}>Total ({currency})</Text>
+      </View>
+    </>
+  )
 
-        {/* ── FOOTER FIXE ── */}
-        <View style={S.footer} fixed>
-          {/* Signatures */}
-          <View style={S.sigRow}>
-            <View style={S.sigBox}>
-              <Text style={S.sigLabel}>Signature émetteur</Text>
-              {signatureDataUrl
-                ? <Image src={signatureDataUrl} style={S.sigImg} />
-                : <View style={S.sigSpace} />
-              }
-            </View>
-            <View style={S.sigBox}>
-              <Text style={S.sigLabel}>Signature destinataire</Text>
-              <View style={S.sigSpace} />
-            </View>
-          </View>
-
-          {/* Barre branding */}
-          <View style={S.brandingBar}>
-            <View style={S.brandingLeft}>
-              <Text style={S.brandingConcuPar}>Conçu par</Text>
-              <View style={S.brandingPilotRow}>
-                {logoBbDataUrl
-                  ? <Image src={logoBbDataUrl} style={S.brandingLogoImg} />
-                  : null
-                }
-                <Text style={S.brandingPilot}>Pilot</Text>
-              </View>
-            </View>
-
-            <View style={S.brandingDivider} />
-
-            <View style={S.brandingQrArea}>
-              {qrDataUrl ? (
-                <Image src={qrDataUrl} style={S.qrImg} />
-              ) : (
-                <View style={{ width: 52, height: 52, backgroundColor: '#f0f0f0' }} />
-              )}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Link src="https://www.getbudgetpilot.com" style={S.brandingLink}>
-                  www.getbudgetpilot.com
-                </Link>
-                {!!company.nif && (
-                  <Text style={S.brandingNif}>NIF : {company.nif}</Text>
-                )}
-              </View>
-            </View>
-
-            <Text style={S.pageNum} render={({ pageNumber, totalPages }) =>
-              `${pageNumber} / ${totalPages}`
-            } fixed />
+  const PageFooter = () => (
+    <View style={S.footer} fixed>
+      <View style={S.sigRow}>
+        <View style={S.sigBox}>
+          <Text style={S.sigLabel}>Signature émetteur</Text>
+          {signatureDataUrl
+            ? <Image src={signatureDataUrl} style={S.sigImg} />
+            : <View style={S.sigSpace} />
+          }
+        </View>
+        <View style={S.sigBox}>
+          <Text style={S.sigLabel}>Signature destinataire</Text>
+          <View style={S.sigSpace} />
+        </View>
+      </View>
+      <View style={S.brandingBar}>
+        <View style={S.brandingLeft}>
+          <Text style={S.brandingConcuPar}>Conçu par</Text>
+          <View style={S.brandingPilotRow}>
+            {logoBbDataUrl ? <Image src={logoBbDataUrl} style={S.brandingLogoImg} /> : null}
+            <Text style={S.brandingPilot}>Pilot</Text>
           </View>
         </View>
+        <View style={S.brandingDivider} />
+        <View style={S.brandingQrArea}>
+          {qrDataUrl
+            ? <Image src={qrDataUrl} style={S.qrImg} />
+            : <View style={{ width: 52, height: 52, backgroundColor: '#f0f0f0' }} />
+          }
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Link src="https://www.getbudgetpilot.com" style={S.brandingLink}>
+              www.getbudgetpilot.com
+            </Link>
+            {!!company.nif && <Text style={S.brandingNif}>NIF : {company.nif}</Text>}
+          </View>
+        </View>
+        <Text style={S.pageNum} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} fixed />
+      </View>
+    </View>
+  )
 
-      </Page>
+  return (
+    <Document>
+      {pageSlices.map((slice, pageIdx) => {
+        const isLastPage = pageIdx === totalPagesCount - 1
+        return (
+          <Page key={pageIdx} size="A4" style={S.page}>
+            <PageHeader />
+            <TableHead />
+            <View style={S.tableBody}>
+              {slice.map((row, ri) => {
+                if (row.__subtotal) {
+                  const catTotal = row._catItems.reduce((s, i) => s + i._total, 0)
+                  return showCatSubtotal ? (
+                    <View key={`sub-${ri}`} style={S.subtotalRow}>
+                      <Text style={[S.tdDesc, { flex: 7, fontFamily: 'Helvetica-Bold' }]}>
+                        Sous-total {row._cat}
+                      </Text>
+                      <Text style={[S.tdTotal, { flex: 2, fontFamily: 'Helvetica-Bold' }]}>
+                        {fmtCurrency(catTotal * cr, currency)}
+                      </Text>
+                    </View>
+                  ) : null
+                }
+                return (
+                  <View key={ri} style={S.tableRow}>
+                    <Text style={S.tdDesc}>{row.description}</Text>
+                    <Text style={S.tdQty}>{row.quantity}</Text>
+                    <Text style={S.tdPrice}>{fmt(toNum(row.unit_price) * cr)}</Text>
+                    <Text style={S.tdTotal}>{fmt(row._total * cr)}</Text>
+                  </View>
+                )
+              })}
+
+              {/* Paiement + Totaux — uniquement sur la dernière page */}
+              {isLastPage && (
+                <View style={S.footerZone}>
+                  <View style={S.paymentBox}>
+                    <Text style={S.paymentTitle}>Paiement</Text>
+                    <Text style={S.paymentDetail}>Statut : <Text style={{ fontFamily: 'Helvetica-Bold' }}>{statusLabel(doc.status)}</Text></Text>
+                    {!!doc.due_date && (
+                      <Text style={S.paymentDetail}>Échéance : <Text style={{ fontFamily: 'Helvetica-Bold' }}>{fmtDate(doc.due_date)}</Text></Text>
+                    )}
+                  </View>
+                  <View style={S.totalsBox}>
+                    <View style={S.totalsInner}>
+                      <View style={S.totalRow}>
+                        <Text style={S.totalLabel}>Sous Total :</Text>
+                        <Text style={S.totalValue}>{fmt(subtotalBeforeConverted)}</Text>
+                      </View>
+                      {totalDiscount > 0 && (
+                        <View style={S.totalRow}>
+                          <Text style={S.totalLabel}>Remise :</Text>
+                          <Text style={S.totalValue}>{fmt(totalDiscountConverted)}</Text>
+                        </View>
+                      )}
+                      {doc.has_tva && (
+                        <View style={S.totalRow}>
+                          <Text style={S.totalLabel}>TVA ({tvaRate}%) :</Text>
+                          <Text style={S.totalValue}>{fmt(tvaAmountConverted)}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={S.totalFinalBar}>
+                      <View style={S.totalFinalRow}>
+                        <Text style={S.totalFinalLabel}>Total :</Text>
+                        <Text style={S.totalFinalValue}>{fmt(total)}</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Montant en lettres — uniquement sur la dernière page */}
+            {isLastPage && (
+              <View style={{ marginTop: 8, marginHorizontal: 15, flexDirection: 'row', flexWrap: 'wrap' }}>
+                <Text style={{ fontSize: 9, color: '#000', fontFamily: 'Helvetica-Bold' }}>Total : </Text>
+                <Text style={{
+                  fontSize: (() => { const l = amountToWords(total, currency).length; return l <= 40 ? 11 : l <= 60 ? 10 : l <= 80 ? 9 : 8 })(),
+                  color: '#000',
+                  fontFamily: 'Helvetica-Oblique',
+                }}>
+                  {amountToWords(total, currency)}
+                </Text>
+              </View>
+            )}
+
+            <PageFooter />
+          </Page>
+        )
+      })}
     </Document>
   )
 }
