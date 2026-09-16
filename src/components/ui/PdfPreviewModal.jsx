@@ -168,9 +168,14 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
   const tvaAmountConverted      = tvaAmount * cr
   const total = totalRaw * cr
 
-  const logoUrl      = profile?.logo_path ? `${STORAGE_BASE_URL}/${profile.logo_path}` : null
-  const signatureUrl = profile?.signature_path && profile.signature_path !== '0'
-    ? `${STORAGE_BASE_URL}/${profile.signature_path}` : null
+  const normalizeStorageUrl = (p) => {
+    if (!p || p === '0') return null
+    if (p.startsWith('http://') || p.startsWith('https://')) return p
+    const clean = p.startsWith('/') ? p.slice(1) : p
+    return `${STORAGE_BASE_URL}/${clean}`
+  }
+  const logoUrl      = normalizeStorageUrl(profile?.logo_path)
+  const signatureUrl = normalizeStorageUrl(profile?.signature_path)
 
   const grouped = {}
   itemsWithTotal.forEach(item => {
@@ -650,24 +655,79 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   const toDataUrl = async (storagePath) => {
     if (!storagePath) return null
 
-    const readAsDataUrl = (blob) => new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onloadend = () => resolve(reader.result)
-      reader.onerror = reject
-      reader.readAsDataURL(blob)
-    })
+    // Normalise le chemin en path relatif (ex: logos/xxx.jpg)
+    const relativePath = storagePath
+      .replace(/^https?:\/\/[^/]+\/storage\//, '')
+      .replace(/^storage\//, '')
+      .replace(/^\/+/, '')
 
-    try {
-      // Le proxy est sous la même base API que les requêtes déjà authentifiées
-      // (/api). Il ne dépend donc ni du serveur Vite ni de l'URL /storage.
-      const relativePath = storagePath
-        .replace(/^https?:\/\/[^/]+\/storage\//, '')
-        .replace(/^storage\//, '')
-        .replace(/^\/+/, '')
-      const response = await api.get(`/storage-proxy/${relativePath}`, {
-        responseType: 'blob',
+    // Détecte et supprime un BOM UTF-8 éventuel, valide les magic bytes JPEG/PNG
+    const processBlob = async (rawBlob) => {
+      if (!rawBlob || rawBlob.size === 0) return null
+      let blob = rawBlob
+
+      // 1. Supprimer le BOM UTF-8 (0xEF 0xBB 0xBF) si présent
+      try {
+        const header = new Uint8Array(await blob.slice(0, 4).arrayBuffer())
+        if (header[0] === 0xef && header[1] === 0xbb && header[2] === 0xbf) {
+          blob = blob.slice(3, blob.size, blob.type)
+        }
+      } catch {}
+
+      // 2. Vérifier les signatures magiques JPEG / PNG
+      try {
+        const h = new Uint8Array(await blob.slice(0, 4).arrayBuffer())
+        const isJpeg = h[0] === 0xff && h[1] === 0xd8
+        const isPng  = h[0] === 0x89 && h[1] === 0x50 && h[2] === 0x4e && h[3] === 0x47
+        if (isJpeg || isPng) {
+          return await new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result)
+            reader.onerror = reject
+            reader.readAsDataURL(blob)
+          })
+        }
+      } catch {}
+
+      // 3. Fallback canvas pour WebP, SVG ou tout autre format
+      return await new Promise((resolve) => {
+        const objectUrl = URL.createObjectURL(blob)
+        const img = new window.Image()
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas')
+            canvas.width  = img.naturalWidth  || img.width  || 100
+            canvas.height = img.naturalHeight || img.height || 100
+            canvas.getContext('2d').drawImage(img, 0, 0)
+            const dataUrl = canvas.toDataURL('image/png')
+            URL.revokeObjectURL(objectUrl)
+            resolve(dataUrl)
+          } catch {
+            URL.revokeObjectURL(objectUrl)
+            resolve(null)
+          }
+        }
+        img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(null) }
+        img.src = objectUrl
       })
-      return await readAsDataUrl(response.data)
+    }
+
+    // Tentative 1 : via le proxy API authentifié (axios, CORS garanti)
+    try {
+      const response = await api.get(`/storage-proxy/${relativePath}`, { responseType: 'blob' })
+      const ct = response.headers?.['content-type'] || ''
+      if (ct.includes('text/html') || ct.includes('application/json')) throw new Error('bad content-type')
+      const dataUrl = await processBlob(response.data)
+      if (dataUrl) return dataUrl
+    } catch {}
+
+    // Tentative 2 : fetch direct (sans auth, pour images publiques)
+    try {
+      const fullUrl = `${STORAGE_BASE_URL}/${relativePath}`
+      const res = await fetch(fullUrl, { mode: 'cors', credentials: 'omit' })
+      const ct  = res.headers.get('content-type') || ''
+      if (!res.ok || ct.includes('text/html') || ct.includes('application/json')) throw new Error('bad response')
+      return await processBlob(await res.blob())
     } catch {
       return null
     }
