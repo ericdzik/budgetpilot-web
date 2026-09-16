@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ModernPdfDocument — Template PDF "Modern"
  *
  * Design (d'après screenshot) :
@@ -17,6 +17,7 @@ import {
 } from '@react-pdf/renderer'
 import { amountToWords } from './MinimalPdfDocument'
 import { STORAGE_BASE_URL } from '../../config/constants'
+import { getTextColor, accentToBoxBg, accentToSubtotalBg } from './pdfColorUtils'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -56,7 +57,8 @@ const S = StyleSheet.create({
     color: '#111',
     backgroundColor: '#fff',
     paddingTop: 28,
-    paddingBottom: 115,
+    flexDirection: 'column',
+    paddingBottom: 20,
     paddingHorizontal: 36,
   },
 
@@ -77,7 +79,7 @@ const S = StyleSheet.create({
     alignItems: 'flex-end',
     marginTop: 4,
   },
-  companyAddrLine: { fontSize: 8, color: '#666', marginTop: 1 },
+  companyAddrLine: { fontSize: 8, color: '#000', marginTop: 1 },
 
   // Petits carrés décoratifs
   dotsRow: {
@@ -120,7 +122,7 @@ const S = StyleSheet.create({
     marginBottom: 5,
   },
   infoBoxRef: { fontSize: 16, fontFamily: 'Helvetica-Bold', color: '#111', marginBottom: 4 },
-  infoBoxSubtitle: { fontSize: 10, color: '#111', marginBottom: 4, lineHeight: 1.6 },
+  infoBoxSubtitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#111', marginBottom: 4, lineHeight: 1.6 },
   infoBoxDate: { fontSize: 9, color: '#111', marginTop: 3 },
   infoBoxName: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: '#111', marginBottom: 5 },
   infoBoxDetail: { fontSize: 9, color: '#111', marginTop: 3, lineHeight: 1.6 },
@@ -128,8 +130,14 @@ const S = StyleSheet.create({
   // ── Tableau ──
   tableHeader: {
     flexDirection: 'row',
-    borderBottom: '1.5px solid #111',
-    paddingBottom: 5,
+    backgroundColor: '#f0f0f0',
+    borderTopWidth: 1,
+    borderTopStyle: 'dashed',
+    borderTopColor: '#aaa',
+    borderBottomWidth: 1,
+    borderBottomStyle: 'dashed',
+    borderBottomColor: '#aaa',
+    paddingVertical: 6,
     paddingHorizontal: 6,
   },
   thText: {
@@ -142,7 +150,9 @@ const S = StyleSheet.create({
     flexDirection: 'row',
     paddingVertical: 7,
     paddingHorizontal: 6,
-    borderBottom: '1px solid #ebebeb',
+    borderBottomWidth: 1,
+    borderBottomStyle: 'dashed',
+    borderBottomColor: '#bbb',
   },
   tableRowLast: {
     flexDirection: 'row',
@@ -153,7 +163,12 @@ const S = StyleSheet.create({
     flexDirection: 'row',
     paddingVertical: 6,
     paddingHorizontal: 6,
-    borderTop: '1px solid #ccc',
+    borderTopWidth: 1,
+    borderTopStyle: 'dashed',
+    borderTopColor: '#bbb',
+    borderBottomWidth: 1,
+    borderBottomStyle: 'dashed',
+    borderBottomColor: '#bbb',
   },
   tdDesc:  { flex: 4, fontSize: 10 },
   tdQty:   { flex: 1, fontSize: 10, textAlign: 'center' },
@@ -174,7 +189,7 @@ const S = StyleSheet.create({
   },
   totalsLabel: { fontSize: 10, color: '#333', fontFamily: 'Helvetica-Bold' },
   totalsValue: { fontSize: 10, color: '#333' },
-  totalsValueDash: { fontSize: 10, color: '#bbb' },
+  totalsValueDash: { fontSize: 10, color: '#111' },
   totalTTCRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -187,49 +202,54 @@ const S = StyleSheet.create({
   // Montant en lettres
   wordsRow: { marginTop: 10, flexDirection: 'row', flexWrap: 'wrap' },
 
-  // ── Footer fixe ──
+  // ── Footer ──
   footer: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 36, paddingBottom: 18,
+    marginTop: 'auto',
+    paddingBottom: 18,
   },
   footerLine: {
-    borderTop: '1px solid #ddd',
     paddingTop: 12,
   },
-  sigRow: {
+  footerContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 14,
   },
-  // Paiement footer (gauche)
-  footerPayBox: { width: 160 },
-  footerPayTitle: { fontSize: 9, fontFamily: 'Helvetica-Bold', marginBottom: 3 },
-  footerPayDetail: { fontSize: 8, color: '#555', marginTop: 1 },
-  // Sig boxes
-  sigBox: { width: 150, alignItems: 'center' },
-  sigLabel: {
-    fontSize: 9,
-    color: '#333',
-    marginBottom: 6,
-    textAlign: 'center',
+  footerLeft: {
+    flex: 1,
+    paddingRight: 16,
   },
+  footerSep: {
+    width: 0,
+    borderLeftWidth: 2,
+    borderLeftStyle: 'solid',
+    borderLeftColor: '#111',
+    marginHorizontal: 16,
+    alignSelf: 'stretch',
+  },
+  footerRight: {
+    flex: 2,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  footerPayTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', marginBottom: 4 },
+  footerPayDetail: { fontSize: 9, color: '#555', marginTop: 2 },
+  footerUrl: { fontSize: 8, color: '#000', letterSpacing: 0.5, marginTop: 12 },
+  sigBox: { alignItems: 'center', flex: 1 },
+  sigLabel: { fontSize: 9, color: '#333', marginBottom: 6, textAlign: 'center' },
   sigImg:   { maxHeight: 40, maxWidth: 130, objectFit: 'contain' },
   sigSpace: { height: 40 },
-  footerBottom: {
-    borderTop: '1px solid #ddd',
-    paddingTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  footerLink: { fontSize: 8, color: '#aaa', letterSpacing: 0.5 },
   pageNum: { fontSize: 8, color: '#aaa' },
+  footerBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+  },
 })
 
 // ─── Composant Document ───────────────────────────────────────────────────────
 
-export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0 }) {
+export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0, accentColor = '#1E88E5', accentLight = '#f0f0f0', boxRadius = 32, headerColor = '#000000' }) {
   const company = {
     name:    profile?.company_name    || profile?.name    || 'Mon Entreprise',
     address: profile?.company_address || '',
@@ -240,6 +260,25 @@ export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signat
   const client = doc.client || {}
   const items  = doc.items  || []
   const cr     = conversionRate || 1.0
+
+  // Styles dynamiques — écrasent les constantes ACCENT / ACCENT_LIGHT du module
+  const headerTextColor = getTextColor(accentColor)
+  const subtotalBg      = accentToSubtotalBg(accentColor)
+  const boxBg           = accentToBoxBg(accentColor)
+
+  const dynS = {
+    dot:        { ...S.dot,      backgroundColor: accentColor },
+    dotLight:   { ...S.dotLight, backgroundColor: boxBg, border: `1px solid ${accentColor}` },
+    infoBox:    { ...S.infoBox,  borderRadius: boxRadius, backgroundColor: boxBg },
+    tableHeader:{ ...S.tableHeader, backgroundColor: accentColor,
+      borderTopColor: accentColor, borderBottomColor: accentColor },
+    thText:     { ...S.thText,   color: headerTextColor },
+    subtotalRow:{ ...S.subtotalRow,
+      borderTopColor: accentColor, borderBottomColor: accentColor,
+      backgroundColor: subtotalBg, marginTop: 6, marginBottom: 6 },
+    subtotalText: { fontFamily: 'Helvetica-Bold', color: accentColor },
+    footerSep:  { ...S.footerSep, borderLeftColor: accentColor },
+  }
 
   // Calculs
   const itemsWithTotal = items.map(i => ({
@@ -272,170 +311,246 @@ export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signat
   const groupEntries    = Object.entries(grouped)
   const showCatSubtotal = groupEntries.length > 1
 
+  // ── Pagination intelligente ──
+  // Une page A4 fait 842px. Padding top/bottom = 28+115 = 143px. Espace utile ~699px.
+  // Header (nom32px + logo50px + 2boxes~90px + tableHeader~30px) ≈ 230px
+  // Espace items par page ≈ 699 - 230 = 469px
+  // Chaque item fait ~24px (paddingVertical:7 x2 + font10)
+  // → max items par page sans totaux : floor(469/24) ≈ 19
+  // Zone totaux (bottomZone + footer signatures) ≈ 160px
+  // → max items sur une page avec totaux : floor((469-160)/24) ≈ 12
+  //
+  // Algorithme : on essaie de tout mettre sur le moins de pages possible.
+  // Sur chaque page on alloue :
+  //   - ITEMS_NORMAL = 17 si pas la dernière page
+  //   - ITEMS_LAST   = 11 si c'est aussi la dernière (doit contenir les totaux)
+  // On recalcule jusqu'à stabilisation.
+
+  const ITEMS_NORMAL = 17  // page sans zone totaux
+  const ITEMS_LAST   = 11  // page avec zone totaux + signatures
+
+  // Aplatir toutes les lignes (items + sous-totaux par catégorie)
+  const flatRows = []
+  groupEntries.forEach(([cat, catItems]) => {
+    catItems.forEach(item => flatRows.push({ type: 'item', item }))
+    if (showCatSubtotal) {
+      const catTotal = catItems.reduce((s, i) => s + i._total, 0)
+      flatRows.push({ type: 'subtotal', cat, catTotal })
+    }
+  })
+
+  // Découper intelligemment : on simule le découpage et on ajuste la dernière page
+  const buildPages = (rows) => {
+    if (rows.length === 0) return [[]]
+    const result = []
+    let rem = [...rows]
+    while (rem.length > 0) {
+      // Combien reste-t-il après cette page si on prend ITEMS_NORMAL ?
+      const willBeLastIfNormal = rem.length <= ITEMS_NORMAL
+      const willBeLastIfLast   = rem.length <= ITEMS_LAST
+      // Si tout rentre dans ITEMS_LAST → c'est la dernière page, on prend ITEMS_LAST
+      // Si tout rentre dans ITEMS_NORMAL mais pas ITEMS_LAST → risque de débord
+      //   → on prend ITEMS_LAST pour forcer les totaux à tenir
+      // Sinon → page intermédiaire, on prend ITEMS_NORMAL
+      let limit
+      if (willBeLastIfLast) {
+        limit = ITEMS_LAST  // dernière page, avec totaux
+      } else if (willBeLastIfNormal) {
+        // Il y a entre ITEMS_LAST+1 et ITEMS_NORMAL items restants
+        // Si on les met tous → totaux débordent → séparer en 2 pages
+        // Page intermédiaire avec ITEMS_NORMAL - (ITEMS_NORMAL - ITEMS_LAST) items
+        // = on laisse le reste pour la dernière page
+        limit = rem.length - ITEMS_LAST  // page intermédiaire sans totaux
+      } else {
+        limit = ITEMS_NORMAL  // page normale
+      }
+      result.push(rem.slice(0, limit))
+      rem = rem.slice(limit)
+    }
+    return result
+  }
+
+  const pages = buildPages(flatRows)
+
   return (
     <Document>
-      <Page size="A4" style={S.page}>
+      {pages.map((pageRows, pageIdx) => {
+        const isLastPage = pageIdx === pages.length - 1
 
-        {/* ── HEADER : nom société grand à gauche, adresse droite ── */}
-        <View style={S.headerRow}>
-          <View>
-            <Text style={S.companyNameBig}>{company.name.toUpperCase()}</Text>
-          </View>
-          <View style={S.companyAddressBlock}>
-            <Text style={S.companyAddrLine}>{company.name}</Text>
-            {!!company.address && <Text style={S.companyAddrLine}>{company.address}</Text>}
-            {!!company.phone   && <Text style={S.companyAddrLine}>{company.phone}</Text>}
-            {!!company.nif     && <Text style={S.companyAddrLine}>NIF : {company.nif}</Text>}
-          </View>
-        </View>
+        return (
+          <Page key={pageIdx} size="A4" style={S.page}>
 
-        {/* ── Logo à la place des carrés ── */}
-        <View style={{ marginBottom: 16, marginTop: 4 }}>
-          {logoDataUrl
-            ? <Image src={logoDataUrl} style={{ width: 50, height: 50, objectFit: 'contain' }} />
-            : <View style={{ width: 50, height: 50, backgroundColor: '#e0e0e0', borderRadius: 3 }} />
-          }
-        </View>
+            {/* ── HEADER : affiché sur toutes les pages ── */}
+            <View style={S.headerRow}>
+              <View>
+                <Text style={[S.companyNameBig, { color: headerColor }]}>{company.name.toUpperCase()}</Text>
+              </View>
+              <View style={S.companyAddressBlock}>
+                <Text style={[S.companyAddrLine, { color: headerColor }]}>{company.name}</Text>
+                {!!company.address && <Text style={[S.companyAddrLine, { color: headerColor }]}>{company.address}</Text>}
+                {!!company.phone   && <Text style={[S.companyAddrLine, { color: headerColor }]}>{company.phone}</Text>}
+                {!!company.nif     && <Text style={[S.companyAddrLine, { color: headerColor }]}>NIF : {company.nif}</Text>}
+              </View>
+            </View>
 
-        {/* ── 2 BOXES : Référence | Destinataire ── */}
-        <View style={S.infoRow}>
-          {/* Box référence */}
-          <View style={[S.infoBox, { flex: 1 }]}>
-            <Text style={S.infoBoxRef}>{doc.reference_number}</Text>
-            {doc.title && <Text style={S.infoBoxSubtitle}>{doc.title.toUpperCase()}</Text>}
-            <Text style={S.infoBoxDate}>{fmtDate(doc.issue_date || doc.created_at)}</Text>
-            {doc.due_date && <Text style={[S.infoBoxDate, { marginTop: 2 }]}>Éch. {fmtDate(doc.due_date)}</Text>}
-          </View>
+            {/* Logo — toutes les pages */}
+            <View style={{ marginBottom: 16, marginTop: 4 }}>
+              {logoDataUrl
+                ? <Image src={logoDataUrl} style={{ width: 50, height: 50, objectFit: 'contain' }} />
+                : <View style={{ width: 50, height: 50, backgroundColor: '#e0e0e0', borderRadius: 3 }} />
+              }
+            </View>
 
-          {/* Box destinataire */}
-          <View style={[S.infoBox, { flex: 1.5 }]}>
-            <Text style={S.infoBoxLabel}>DESTINATAIRE :</Text>
-            <Text style={S.infoBoxName}>{client.name || '—'}</Text>
-            {!!client.address && <Text style={S.infoBoxDetail}>{client.address}</Text>}
-            {!!client.phone   && <Text style={S.infoBoxDetail}>{client.phone}</Text>}
-            {!!client.email   && <Text style={S.infoBoxDetail}>{client.email}</Text>}
-          </View>
-        </View>
+            {/* Carrés décoratifs */}
+            <View style={S.dotsRow}>
+              <View style={dynS.dot} />
+              <View style={dynS.dot} />
+              <View style={dynS.dotLight} />
+              <View style={dynS.dotLight} />
+              <View style={dynS.dotLight} />
+            </View>
 
-        {/* ── TABLEAU ── */}
-        <View style={S.tableHeader}>
-          <Text style={[S.thText, { flex: 4 }]}>Description :</Text>
-          <Text style={[S.thText, { flex: 1, textAlign: 'center' }]}>Quantité :</Text>
-          <Text style={[S.thText, { flex: 2, textAlign: 'right' }]}>Prix Unitaire</Text>
-          <Text style={[S.thText, { flex: 2, textAlign: 'right' }]}>Total [{currency}]</Text>
-        </View>
+            {/* 2 boxes Référence / Destinataire — toutes les pages */}
+            <View style={S.infoRow}>
+              <View style={[dynS.infoBox, { flex: 1 }]}>
+                <Text style={[S.infoBoxRef, { color: headerColor }]}>{doc.reference_number}</Text>
+                {doc.title && <Text style={[S.infoBoxSubtitle, { color: headerColor }]}>{doc.title.toUpperCase()}</Text>}
+                <Text style={[S.infoBoxDate, { color: headerColor }]}>{fmtDate(doc.issue_date || doc.created_at)}</Text>
+                {doc.due_date && <Text style={[S.infoBoxDate, { marginTop: 2, color: headerColor }]}>Éch. {fmtDate(doc.due_date)}</Text>}
+              </View>
+              <View style={[dynS.infoBox, { flex: 1.5 }]}>
+                <Text style={[S.infoBoxLabel, { color: headerColor }]}>DESTINATAIRE :</Text>
+                <Text style={[S.infoBoxName, { color: headerColor }]}>{client.name || '—'}</Text>
+                {!!client.address && <Text style={[S.infoBoxDetail, { color: headerColor }]}>{client.address}</Text>}
+                {!!client.phone   && <Text style={[S.infoBoxDetail, { color: headerColor }]}>{client.phone}</Text>}
+                {!!client.email   && <Text style={[S.infoBoxDetail, { color: headerColor }]}>{client.email}</Text>}
+              </View>
+            </View>
 
-        {groupEntries.map(([cat, catItems], gi) => {
-          const catTotal    = catItems.reduce((s, i) => s + i._total, 0)
-          const isLastGroup = gi === groupEntries.length - 1
+            {/* ── TABLEAU header : toutes les pages ── */}
+            <View style={dynS.tableHeader}>
+              <Text style={[dynS.thText, { flex: 4 }]}>Description </Text>
+              <Text style={[dynS.thText, { flex: 1, textAlign: 'center' }]}>Quantité :</Text>
+              <Text style={[dynS.thText, { flex: 2, textAlign: 'right' }]}>Prix Unitaire</Text>
+              <Text style={[dynS.thText, { flex: 2, textAlign: 'right' }]}>Total [{currency}]</Text>
+            </View>
 
-          return (
-            <View key={gi}>
-              {catItems.map((item, ii) => {
-                const isLastInGroup = ii === catItems.length - 1
-                const isVeryLast    = isLastGroup && isLastInGroup && !showCatSubtotal
+            {/* ── Lignes du tableau ── */}
+            {pageRows.map((row, ri) => {
+              if (row.type === 'subtotal') {
                 return (
-                  <View key={ii} style={isVeryLast ? S.tableRowLast : S.tableRow}>
-                    <Text style={S.tdDesc}>{item.description}</Text>
-                    <Text style={S.tdQty}>{item.quantity}</Text>
-                    <Text style={S.tdPrice}>{fmt(toNum(item.unit_price) * cr)}</Text>
-                    <Text style={S.tdTotal}>{fmt(item._total * cr)}</Text>
+                  <View key={`sub-${ri}`} style={dynS.subtotalRow}>
+                    <Text style={[S.tdDesc, { flex: 7 }, dynS.subtotalText]}>SOUS TOTAL{row.cat ? ` ${row.cat}` : ''}</Text>
+                    <Text style={[S.tdTotal, dynS.subtotalText]}>{fmt(row.catTotal * cr)}</Text>
                   </View>
                 )
-              })}
-              {showCatSubtotal && (
-                <View style={S.subtotalRow}>
-                  <Text style={[S.tdDesc, { flex: 7, fontFamily: 'Helvetica-Bold' }]}>SOUS TOTAL</Text>
-                  <Text style={[S.tdTotal, { fontFamily: 'Helvetica-Bold' }]}>{fmt(catTotal * cr)}</Text>
+              }
+              const isLast = ri === pageRows.length - 1 && isLastPage
+              return (
+                <View key={ri} style={isLast ? S.tableRowLast : S.tableRow}>
+                  <Text style={S.tdDesc}>{row.item.description}</Text>
+                  <Text style={S.tdQty}>{row.item.quantity}</Text>
+                  <Text style={S.tdPrice}>{fmt(toNum(row.item.unit_price) * cr)}</Text>
+                  <Text style={S.tdTotal}>{fmt(row.item._total * cr)}</Text>
                 </View>
-              )}
-            </View>
-          )
-        })}
+              )
+            })}
 
-        {/* SOUS TOTAL global si 1 seule catégorie */}
-        {!showCatSubtotal && (
-          <View style={S.subtotalRow}>
-            <Text style={[S.tdDesc, { flex: 7, fontFamily: 'Helvetica-Bold' }]}>SOUS TOTAL</Text>
-            <Text style={[S.tdTotal, { fontFamily: 'Helvetica-Bold' }]}>{fmt((subtotalBefore - totalDiscount) * cr)}</Text>
-          </View>
-        )}
+            {/* ── SOUS TOTAL global + TOTAUX + FOOTER : dernière page seulement ── */}
+            {isLastPage && (
+              <>
+                {!showCatSubtotal && (
+                  <View style={dynS.subtotalRow}>
+                    <Text style={[S.tdDesc, { flex: 7 }, dynS.subtotalText]}>SOUS TOTAL</Text>
+                    <Text style={[S.tdTotal, dynS.subtotalText]}>{fmt((subtotalBefore - totalDiscount) * cr)}</Text>
+                  </View>
+                )}
 
-        {/* ── ZONE TOTAUX + PAIEMENT ── */}
-        <View style={S.bottomZone}>
-          <View style={S.paymentBox}>
-            <Text style={S.paymentTitle}>Paiement</Text>
-            <Text style={S.paymentDetail}>Statut : {statusLabel(doc.status)}</Text>
-            {!!doc.due_date && <Text style={S.paymentDetail}>Échéance : {fmtDate(doc.due_date)}</Text>}
-          </View>
+                <View style={S.bottomZone}>
+                  <View style={S.paymentBox}>
+                    <Text style={S.paymentTitle}>Paiement</Text>
+                    <Text style={S.paymentDetail}>Statut : {statusLabel(doc.status)}</Text>
+                    {!!doc.due_date && <Text style={S.paymentDetail}>Échéance : {fmtDate(doc.due_date)}</Text>}
+                  </View>
+                  <View style={S.totalsBox}>
+                    <View style={S.totalsRow}>
+                      <Text style={S.totalsLabel}>TOTAL HT :</Text>
+                      <Text style={S.totalsValue}>{fmt(subtotalHT)}</Text>
+                    </View>
+                    <View style={S.totalsRow}>
+                      <Text style={S.totalsLabel}>TVA {doc.has_tva ? tvaRate : 0}% :</Text>
+                      {doc.has_tva
+                        ? <Text style={S.totalsValue}>{fmt(tvaAmount * cr)}</Text>
+                        : <Text style={S.totalsValueDash}>-</Text>
+                      }
+                    </View>
+                    <View style={S.totalsRow}>
+                      <Text style={S.totalsLabel}>REMISE :</Text>
+                      {totalDiscount > 0
+                        ? <Text style={S.totalsValue}>- {fmt(totalDiscount * cr)}</Text>
+                        : <Text style={S.totalsValueDash}>-</Text>
+                      }
+                    </View>
+                    <View style={S.totalTTCRow}>
+                      <Text style={S.totalTTCLabel}>TOTAL TTC :</Text>
+                      <Text style={S.totalTTCValue}>{fmt(total)}</Text>
+                    </View>
+                    <View style={{ marginTop: 4 }}>
+                      <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Oblique', color: '#444', textAlign: 'right' }}>
+                        {amountToWords(total, currency)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </>
+            )}
 
-          <View style={S.totalsBox}>
-            <View style={S.totalsRow}>
-              <Text style={S.totalsLabel}>TOTAL HT :</Text>
-              <Text style={S.totalsValue}>{fmt(subtotalHT)}</Text>
-            </View>
-            <View style={S.totalsRow}>
-              <Text style={S.totalsLabel}>TVA {doc.has_tva ? tvaRate : 0}% :</Text>
-              {doc.has_tva
-                ? <Text style={S.totalsValue}>{fmt(tvaAmount * cr)}</Text>
-                : <Text style={S.totalsValueDash}>-</Text>
-              }
-            </View>
-            <View style={S.totalsRow}>
-              <Text style={S.totalsLabel}>REMISE :</Text>
-              {totalDiscount > 0
-                ? <Text style={S.totalsValue}>- {fmt(totalDiscount * cr)}</Text>
-                : <Text style={S.totalsValueDash}>-</Text>
-              }
-            </View>
-            <View style={S.totalTTCRow}>
-              <Text style={S.totalTTCLabel}>TOTAL TTC :</Text>
-              <Text style={S.totalTTCValue}>{fmt(total)}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Montant en lettres */}
-        <View style={S.wordsRow}>
-          <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Oblique', color: '#444' }}>
-            {amountToWords(total, currency)}
-          </Text>
-        </View>
-
-        {/* ── FOOTER FIXE ── */}
-        <View style={S.footer} fixed>
-          <View style={S.footerLine}>
-            <View style={S.sigRow}>
-              {/* Pas de paiement dans le footer — déjà dans le corps */}
-              <View style={S.sigBox}>
-                <Text style={S.sigLabel}>Signature émetteur</Text>
-                {signatureDataUrl
-                  ? <Image src={signatureDataUrl} style={S.sigImg} />
-                  : <View style={S.sigSpace} />
-                }
+            {/* ── FOOTER : toutes les pages, signatures sur dernière seulement ── */}
+            <View style={S.footer}>
+              <View style={S.footerLine}>
+                <View style={S.footerContent}>
+                  <View style={S.footerLeft}>
+                    <Text style={S.footerPayTitle}>Paiement</Text>
+                    <Text style={S.footerPayDetail}>Statut : {statusLabel(doc.status)}</Text>
+                    {!!doc.payment_method && <Text style={S.footerPayDetail}>{doc.payment_method}</Text>}
+                    <Text style={S.footerUrl}>GETBUDGETPILOT.COM</Text>
+                  </View>
+                  {isLastPage && (
+                    <>
+                      <View style={dynS.footerSep} />
+                      <View style={S.footerRight}>
+                        <View style={S.sigBox}>
+                          <Text style={S.sigLabel}>Signature émetteur</Text>
+                          {signatureDataUrl
+                            ? <Image src={signatureDataUrl} style={S.sigImg} />
+                            : <View style={S.sigSpace} />
+                          }
+                        </View>
+                        <View style={S.sigBox}>
+                          <Text style={S.sigLabel}>Signature destinataire</Text>
+                          <View style={S.sigSpace} />
+                        </View>
+                      </View>
+                    </>
+                  )}
+                </View>
               </View>
-              <View style={S.sigBox}>
-                <Text style={S.sigLabel}>Signature destinataire</Text>
-                <View style={S.sigSpace} />
-              </View>
             </View>
-            <View style={S.footerBottom}>
-              <Text style={S.footerLink}>GETBUDGETPILOT.COM</Text>
-              {!!company.nif && <Text style={S.footerLink}>NIF : {company.nif}</Text>}
-              <Text style={S.pageNum} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} fixed />
-            </View>
-          </View>
-        </View>
 
-      </Page>
+          </Page>
+        )
+      })}
     </Document>
   )
 }
 
 // ─── Preview HTML ─────────────────────────────────────────────────────────────
 
-export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate = 1.0 }) {
+export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate = 1.0, accentColor = '#1E88E5', accentLight = '#f0f0f0', boxRadius = 32, headerColor = '#000000' }) {
   const storageBase = STORAGE_BASE_URL || ''
+  const headerTextColor = getTextColor(accentColor)
+  const subtotalBgHtml  = accentToSubtotalBg(accentColor)
+  const boxBgHtml       = accentToBoxBg(accentColor)
 
   const company = {
     name:    profile?.company_name    || profile?.name    || 'Mon Entreprise',
@@ -493,13 +608,13 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
       {/* HEADER : nom société grand */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <div>
-          <div style={{ fontSize: 32, fontWeight: 'bold', letterSpacing: '0.3px' }}>{company.name.toUpperCase()}</div>
+          <div style={{ fontSize: 32, fontWeight: 'bold', letterSpacing: '0.3px', color: headerColor }}>{company.name.toUpperCase()}</div>
         </div>
         <div style={{ textAlign: 'right', marginTop: 4 }}>
-          <div style={{ fontSize: 8, color: '#666' }}>{company.name}</div>
-          {company.address && <div style={{ fontSize: 8, color: '#666' }}>{company.address}</div>}
-          {company.phone   && <div style={{ fontSize: 8, color: '#666' }}>{company.phone}</div>}
-          {company.nif     && <div style={{ fontSize: 8, color: '#666' }}>NIF : {company.nif}</div>}
+          <div style={{ fontSize: 8, color: headerColor }}>{company.name}</div>
+          {company.address && <div style={{ fontSize: 8, color: headerColor }}>{company.address}</div>}
+          {company.phone   && <div style={{ fontSize: 8, color: headerColor }}>{company.phone}</div>}
+          {company.nif     && <div style={{ fontSize: 8, color: headerColor }}>NIF : {company.nif}</div>}
         </div>
       </div>
 
@@ -514,31 +629,31 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
       {/* 2 BOXES */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
         {/* Box référence */}
-        <div style={{ flex: 1, border: '1px solid #111', borderRadius: 32, padding: '12px 14px' }}>
-          <div style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 6 }}>{doc.reference_number}</div>
-          {doc.title && <div style={{ fontSize: 10, color: '#111', marginBottom: 4, lineHeight: 1.6 }}>{doc.title.toUpperCase()}</div>}
-          <div style={{ fontSize: 9, color: '#111', marginTop: 4 }}>{fmtD(doc.issue_date || doc.created_at)}</div>
-          {doc.due_date && <div style={{ fontSize: 9, color: '#111', marginTop: 4 }}>Éch. {fmtD(doc.due_date)}</div>}
+        <div style={{ flex: 1, border: '1px solid #111', borderRadius: boxRadius, padding: '12px 14px', backgroundColor: boxBgHtml }}>
+          <div style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 6, color: headerColor }}>{doc.reference_number}</div>
+          {doc.title && <div style={{ fontSize: 10, fontWeight: 'bold', color: headerColor, marginBottom: 4, lineHeight: 1.6 }}>{doc.title.toUpperCase()}</div>}
+          <div style={{ fontSize: 9, color: headerColor, marginTop: 4 }}>{fmtD(doc.issue_date || doc.created_at)}</div>
+          {doc.due_date && <div style={{ fontSize: 9, color: headerColor, marginTop: 4 }}>Éch. {fmtD(doc.due_date)}</div>}
         </div>
 
         {/* Box destinataire */}
-        <div style={{ flex: 1.5, border: '1px solid #111', borderRadius: 32, padding: '12px 14px' }}>
-          <div style={{ fontSize: 9, color: '#111', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>DESTINATAIRE :</div>
-          <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 6 }}>{client.name || '—'}</div>
-          {client.address && <div style={{ fontSize: 9, color: '#111', marginTop: 4, lineHeight: 1.6 }}>{client.address}</div>}
-          {client.phone   && <div style={{ fontSize: 9, color: '#111', marginTop: 4, lineHeight: 1.6 }}>{client.phone}</div>}
-          {client.email   && <div style={{ fontSize: 9, color: '#111', marginTop: 4, lineHeight: 1.6 }}>{client.email}</div>}
+        <div style={{ flex: 1.5, border: '1px solid #111', borderRadius: boxRadius, padding: '12px 14px', backgroundColor: boxBgHtml }}>
+          <div style={{ fontSize: 9, color: headerColor, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>DESTINATAIRE :</div>
+          <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 6, color: headerColor }}>{client.name || '—'}</div>
+          {client.address && <div style={{ fontSize: 9, color: headerColor, marginTop: 4, lineHeight: 1.6 }}>{client.address}</div>}
+          {client.phone   && <div style={{ fontSize: 9, color: headerColor, marginTop: 4, lineHeight: 1.6 }}>{client.phone}</div>}
+          {client.email   && <div style={{ fontSize: 9, color: headerColor, marginTop: 4, lineHeight: 1.6 }}>{client.email}</div>}
         </div>
       </div>
 
       {/* TABLEAU */}
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
-          <tr style={{ borderBottom: '1.5px solid #111' }}>
-            <th style={{ textAlign: 'left',   padding: '0 6px 5px', fontSize: 9, fontWeight: 'bold' }}>Description :</th>
-            <th style={{ textAlign: 'center', padding: '0 6px 5px', fontSize: 9, fontWeight: 'bold' }}>Quantité :</th>
-            <th style={{ textAlign: 'right',  padding: '0 6px 5px', fontSize: 9, fontWeight: 'bold' }}>Prix Unitaire</th>
-            <th style={{ textAlign: 'right',  padding: '0 6px 5px', fontSize: 9, fontWeight: 'bold' }}>Total [{currency}]</th>
+          <tr style={{ borderTop: `1px dashed ${accentColor}`, borderBottom: `1px dashed ${accentColor}`, backgroundColor: accentColor }}>
+            <th style={{ textAlign: 'left',   padding: '0 6px 5px', fontSize: 9, fontWeight: 'bold', color: headerTextColor }}>Description </th>
+            <th style={{ textAlign: 'center', padding: '0 6px 5px', fontSize: 9, fontWeight: 'bold', color: headerTextColor }}>Quantité </th>
+            <th style={{ textAlign: 'right',  padding: '0 6px 5px', fontSize: 9, fontWeight: 'bold', color: headerTextColor }}>Prix Unitaire</th>
+            <th style={{ textAlign: 'right',  padding: '0 6px 5px', fontSize: 9, fontWeight: 'bold', color: headerTextColor }}>Total [{currency}]</th>
           </tr>
         </thead>
         <tbody>
@@ -547,7 +662,7 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
             return (
               <>
                 {catItems.map((item, ii) => (
-                  <tr key={`${gi}-${ii}`} style={{ borderBottom: '1px solid #ebebeb' }}>
+                  <tr key={`${gi}-${ii}`} style={{ borderBottom: '1px dashed #bbb' }}>
                     <td style={{ padding: '7px 6px', fontSize: 10 }}>{item.description}</td>
                     <td style={{ padding: '7px 6px', textAlign: 'center', fontSize: 10 }}>{item.quantity}</td>
                     <td style={{ padding: '7px 6px', textAlign: 'right', fontSize: 10 }}>{fmt(toNumL(item.unit_price) * cr)}</td>
@@ -555,20 +670,28 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
                   </tr>
                 ))}
                 {showCatSubtotal && (
-                  <tr key={`sub-${gi}`} style={{ borderTop: '1px solid #ccc' }}>
-                    <td colSpan={3} style={{ padding: '6px', fontWeight: 'bold', fontSize: 10 }}>SOUS TOTAL</td>
-                    <td style={{ padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: 10 }}>{fmt(catTotal * cr)}</td>
-                  </tr>
+                  <>
+                    <tr><td colSpan={4} style={{ height: 6, padding: 0, border: 'none' }}></td></tr>
+                    <tr key={`sub-${gi}`} style={{ borderTop: `1px dashed ${accentColor}`, borderBottom: `1px dashed ${accentColor}`, backgroundColor: subtotalBgHtml }}>
+                      <td colSpan={3} style={{ padding: '6px', fontWeight: 'bold', fontSize: 10, color: accentColor }}>SOUS TOTAL{showCatSubtotal ? ` ${cat}` : ''}</td>
+                      <td style={{ padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: 10, color: accentColor }}>{fmt(catTotal * cr)}</td>
+                    </tr>
+                    <tr><td colSpan={4} style={{ height: 6, padding: 0, border: 'none' }}></td></tr>
+                  </>
                 )}
               </>
             )
           })}
           {/* SOUS TOTAL global */}
           {!showCatSubtotal && (
-            <tr style={{ borderTop: '1px solid #ccc' }}>
-              <td colSpan={3} style={{ padding: '6px', fontWeight: 'bold', fontSize: 10 }}>SOUS TOTAL</td>
-              <td style={{ padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: 10 }}>{fmt((subtotalBefore - totalDiscount) * cr)}</td>
-            </tr>
+            <>
+              <tr><td colSpan={4} style={{ height: 6, padding: 0, border: 'none' }}></td></tr>
+              <tr style={{ borderTop: `1px dashed ${accentColor}`, borderBottom: `1px dashed ${accentColor}`, backgroundColor: subtotalBgHtml }}>
+                <td colSpan={3} style={{ padding: '6px', fontWeight: 'bold', fontSize: 10, color: accentColor }}>SOUS TOTAL</td>
+                <td style={{ padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: 10, color: accentColor }}>{fmt((subtotalBefore - totalDiscount) * cr)}</td>
+              </tr>
+              <tr><td colSpan={4} style={{ height: 6, padding: 0, border: 'none' }}></td></tr>
+            </>
           )}
         </tbody>
       </table>
@@ -588,42 +711,51 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
           ].map(([label, value, isDash], i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
               <span style={{ fontSize: 10, fontWeight: 'bold' }}>{label}</span>
-              <span style={{ fontSize: 10, color: isDash ? '#bbb' : '#333' }}>{value}</span>
+              <span style={{ fontSize: 10, color: '#111' }}>{value}</span>
             </div>
           ))}
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', marginTop: 3 }}>
             <span style={{ fontSize: 12, fontWeight: 'bold' }}>TOTAL TTC :</span>
             <span style={{ fontSize: 12, fontWeight: 'bold' }}>{fmt(total)}</span>
           </div>
+          <div style={{ marginTop: 4, fontSize: 9, color: '#444', fontStyle: 'italic', textAlign: 'right' }}>
+            {amountToWords(total, currency)}
+          </div>
         </div>
-      </div>
-
-      {/* MONTANT EN LETTRES */}
-      <div style={{ marginTop: 10, fontSize: 9, color: '#444', fontStyle: 'italic' }}>
-        {amountToWords(total, currency)}
       </div>
 
       {/* FOOTER */}
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 36px 18px' }}>
-        <div style={{ borderTop: '1px solid #ddd', paddingTop: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-            <div style={{ width: 150, textAlign: 'center' }}>
-              <div style={{ fontSize: 9, color: '#333', marginBottom: 6 }}>Signature émetteur</div>
-              {signatureUrl
-                ? <img src={signatureUrl} alt="Signature" style={{ maxHeight: 40, maxWidth: 130, objectFit: 'contain' }} />
-                : <div style={{ height: 40 }} />
-              }
+        <div style={{ paddingTop: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+            {/* Gauche : Paiement */}
+            <div style={{ flex: 1, paddingRight: 16 }}>
+              <div style={{ fontWeight: 'bold', fontSize: 10, marginBottom: 4 }}>Paiement</div>
+              <div style={{ fontSize: 9, color: '#555', marginTop: 2 }}>Statut : {sL(doc.status)}</div>
+              {doc.payment_method && <div style={{ fontSize: 9, color: '#555', marginTop: 2 }}>{doc.payment_method}</div>}
+              <div style={{ fontSize: 8, color: '#000', letterSpacing: 0.5, marginTop: 12 }}>GETBUDGETPILOT.COM</div>
             </div>
-            <div style={{ width: 150, textAlign: 'center' }}>
-              <div style={{ fontSize: 9, color: '#333', marginBottom: 6 }}>Signature destinataire</div>
-              <div style={{ height: 40 }} />
+
+            {/* Séparateur vertical */}
+            <div style={{ width: 0, borderLeft: `2px solid ${accentColor}`, alignSelf: 'stretch', margin: '0 16px' }} />
+
+            {/* Droite : Signatures */}
+            <div style={{ flex: 2, display: 'flex', justifyContent: 'space-around' }}>
+              <div style={{ textAlign: 'center', flex: 1 }}>
+                <div style={{ fontSize: 9, color: '#333', marginBottom: 6 }}>Signature émetteur</div>
+                {signatureUrl
+                  ? <img src={signatureUrl} alt="Signature" style={{ maxHeight: 40, maxWidth: 130, objectFit: 'contain' }} />
+                  : <div style={{ height: 40 }} />
+                }
+              </div>
+              <div style={{ textAlign: 'center', flex: 1 }}>
+                <div style={{ fontSize: 9, color: '#333', marginBottom: 6 }}>Signature destinataire</div>
+                <div style={{ height: 40 }} />
+              </div>
             </div>
           </div>
-          <div style={{ borderTop: '1px solid #ddd', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 8, color: '#aaa', letterSpacing: 0.5 }}>GETBUDGETPILOT.COM</span>
-            {company.nif && <span style={{ fontSize: 8, color: '#aaa' }}>NIF : {company.nif}</span>}
-            <span style={{ fontSize: 8, color: '#aaa' }}>1 / 1</span>
-          </div>
+
+
         </div>
       </div>
     </div>
@@ -632,13 +764,15 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
 
 // ─── Génération blob ──────────────────────────────────────────────────────────
 
-export async function generateModernPdfBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0) {
+export async function generateModernPdfBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0, customization = {}) {
+  const { accentColor = '#1E88E5', accentLight = '#f0f0f0', boxRadius = 32, headerColor = '#000000' } = customization
   return pdf(
     <ModernPdfDocument
       doc={doc} profile={profile}
       qrDataUrl={qrDataUrl} logoDataUrl={logoDataUrl}
       signatureDataUrl={signatureDataUrl} logoBbDataUrl={logoBbDataUrl}
       currency={currency} conversionRate={conversionRate}
+      accentColor={accentColor} accentLight={accentLight} boxRadius={boxRadius} headerColor={headerColor}
     />
   ).toBlob()
 }

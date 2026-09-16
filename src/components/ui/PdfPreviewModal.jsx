@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Download, Share2 } from 'lucide-react'
+import { X, Download, Share2, ChevronDown, ChevronUp, Sliders } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { BlobProvider } from '@react-pdf/renderer'
 import { Document as PdfDoc, Page as PdfPage, pdfjs } from 'react-pdf'
@@ -11,6 +11,54 @@ import { STORAGE_BASE_URL } from '../../config/constants'
 import { generateMinimalPdfBlob, amountToWords } from './MinimalPdfDocument'
 import { formatAmount } from '../../store/currencyStore'
 import { PDF_TEMPLATES, generatePdfBlob } from './pdfTemplates'
+import usePremiumGate from '../../hooks/usePremiumGate'
+import { getTextColor, accentToBoxBg, accentToSubtotalBg } from './pdfColorUtils'
+
+// Templates réservés aux comptes premium (Basic / Pro)
+const PREMIUM_TEMPLATES = ['classic', 'modern', 'corporate']
+
+// ─── Defaults de personnalisation par template ────────────────────────────────
+const ACCENT_PRESETS = [
+  { color: '#1E88E5', label: 'Bleu appli' },
+  { color: '#7B3FE4', label: 'Violet' },
+  { color: '#1A3A6B', label: 'Bleu marine' },
+]
+const HEADER_COLOR_PRESETS = [
+  { color: '#000000', label: 'Noir' },
+  { color: '#1E88E5', label: 'Bleu' },
+  { color: '#1A3A6B', label: 'Marine' },
+]
+
+const CUSTOMIZATION_DEFAULTS = {
+  minimal:   { accentColor: '#1E88E5', headerColor: '#000000', showQrCode: true, showBranding: true },
+  classic:   { accentColor: '#1E88E5', headerColor: '#000000', frameWidth: 1.5 },
+  modern:    { accentColor: '#1E88E5', headerColor: '#000000', accentLight: '#f0f0f0', boxRadius: 32 },
+  corporate: { accentColor: '#1E88E5', headerColor: '#000000' },
+}
+
+function loadCustomization() {
+  try {
+    const saved = localStorage.getItem('budgetpilot_pdf_customization')
+    if (!saved) return { ...CUSTOMIZATION_DEFAULTS }
+    const parsed = JSON.parse(saved)
+    // Fusionner par template pour ne garder que les clés de personnalisation connues
+    const safeKeys = ['accentColor', 'headerColor', 'showQrCode', 'showBranding', 'frameWidth', 'accentLight', 'boxRadius']
+    const result = { ...CUSTOMIZATION_DEFAULTS }
+    Object.keys(CUSTOMIZATION_DEFAULTS).forEach(tplId => {
+      if (parsed[tplId]) {
+        result[tplId] = { ...CUSTOMIZATION_DEFAULTS[tplId] }
+        safeKeys.forEach(k => {
+          if (parsed[tplId][k] !== undefined) result[tplId][k] = parsed[tplId][k]
+        })
+      }
+    })
+    return result
+  } catch { return { ...CUSTOMIZATION_DEFAULTS } }
+}
+
+function saveCustomization(all) {
+  try { localStorage.setItem('budgetpilot_pdf_customization', JSON.stringify(all)) } catch { /* ignore */ }
+}
 
 // ─── Config pdfjs worker ──────────────────────────────────────────────────────
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -78,7 +126,11 @@ function statusLabel(s) {
 
 const MINIMAL_ITEMS_PER_PAGE = 20
 
-function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversionRate = 1.0 }) {
+function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversionRate = 1.0, accentColor = '#000000', showQrCode = true, showBranding = true }) {
+  const headerTextColor = getTextColor(accentColor)
+  const subtotalBgHtml  = accentToSubtotalBg(accentColor)
+  const boxBgHtml       = accentToBoxBg(accentColor)
+
   const company = {
     name:    profile?.company_name    || profile?.name    || 'Mon Entreprise',
     address: profile?.company_address || '',
@@ -148,26 +200,26 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
       <div style={{ flex: 1 }}>
         {logoUrl
           ? <img src={logoUrl} alt="Logo" style={{ width: 44, height: 44, objectFit: 'contain', marginBottom: 6, display: 'block' }} />
-          : <div style={{ width: 44, height: 44, background: '#4CAF50', borderRadius: 4, marginBottom: 6 }} />
+          : <div style={{ width: 44, height: 44, background: accentColor, borderRadius: 4, marginBottom: 6 }} />
         }
-        <div style={{ fontSize: 9, color: '#555', lineHeight: 1.6 }}>
-          <div style={{ fontWeight: 'bold', color: '#000' }}>{doc.reference_number}</div>
+        <div style={{ fontSize: 9, color: headerColor, lineHeight: 1.6 }}>
+          <div style={{ fontWeight: 'bold', color: headerColor }}>{doc.reference_number}</div>
           <div>Date : {fmtDate(doc.issue_date || doc.created_at)}</div>
           {doc.due_date && <div>Éch. {fmtDate(doc.due_date)}</div>}
         </div>
       </div>
       <div style={{ flex: 1, fontSize: 9, lineHeight: 1.6 }}>
-        <div style={{ fontWeight: 'bold', color: '#000', marginBottom: 2 }}>ÉMETTEUR</div>
-        <div style={{ color: '#444' }}>{company.name}</div>
-        {company.phone   && <div style={{ color: '#444' }}>{company.phone}</div>}
-        {company.address && <div style={{ color: '#444' }}>{company.address}</div>}
+        <div style={{ fontWeight: 'bold', color: headerColor, marginBottom: 2 }}>ÉMETTEUR</div>
+        <div style={{ color: headerColor, fontWeight: 'bold' }}>{company.name}</div>
+        {company.phone   && <div style={{ color: headerColor }}>{company.phone}</div>}
+        {company.address && <div style={{ color: headerColor }}>{company.address}</div>}
       </div>
       <div style={{ flex: 1, fontSize: 9, lineHeight: 1.6 }}>
-        <div style={{ fontWeight: 'bold', color: '#000', marginBottom: 2 }}>DESTINATAIRE</div>
-        <div style={{ color: '#444' }}>{client.name || '—'}</div>
-        {client.phone   && <div style={{ color: '#444' }}>{client.phone}</div>}
-        {client.email   && <div style={{ color: '#444' }}>{client.email}</div>}
-        {client.address && <div style={{ color: '#444' }}>{client.address}</div>}
+        <div style={{ fontWeight: 'bold', color: headerColor, marginBottom: 2 }}>DESTINATAIRE</div>
+        <div style={{ color: headerColor, fontWeight: 'bold' }}>{client.name || '—'}</div>
+        {client.phone   && <div style={{ color: headerColor }}>{client.phone}</div>}
+        {client.email   && <div style={{ color: headerColor }}>{client.email}</div>}
+        {client.address && <div style={{ color: headerColor }}>{client.address}</div>}
       </div>
     </div>
   )
@@ -175,49 +227,57 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
   const TableHead = () => (
     <>
       {doc.title && (
-        <div style={{ textAlign: 'center', fontSize: '13px', fontWeight: 'bold', color: '#000', marginBottom: '8px', letterSpacing: '0.3px' }}>
+        <div style={{ textAlign: 'center', fontSize: '12px', fontWeight: 'bold', color: '#000', marginBottom: '8px', letterSpacing: '0.3px' }}>
           {doc.title.toUpperCase()}
         </div>
       )}
-      <div style={{ background: '#000', borderRadius: '10px 10px 0 0', display: 'flex', padding: '7px 10px' }}>
-        <div style={{ flex: 4, color: '#fff', fontWeight: 'bold', fontSize: 10, paddingLeft: 6 }}>Description</div>
-        <div style={{ flex: 1, color: '#fff', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>QTÉ</div>
-        <div style={{ flex: 2, color: '#fff', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>Prix unitaire</div>
-        <div style={{ flex: 2, color: '#fff', fontWeight: 'bold', fontSize: 10, textAlign: 'right', paddingRight: 8 }}>Total ({currency})</div>
+      <div style={{ background: accentColor, borderRadius: '10px 10px 0 0', display: 'flex', padding: '7px 10px' }}>
+        <div style={{ flex: 4, color: headerTextColor, fontWeight: 'bold', fontSize: 10, paddingLeft: 6 }}>Description</div>
+        <div style={{ flex: 1, color: headerTextColor, fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>QTÉ</div>
+        <div style={{ flex: 2, color: headerTextColor, fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>Prix unitaire</div>
+        <div style={{ flex: 2, color: headerTextColor, fontWeight: 'bold', fontSize: 10, textAlign: 'right', paddingRight: 8 }}>Total ({currency})</div>
       </div>
     </>
   )
 
-  const Footer = ({ pageNum, totalPages }) => (
+  const Footer = ({ pageNum, totalPages, showSignature }) => (
     <div style={{ padding: '0 32px 24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-evenly', marginBottom: 28, paddingTop: 12 }}>
-        <div style={{ width: 190, textAlign: 'center' }}>
-          <div style={{ fontSize: 10, color: '#000', marginBottom: 6 }}>Signature émetteur</div>
-          <div style={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-            {signatureUrl && <img src={signatureUrl} alt="Signature" style={{ maxHeight: 48, maxWidth: 170, objectFit: 'contain' }} />}
+      {showSignature && (
+        <div style={{ display: 'flex', justifyContent: 'space-evenly', marginBottom: 28, paddingTop: 12 }}>
+          <div style={{ width: 190, textAlign: 'center' }}>
+            <div style={{ fontSize: 10, color: '#000', marginBottom: 6 }}>Signature émetteur</div>
+            <div style={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+              {signatureUrl && <img src={signatureUrl} alt="Signature" style={{ maxHeight: 48, maxWidth: 170, objectFit: 'contain' }} />}
+            </div>
+          </div>
+          <div style={{ width: 190, textAlign: 'center' }}>
+            <div style={{ fontSize: 10, color: '#000', marginBottom: 6 }}>Signature destinataire</div>
+            <div style={{ height: 48, marginBottom: 6 }} />
           </div>
         </div>
-        <div style={{ width: 190, textAlign: 'center' }}>
-          <div style={{ fontSize: 10, color: '#000', marginBottom: 6 }}>Signature destinataire</div>
-          <div style={{ height: 48, marginBottom: 6 }} />
-        </div>
-      </div>
+      )}
       <div style={{ borderTop: '1px solid #ddd', paddingTop: 14, display: 'flex', alignItems: 'center', gap: 24 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 14, color: '#000' }}>Conçu par</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <img src="/logo_bb.svg" alt="Budget Pilot" style={{ width: 32, height: 32, objectFit: 'contain', filter: 'brightness(0) saturate(100%)' }} />
-            <span style={{ fontWeight: 'bold', fontSize: 20, color: '#000' }}>Pilot</span>
-          </div>
-        </div>
-        <div style={{ width: 1, height: 60, background: '#e0e0e0', flexShrink: 0 }} />
+        {showBranding && (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 14, color: '#000' }}>Conçu par</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <img src="/logo_bb.svg" alt="Budget Pilot" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                <span style={{ fontWeight: 'bold', fontSize: 20, color: '#000' }}>Pilot</span>
+              </div>
+            </div>
+            <div style={{ width: 1, height: 60, background: '#e0e0e0', flexShrink: 0 }} />
+          </>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
-          <div style={{ width: 80, height: 80, flexShrink: 0 }}>
-            {qrDataUrl
-              ? <img src={qrDataUrl} alt="QR" style={{ width: 80, height: 80, display: 'block' }} />
-              : <div style={{ width: 80, height: 80, background: '#f0f0f0', border: '1px solid #ccc' }} />
-            }
-          </div>
+          {showQrCode && (
+            <div style={{ width: 80, height: 80, flexShrink: 0 }}>
+              {qrDataUrl
+                ? <img src={qrDataUrl} alt="QR" style={{ width: 80, height: 80, display: 'block' }} />
+                : <div style={{ width: 80, height: 80, background: '#f0f0f0', border: '1px solid #ccc' }} />
+              }
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <a href="https://www.getbudgetpilot.com" target="_blank" rel="noreferrer"
               style={{ color: '#1E88E5', textDecoration: 'underline', fontSize: 14 }}>
@@ -252,9 +312,9 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
                   if (row.__subtotal) {
                     const catTotal = row._catItems.reduce((s, i) => s + i._total, 0)
                     return showCatSubtotal ? (
-                      <div key={`sub-${ri}`} style={{ display: 'flex', padding: '5px 10px', background: '#f0f0f0' }}>
-                        <div style={{ flex: 7, paddingLeft: 6, fontWeight: 'bold', fontSize: 10 }}>Sous-total {row._cat}</div>
-                        <div style={{ flex: 2, textAlign: 'right', paddingRight: 8, fontWeight: 'bold', fontSize: 10 }}>{formatAmount(catTotal * cr, currency)}</div>
+                      <div key={`sub-${ri}`} style={{ display: 'flex', padding: '5px 10px', background: subtotalBgHtml, marginTop: 6, marginBottom: 6 }}>
+                        <div style={{ flex: 7, paddingLeft: 6, fontWeight: 'bold', fontSize: 10, color: accentColor }}>Sous-total {row._cat}</div>
+                        <div style={{ flex: 2, textAlign: 'right', paddingRight: 8, fontWeight: 'bold', fontSize: 10, color: accentColor }}>{formatAmount(catTotal * cr, currency)}</div>
                       </div>
                     ) : null
                   }
@@ -280,7 +340,7 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
                         </div>
                       </div>
                       <div style={{ display: 'table-cell', verticalAlign: 'bottom', padding: '0', width: '50%', textAlign: 'right' }}>
-                        <div style={{ display: 'inline-block', background: '#fff', border: '2px solid #000', borderRadius: '10px', minWidth: 200, overflow: 'hidden', marginBottom: '-2px', marginRight: 20 }}>
+                        <div style={{ display: 'inline-block', background: boxBgHtml, border: `2px solid ${accentColor}`, borderRadius: '10px', minWidth: 200, overflow: 'hidden', marginBottom: '-2px', marginRight: 20 }}>
                           <div style={{ padding: '8px 14px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                               <span style={{ fontSize: 10 }}>Sous Total :</span>
@@ -299,10 +359,10 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
                               </div>
                             )}
                           </div>
-                          <div style={{ background: '#000', padding: '8px 14px' }}>
+                          <div style={{ background: accentColor, padding: '8px 14px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ fontSize: 11, color: '#fff', fontWeight: 'bold' }}>Total :</span>
-                              <span style={{ fontSize: 11, color: '#fff', fontWeight: 'bold' }}>{fmt(total)}</span>
+                              <span style={{ fontSize: 11, color: headerTextColor, fontWeight: 'bold' }}>Total :</span>
+                              <span style={{ fontSize: 11, color: headerTextColor, fontWeight: 'bold' }}>{fmt(total)}</span>
                             </div>
                           </div>
                         </div>
@@ -322,7 +382,7 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
             )}
 
             {/* Footer */}
-            <Footer pageNum={pageIdx + 1} totalPages={pageSlices.length} />
+            <Footer pageNum={pageIdx + 1} totalPages={pageSlices.length} showSignature={isLastPage || pageSlices.length === 1} />
           </div>
         )
       })}
@@ -537,7 +597,18 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   const [logoBbDataUrl, setLogoBbDataUrl] = useState(null)
 
   // ── Sélection du template ──
-  const [selectedTemplate, setSelectedTemplate] = useState('minimal')
+  const [selectedTemplate, setSelectedTemplate] = useState(() => {
+    return localStorage.getItem('budgetpilot_default_template') || 'minimal'
+  })
+  const [defaultTemplate, setDefaultTemplate] = useState(() => {
+    return localStorage.getItem('budgetpilot_default_template') || 'minimal'
+  })
+
+  // ── Personnalisation des templates ──
+  const [templateCustomization, setTemplateCustomization] = useState(() => loadCustomization())
+  const [customPanelOpen, setCustomPanelOpen] = useState(false)
+
+  const { isPremium, requirePremium, modal: premiumModal } = usePremiumGate()
 
   // Inject le MinimalTemplate dans le registre (évite l'import circulaire)
   const TEMPLATES_WITH_PREVIEW = PDF_TEMPLATES.map(t =>
@@ -554,14 +625,10 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   }, [])
 
   useEffect(() => {
-    const svgToPngBlack = async () => {
+    const svgToPng = async () => {
       try {
         const res  = await fetch('/logo_bb.svg')
-        let svgText = await res.text()
-        svgText = svgText
-          .replace(/stroke:#ebf7ff/g, 'stroke:#000000')
-          .replace(/stop-color:#ebf7ff/g, 'stop-color:#000000')
-          .replace(/fill:#ebf7ff/g, 'fill:#000000')
+        const svgText = await res.text()
         const blob = new Blob([svgText], { type: 'image/svg+xml' })
         const url  = URL.createObjectURL(blob)
         const img  = new window.Image()
@@ -577,50 +644,32 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
         img.src = url
       } catch { /* fallback silencieux */ }
     }
-    svgToPngBlack()
+    svgToPng()
   }, [])
 
-  const toDataUrl = async (url) => {
-    if (!url) return null
+  const toDataUrl = async (storagePath) => {
+    if (!storagePath) return null
 
-    // Convertit une URL storage en URL proxy API (CORS garanti)
-    const toProxyUrl = (u) => {
-      try {
-        const storageBase = STORAGE_BASE_URL // ex: http://172.20.10.12:8000/storage
-        const apiBase = storageBase.replace('/storage', '/api/storage-proxy')
-        // u = http://172.20.10.12:8000/storage/logos/xxx.jpg
-        // → http://172.20.10.12:8000/api/storage-proxy/logos/xxx.jpg
-        const relativePath = u.replace(storageBase + '/', '')
-        return `${apiBase}/${relativePath}`
-      } catch { return u }
-    }
+    const readAsDataUrl = (blob) => new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
 
-    const proxyUrl = toProxyUrl(url)
-
-    // Tentative 1 : via proxy API (CORS garanti)
     try {
-      const res = await fetch(proxyUrl, { mode: 'cors' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const blob = await res.blob()
-      return await new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result)
-        reader.onerror  = reject
-        reader.readAsDataURL(blob)
+      // Le proxy est sous la même base API que les requêtes déjà authentifiées
+      // (/api). Il ne dépend donc ni du serveur Vite ni de l'URL /storage.
+      const relativePath = storagePath
+        .replace(/^https?:\/\/[^/]+\/storage\//, '')
+        .replace(/^storage\//, '')
+        .replace(/^\/+/, '')
+      const response = await api.get(`/storage-proxy/${relativePath}`, {
+        responseType: 'blob',
       })
+      return await readAsDataUrl(response.data)
     } catch {
-      // Tentative 2 : fetch direct
-      try {
-        const res = await fetch(url, { mode: 'cors', credentials: 'omit' })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const blob = await res.blob()
-        return await new Promise((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onloadend = () => resolve(reader.result)
-          reader.onerror  = reject
-          reader.readAsDataURL(blob)
-        })
-      } catch { return null }
+      return null
     }
   }
 
@@ -634,10 +683,10 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
       setDoc(docRes.data)
       const prof = profileRes.data.user || profileRes.data
       setProfile(prof)
-      const logoUrl = prof?.logo_path ? `${STORAGE_BASE_URL}/${prof.logo_path}` : null
-      const sigUrl  = prof?.signature_path && prof.signature_path !== '0'
-        ? `${STORAGE_BASE_URL}/${prof.signature_path}` : null
-      const [logo, sig] = await Promise.all([toDataUrl(logoUrl), toDataUrl(sigUrl)])
+      const [logo, sig] = await Promise.all([
+        toDataUrl(prof?.logo_path),
+        toDataUrl(prof?.signature_path && prof.signature_path !== '0' ? prof.signature_path : null),
+      ])
       setLogoDataUrl(logo)
       setSigDataUrl(sig)
     } catch {
@@ -649,7 +698,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   }
 
   const buildPdfBlob = () =>
-    generatePdfBlob(selectedTemplate, doc, profile, qrDataUrl, logoDataUrl, sigDataUrl, logoBbDataUrl, doc?.currency || 'XOF', 1.0)
+    generatePdfBlob(selectedTemplate, doc, profile, qrDataUrl, logoDataUrl, sigDataUrl, logoBbDataUrl, doc?.currency || 'XOF', 1.0, templateCustomization[selectedTemplate] || {})
 
   const buildFilename = () => {
     const ref = doc?.reference_number || docId
@@ -668,6 +717,10 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   }
 
   const handleDownload = async () => {
+    if (PREMIUM_TEMPLATES.includes(selectedTemplate) && !isPremium) {
+      requirePremium('Templates PDF Premium', true)
+      return
+    }
     setDownloading(true)
     try {
       const blob     = await buildPdfBlob()
@@ -717,8 +770,29 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
     }
   }
 
+  // ── Mise à jour de la personnalisation ──
+  const updateCustomization = (key, value) => {
+    setTemplateCustomization(prev => {
+      const next = {
+        ...prev,
+        [selectedTemplate]: { ...(prev[selectedTemplate] || {}), [key]: value },
+      }
+      saveCustomization(next)
+      return next
+    })
+  }
+
+  // Raccourci pour lire la customisation du template actif
+  const activeCustom = templateCustomization[selectedTemplate] || CUSTOMIZATION_DEFAULTS[selectedTemplate] || {}
+
   // ── Sélection du template ──
   const [sheetOpen, setSheetOpen] = useState(false)
+
+  const saveAsDefault = (templateId) => {
+    localStorage.setItem('budgetpilot_default_template', templateId)
+    setDefaultTemplate(templateId)
+    toast.success(`Template "${TEMPLATES_WITH_PREVIEW.find(t => t.id === templateId)?.label}" défini par défaut`)
+  }
 
   // Aperçu : vrai PDF via BlobProvider → iframe
   const activePdfDoc = TEMPLATES_WITH_PREVIEW.find(t => t.id === selectedTemplate)
@@ -806,6 +880,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
           ) : doc && PdfDocComp ? (
             <BlobProvider document={
               <PdfDocComp
+                {...(activeCustom)}
                 doc={doc}
                 profile={profile}
                 qrDataUrl={qrDataUrl}
@@ -833,8 +908,35 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
                     boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
                     flexShrink: 0,
                     background: '#fff',
+                    position: 'relative',
                   }}>
                     <PdfViewer url={url} />
+                    {/* Overlay Premium pour compte gratuit */}
+                    {PREMIUM_TEMPLATES.includes(selectedTemplate) && !isPremium && (
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        backgroundColor: 'rgba(0,0,0,0.55)',
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center',
+                        gap: 12, borderRadius: 4,
+                        backdropFilter: 'blur(2px)',
+                      }}>
+                        <div style={{ fontSize: 36 }}>👑</div>
+                        <div style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Template Premium</div>
+                        <div style={{ color: '#ddd', fontSize: 13, textAlign: 'center', maxWidth: 220 }}>
+                          Passez à un plan payant pour télécharger ce template
+                        </div>
+                        <button
+                          onClick={() => requirePremium('Templates PDF Premium', true)}
+                          style={{
+                            marginTop: 8, padding: '10px 24px',
+                            backgroundColor: '#F59E0B', color: '#fff',
+                            border: 'none', borderRadius: 24,
+                            fontSize: 13, fontWeight: '700', cursor: 'pointer',
+                          }}
+                        >Voir les offres</button>
+                      </div>
+                    )}
                   </div>
                 )
               }}
@@ -896,6 +998,8 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
           zIndex: 11,
           transform: sheetOpen ? 'translateY(0)' : 'translateY(100%)',
           transition: 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+          maxHeight: '75vh',
+          overflowY: 'auto',
         }}>
           {/* Poignée */}
           <div style={{
@@ -915,6 +1019,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
           }}>
             {TEMPLATES_WITH_PREVIEW.map(tpl => {
               const isActive = selectedTemplate === tpl.id
+              const isPremiumTpl = PREMIUM_TEMPLATES.includes(tpl.id)
               return (
                 <button
                   key={tpl.id}
@@ -941,6 +1046,29 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
                       fontSize: 11, color: '#fff', fontWeight: 'bold',
                     }}>✓</div>
                   )}
+                  {/* Badge Premium */}
+                  {isPremiumTpl && !isPremium && (
+                    <div style={{
+                      position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)',
+                      backgroundColor: '#F59E0B', color: '#fff',
+                      fontSize: 9, fontWeight: '700', letterSpacing: 0.5,
+                      padding: '2px 8px', borderRadius: 20,
+                      whiteSpace: 'nowrap',
+                    }}>✦ PREMIUM</div>
+                  )}
+                  {/* Étoile défaut */}
+                  <div
+                    onClick={e => { e.stopPropagation(); saveAsDefault(tpl.id) }}
+                    title={defaultTemplate === tpl.id ? 'Template par défaut' : 'Définir par défaut'}
+                    style={{
+                      position: 'absolute', top: 8, left: 8,
+                      fontSize: 16, cursor: 'pointer', lineHeight: 1,
+                      color: defaultTemplate === tpl.id ? '#F59E0B' : '#ccc',
+                      transition: 'color 0.15s',
+                    }}
+                  >
+                    {defaultTemplate === tpl.id ? '★' : '☆'}
+                  </div>
                   {/* Miniature SVG plus grande */}
                   <div style={{
                     width: 72, height: 96,
@@ -968,11 +1096,198 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
               )
             })}
           </div>
+
+          {/* ── Panneau personnalisation ── */}
+          <div style={{ marginTop: 18, borderTop: '1px solid #f0f0f0', paddingTop: 14 }}>
+            <button
+              onClick={() => setCustomPanelOpen(v => !v)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 13, fontWeight: '600', color: '#333', padding: 0,
+              }}
+            >
+              <Sliders size={15} />
+              Personnaliser le template
+              {customPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            {customPanelOpen && (
+              <div style={{
+                marginTop: 14,
+                display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                gap: 16,
+              }}>
+
+                {/* ── Couleur principale — tous les templates ── */}
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: '600', color: '#444', display: 'block', marginBottom: 8 }}>
+                    Couleur principale
+                  </label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {ACCENT_PRESETS.map(p => {
+                      const isActive = (activeCustom.accentColor || '#1E88E5') === p.color
+                      return (
+                        <button key={p.color} onClick={() => updateCustomization('accentColor', p.color)}
+                          title={p.label}
+                          style={{
+                            width: 32, height: 32, borderRadius: '50%', border: 'none',
+                            backgroundColor: p.color, cursor: 'pointer', flexShrink: 0,
+                            boxShadow: isActive ? `0 0 0 3px #fff, 0 0 0 5px ${p.color}` : '0 1px 4px rgba(0,0,0,0.2)',
+                            transform: isActive ? 'scale(1.15)' : 'scale(1)',
+                            transition: 'all 0.15s',
+                          }}
+                        />
+                      )
+                    })}
+                    <input
+                      type="color"
+                      value={activeCustom.accentColor || '#1E88E5'}
+                      onChange={e => updateCustomization('accentColor', e.target.value)}
+                      title="Couleur personnalisée"
+                      style={{ width: 32, height: 32, border: '1px solid #ddd', borderRadius: '50%', cursor: 'pointer', padding: 2, flexShrink: 0 }}
+                    />
+                    <button
+                      onClick={() => updateCustomization('accentColor', '#1E88E5')}
+                      title="Réinitialiser" style={{ fontSize: 14, color: '#aaa', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
+                    >↺</button>
+                  </div>
+                </div>
+
+                {/* ── Couleur entête (référence + émetteur + destinataire) — tous les templates ── */}
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: '600', color: '#444', display: 'block', marginBottom: 8 }}>
+                    Couleur entête
+                    <span style={{ fontSize: 10, fontWeight: '400', color: '#888', marginLeft: 6 }}>réf. · émetteur · destinataire</span>
+                  </label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {HEADER_COLOR_PRESETS.map(p => {
+                      const isActive = (activeCustom.headerColor || '#000000') === p.color
+                      return (
+                        <button key={p.color} onClick={() => updateCustomization('headerColor', p.color)}
+                          title={p.label}
+                          style={{
+                            width: 32, height: 32, borderRadius: '50%', border: '1px solid #e0e0e0',
+                            backgroundColor: p.color, cursor: 'pointer', flexShrink: 0,
+                            boxShadow: isActive ? `0 0 0 3px #fff, 0 0 0 5px ${p.color}` : '0 1px 4px rgba(0,0,0,0.2)',
+                            transform: isActive ? 'scale(1.15)' : 'scale(1)',
+                            transition: 'all 0.15s',
+                          }}
+                        />
+                      )
+                    })}
+                    <input
+                      type="color"
+                      value={activeCustom.headerColor || '#000000'}
+                      onChange={e => updateCustomization('headerColor', e.target.value)}
+                      title="Couleur personnalisée"
+                      style={{ width: 32, height: 32, border: '1px solid #ddd', borderRadius: '50%', cursor: 'pointer', padding: 2, flexShrink: 0 }}
+                    />
+                    <button
+                      onClick={() => updateCustomization('headerColor', '#000000')}
+                      title="Réinitialiser" style={{ fontSize: 14, color: '#aaa', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
+                    >↺</button>
+                  </div>
+                </div>
+
+                {/* ── Options Minimal ── */}
+                {selectedTemplate === 'minimal' && (
+                  <>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: '600', color: '#444', display: 'block', marginBottom: 8 }}>
+                        QR Code dans le footer
+                      </label>
+                      <div
+                        onClick={() => updateCustomization('showQrCode', !(activeCustom.showQrCode ?? true))}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+                          background: (activeCustom.showQrCode ?? true) ? '#E3F2FD' : '#f5f5f5',
+                          border: `1.5px solid ${(activeCustom.showQrCode ?? true) ? '#1E88E5' : '#ddd'}`,
+                          borderRadius: 20, padding: '5px 14px', fontSize: 12, fontWeight: '600',
+                          color: (activeCustom.showQrCode ?? true) ? '#1E88E5' : '#888',
+                          userSelect: 'none',
+                        }}
+                      >
+                        <span style={{ width: 12, height: 12, borderRadius: '50%', background: (activeCustom.showQrCode ?? true) ? '#1E88E5' : '#ccc', flexShrink: 0 }} />
+                        {(activeCustom.showQrCode ?? true) ? 'Affiché' : 'Masqué'}
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: '600', color: '#444', display: 'block', marginBottom: 8 }}>
+                        Branding "Conçu par"
+                      </label>
+                      <div
+                        onClick={() => updateCustomization('showBranding', !(activeCustom.showBranding ?? true))}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+                          background: (activeCustom.showBranding ?? true) ? '#E3F2FD' : '#f5f5f5',
+                          border: `1.5px solid ${(activeCustom.showBranding ?? true) ? '#1E88E5' : '#ddd'}`,
+                          borderRadius: 20, padding: '5px 14px', fontSize: 12, fontWeight: '600',
+                          color: (activeCustom.showBranding ?? true) ? '#1E88E5' : '#888',
+                          userSelect: 'none',
+                        }}
+                      >
+                        <span style={{ width: 12, height: 12, borderRadius: '50%', background: (activeCustom.showBranding ?? true) ? '#1E88E5' : '#ccc', flexShrink: 0 }} />
+                        {(activeCustom.showBranding ?? true) ? 'Affiché' : 'Masqué'}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* ── Options Classic ── */}
+                {selectedTemplate === 'classic' && (
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: '600', color: '#444', display: 'block', marginBottom: 8 }}>
+                      Épaisseur du cadre
+                    </label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {[1, 1.5, 2].map(w => (
+                        <button key={w} onClick={() => updateCustomization('frameWidth', w)}
+                          style={{
+                            flex: 1, padding: '6px 0', fontSize: 12, fontWeight: '600',
+                            border: `${w}px solid ${(activeCustom.frameWidth ?? 1.5) === w ? '#1E88E5' : '#ddd'}`,
+                            borderRadius: 8, cursor: 'pointer',
+                            background: (activeCustom.frameWidth ?? 1.5) === w ? '#E3F2FD' : '#fff',
+                            color: (activeCustom.frameWidth ?? 1.5) === w ? '#1E88E5' : '#555',
+                          }}
+                        >{w}px</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Options Modern ── */}
+                {selectedTemplate === 'modern' && (
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: '600', color: '#444', display: 'block', marginBottom: 8 }}>
+                      Arrondi des boxes info
+                    </label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {[{ label: 'Carré', value: 0 }, { label: 'Doux', value: 16 }, { label: 'Rond', value: 32 }].map(opt => (
+                        <button key={opt.value} onClick={() => updateCustomization('boxRadius', opt.value)}
+                          style={{
+                            flex: 1, padding: '6px 0', fontSize: 11, fontWeight: '600',
+                            border: `1.5px solid ${(activeCustom.boxRadius ?? 32) === opt.value ? '#1E88E5' : '#ddd'}`,
+                            borderRadius: opt.value === 0 ? 4 : opt.value === 16 ? 8 : 16,
+                            cursor: 'pointer',
+                            background: (activeCustom.boxRadius ?? 32) === opt.value ? '#E3F2FD' : '#fff',
+                            color: (activeCustom.boxRadius ?? 32) === opt.value ? '#1E88E5' : '#555',
+                          }}
+                        >{opt.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            )}
+          </div>
         </div>
 
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      {premiumModal}
     </div>
   )
 }

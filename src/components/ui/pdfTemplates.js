@@ -26,17 +26,7 @@ export const PDF_TEMPLATES = [
     accentColor: '#000000',
     generateBlob: generateMinimalPdfBlob,
     PdfDocumentComponent: MinimalPdfDocument,
-    // PreviewComponent est injecté depuis PdfPreviewModal (évite l'import circulaire)
     PreviewComponent: null,
-  },
-  {
-    id: 'corporate',
-    label: 'Corporate',
-    description: 'Logo + ref · tableau simple · totaux alignés',
-    accentColor: '#333333',
-    generateBlob: generateCorporatePdfBlob,
-    PdfDocumentComponent: CorporatePdfDocument,
-    PreviewComponent: CorporateTemplate,
   },
   {
     id: 'classic',
@@ -55,6 +45,15 @@ export const PDF_TEMPLATES = [
     generateBlob: generateModernPdfBlob,
     PdfDocumentComponent: ModernPdfDocument,
     PreviewComponent: ModernTemplate,
+  },
+  {
+    id: 'corporate',
+    label: 'Corporate',
+    description: 'Logo + ref · tableau simple · totaux alignés',
+    accentColor: '#333333',
+    generateBlob: generateCorporatePdfBlob,
+    PdfDocumentComponent: CorporatePdfDocument,
+    PreviewComponent: CorporateTemplate,
   },
 ]
 
@@ -78,9 +77,10 @@ export function getTemplate(id) {
  * @param {string|null} logoBbDataUrl
  * @param {string} currency
  * @param {number} conversionRate
+ * @param {object} customization  — options de personnalisation (accentColor, etc.)
  * @returns {Promise<Blob>}
  */
-export function generatePdfBlob(templateId, doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0) {
+export function generatePdfBlob(templateId, doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0, customization = {}) {
   const tpl = getTemplate(templateId)
-  return tpl.generateBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency, conversionRate)
+  return tpl.generateBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency, conversionRate, customization)
 }

@@ -20,6 +20,7 @@ import {
   StyleSheet,
   pdf,
 } from '@react-pdf/renderer'
+import { getTextColor, accentToBoxBg, accentToSubtotalBg } from './pdfColorUtils'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -188,8 +189,9 @@ function toNum(v) {
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
+// Les styles dépendants de l'accent sont générés dynamiquement dans le composant.
 
-const S = StyleSheet.create({
+const S_STATIC = StyleSheet.create({
   page: {
     fontFamily: 'Helvetica',
     fontSize: 10,
@@ -208,13 +210,6 @@ const S = StyleSheet.create({
   },
   headerCol: {
     flex: 1,
-  },
-  logoBox: {
-    width: 44,
-    height: 44,
-    backgroundColor: '#4CAF50',
-    borderRadius: 4,
-    marginBottom: 6,
   },
   logoImg: {
     width: 44,
@@ -240,19 +235,11 @@ const S = StyleSheet.create({
   },
   companyDetail: {
     fontSize: 9,
-    color: '#444',
+    color: '#000',
     marginTop: 1,
   },
 
   // ── En-tête tableau ──
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#000',
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-  },
   thText: {
     color: '#fff',
     fontSize: 10,
@@ -260,13 +247,6 @@ const S = StyleSheet.create({
   },
 
   // ── Corps tableau ──
-  tableBody: {
-    borderLeft: '1.5px solid #000',
-    borderRight: '1.5px solid #000',
-    borderBottom: '1.5px solid #000',
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 10,
-  },
   tableRow: {
     flexDirection: 'row',
     paddingVertical: 4,
@@ -310,17 +290,6 @@ const S = StyleSheet.create({
     color: '#444',
     marginTop: 1,
   },
-  // Bloc totaux — en flux normal, aligné à droite
-  totalsBox: {
-    width: 210,
-    border: '2px solid #000',
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    overflow: 'hidden',
-    alignSelf: 'flex-end',
-    marginBottom: 4,
-    marginRight: 4,
-  },
   totalsInner: {
     padding: 8,
   },
@@ -331,12 +300,6 @@ const S = StyleSheet.create({
   },
   totalLabel: { fontSize: 10, color: '#000' },
   totalValue: { fontSize: 10, color: '#000' },
-  totalFinalBar: {
-    backgroundColor: '#000',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    flexDirection: 'column',
-  },
   totalFinalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -367,13 +330,6 @@ const S = StyleSheet.create({
   sigLabel: { fontSize: 10, color: '#000', marginBottom: 4 },
   sigImg:   { maxHeight: 44, maxWidth: 160, objectFit: 'contain' },
   sigSpace: { height: 44 },
-  brandingBar: {
-    borderTop: '1px solid #ddd',
-    paddingTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
   brandingLeft: {
     flexDirection: 'column',
     gap: 4,
@@ -400,7 +356,48 @@ const S = StyleSheet.create({
 
 // ─── Composant Document ───────────────────────────────────────────────────────
 
-export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0 }) {
+export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0, accentColor = '#1E88E5', showQrCode = true, showBranding = true, headerColor = '#000000' }) {
+  // Styles dépendants de la couleur accent (générés une seule fois par render)
+  const headerTextColor  = getTextColor(accentColor)
+  const subtotalBg       = accentToSubtotalBg(accentColor)
+  const boxBg            = accentToBoxBg(accentColor)
+
+  const S = {
+    ...S_STATIC,
+    logoBox: { width: 44, height: 44, backgroundColor: accentColor, borderRadius: 4, marginBottom: 6 },
+    tableHeader: {
+      flexDirection: 'row', backgroundColor: accentColor,
+      borderTopLeftRadius: 10, borderTopRightRadius: 10,
+      paddingVertical: 7, paddingHorizontal: 10,
+    },
+    thText: { ...S_STATIC.thText, color: headerTextColor },
+    tableBody: {
+      borderLeft: `1.5px solid ${accentColor}`, borderRight: `1.5px solid ${accentColor}`,
+      borderBottom: `1.5px solid ${accentColor}`,
+      borderBottomLeftRadius: 10, borderBottomRightRadius: 10,
+    },
+    subtotalRow: {
+      flexDirection: 'row', paddingVertical: 5, paddingHorizontal: 10,
+      backgroundColor: subtotalBg, marginTop: 6, marginBottom: 6,
+    },
+    subtotalText: { fontFamily: 'Helvetica-Bold', color: accentColor },
+    totalsBox: {
+      width: 210, border: `2px solid ${accentColor}`,
+      borderRadius: 10, backgroundColor: boxBg,
+      overflow: 'hidden', alignSelf: 'flex-end',
+      marginBottom: 4, marginRight: 4,
+    },
+    totalFinalBar: {
+      backgroundColor: accentColor,
+      paddingVertical: 8, paddingHorizontal: 14, flexDirection: 'column',
+    },
+    totalFinalLabel: { fontSize: 11, color: headerTextColor, fontFamily: 'Helvetica-Bold' },
+    totalFinalValue: { fontSize: 11, color: headerTextColor, fontFamily: 'Helvetica-Bold' },
+    brandingBar: {
+      borderTop: '1px solid #ddd', paddingTop: 10,
+      flexDirection: 'row', alignItems: 'center', gap: 20,
+    },
+  }
   const company = {
     name:    profile?.company_name    || profile?.name    || 'Mon Entreprise',
     address: profile?.company_address || '',
@@ -479,22 +476,22 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
           ? <Image src={logoDataUrl} style={S.logoImg} />
           : <View style={S.logoBox} />
         }
-        <Text style={S.refNum}>{doc.reference_number}</Text>
+        <Text style={[S.refNum, { color: headerColor }]}>{doc.reference_number}</Text>
         <Text style={S.refSmall}>Date : {fmtDate(doc.issue_date || doc.created_at)}</Text>
         {doc.due_date && <Text style={S.refSmall}>Éch. {fmtDate(doc.due_date)}</Text>}
       </View>
       <View style={S.headerCol}>
-        <Text style={[S.companyName, { marginBottom: 2 }]}>ÉMETTEUR</Text>
-        <Text style={S.companyDetail}>{company.name}</Text>
-        {!!company.phone   && <Text style={S.companyDetail}>{company.phone}</Text>}
-        {!!company.address && <Text style={S.companyDetail}>{company.address}</Text>}
+        <Text style={[S.companyName, { marginBottom: 2, color: headerColor }]}>ÉMETTEUR</Text>
+        <Text style={[S.companyDetail, { fontFamily: 'Helvetica-Bold', color: headerColor }]}>{company.name}</Text>
+        {!!company.phone   && <Text style={[S.companyDetail, { color: headerColor }]}>{company.phone}</Text>}
+        {!!company.address && <Text style={[S.companyDetail, { color: headerColor }]}>{company.address}</Text>}
       </View>
       <View style={S.headerCol}>
-        <Text style={[S.companyName, { marginBottom: 2 }]}>DESTINATAIRE</Text>
-        <Text style={S.companyDetail}>{client.name || '—'}</Text>
-        {!!client.phone   && <Text style={S.companyDetail}>{client.phone}</Text>}
-        {!!client.email   && <Text style={S.companyDetail}>{client.email}</Text>}
-        {!!client.address && <Text style={S.companyDetail}>{client.address}</Text>}
+        <Text style={[S.companyName, { marginBottom: 2, color: headerColor }]}>DESTINATAIRE</Text>
+        <Text style={[S.companyDetail, { fontFamily: 'Helvetica-Bold', color: headerColor }]}>{client.name || '—'}</Text>
+        {!!client.phone   && <Text style={[S.companyDetail, { color: headerColor }]}>{client.phone}</Text>}
+        {!!client.email   && <Text style={[S.companyDetail, { color: headerColor }]}>{client.email}</Text>}
+        {!!client.address && <Text style={[S.companyDetail, { color: headerColor }]}>{client.address}</Text>}
       </View>
     </View>
   )
@@ -503,7 +500,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
     <>
       {!!doc.title && (
         <View style={{ marginBottom: 6, alignItems: 'center' }}>
-          <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: '#000', letterSpacing: 0.3 }}>
+          <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#000', letterSpacing: 0.3, textAlign: 'center' }}>
             {doc.title.toUpperCase()}
           </Text>
         </View>
@@ -517,35 +514,41 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
     </>
   )
 
-  const PageFooter = () => (
-    <View style={S.footer} fixed>
-      <View style={S.sigRow}>
-        <View style={S.sigBox}>
-          <Text style={S.sigLabel}>Signature émetteur</Text>
-          {signatureDataUrl
-            ? <Image src={signatureDataUrl} style={S.sigImg} />
-            : <View style={S.sigSpace} />
-          }
-        </View>
-        <View style={S.sigBox}>
-          <Text style={S.sigLabel}>Signature destinataire</Text>
-          <View style={S.sigSpace} />
-        </View>
-      </View>
-      <View style={S.brandingBar}>
-        <View style={S.brandingLeft}>
-          <Text style={S.brandingConcuPar}>Conçu par</Text>
-          <View style={S.brandingPilotRow}>
-            {logoBbDataUrl ? <Image src={logoBbDataUrl} style={S.brandingLogoImg} /> : null}
-            <Text style={S.brandingPilot}>Pilot</Text>
+  const PageFooter = ({ showSignature }) => (
+    <View style={S.footer}>
+      {showSignature && (
+        <View style={S.sigRow}>
+          <View style={S.sigBox}>
+            <Text style={S.sigLabel}>Signature émetteur</Text>
+            {signatureDataUrl
+              ? <Image src={signatureDataUrl} style={S.sigImg} />
+              : <View style={S.sigSpace} />
+            }
+          </View>
+          <View style={S.sigBox}>
+            <Text style={S.sigLabel}>Signature destinataire</Text>
+            <View style={S.sigSpace} />
           </View>
         </View>
-        <View style={S.brandingDivider} />
+      )}
+      <View style={S.brandingBar}>
+        {showBranding && (
+          <>
+            <View style={S.brandingLeft}>
+              <Text style={S.brandingConcuPar}>Conçu par</Text>
+              <View style={S.brandingPilotRow}>
+                {logoBbDataUrl ? <Image src={logoBbDataUrl} style={S.brandingLogoImg} /> : null}
+                <Text style={S.brandingPilot}>Pilot</Text>
+              </View>
+            </View>
+            <View style={S.brandingDivider} />
+          </>
+        )}
         <View style={S.brandingQrArea}>
-          {qrDataUrl
+          {showQrCode && (qrDataUrl
             ? <Image src={qrDataUrl} style={S.qrImg} />
             : <View style={{ width: 52, height: 52, backgroundColor: '#f0f0f0' }} />
-          }
+          )}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Link src="https://www.getbudgetpilot.com" style={S.brandingLink}>
               www.getbudgetpilot.com
@@ -572,10 +575,10 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
                   const catTotal = row._catItems.reduce((s, i) => s + i._total, 0)
                   return showCatSubtotal ? (
                     <View key={`sub-${ri}`} style={S.subtotalRow}>
-                      <Text style={[S.tdDesc, { flex: 7, fontFamily: 'Helvetica-Bold' }]}>
+                      <Text style={[S.tdDesc, { flex: 7, fontFamily: 'Helvetica-Bold', color: accentColor }]}>
                         Sous-total {row._cat}
                       </Text>
-                      <Text style={[S.tdTotal, { flex: 2, fontFamily: 'Helvetica-Bold' }]}>
+                      <Text style={[S.tdTotal, { flex: 2, fontFamily: 'Helvetica-Bold', color: accentColor }]}>
                         {fmtCurrency(catTotal * cr, currency)}
                       </Text>
                     </View>
@@ -645,7 +648,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
               </View>
             )}
 
-            <PageFooter />
+            <PageFooter showSignature={isLastPage || totalPagesCount === 1} />
           </Page>
         )
       })}
@@ -655,17 +658,16 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
 
 // ─── Fonction utilitaire pour générer le blob PDF ────────────────────────────
 
-export async function generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0) {
+export async function generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0, customization = {}) {
+  const { accentColor = '#1E88E5', showQrCode = true, showBranding = true, headerColor = '#000000' } = customization
   const blob = await pdf(
     <MinimalPdfDocument
-      doc={doc}
-      profile={profile}
-      qrDataUrl={qrDataUrl}
-      logoDataUrl={logoDataUrl}
-      signatureDataUrl={signatureDataUrl}
-      logoBbDataUrl={logoBbDataUrl}
-      currency={currency}
-      conversionRate={conversionRate}
+      doc={doc} profile={profile}
+      qrDataUrl={qrDataUrl} logoDataUrl={logoDataUrl}
+      signatureDataUrl={signatureDataUrl} logoBbDataUrl={logoBbDataUrl}
+      currency={currency} conversionRate={conversionRate}
+      accentColor={accentColor} showQrCode={showQrCode} showBranding={showBranding}
+      headerColor={headerColor}
     />
   ).toBlob()
   return blob
