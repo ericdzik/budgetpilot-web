@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { toast } from 'react-hot-toast'
 import { ClipboardCopy, Send, QrCode, Gift, Download } from 'lucide-react'
 import QRCode from 'qrcode'
@@ -326,13 +326,31 @@ function QrModal({ referralLink, referralCode, onClose }) {
       }
     } else {
       // Fallback : copier le lien
-      navigator.clipboard.writeText(referralLink)
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(referralLink)
+      } else {
+        const el = document.createElement('textarea')
+        el.value = referralLink
+        document.body.appendChild(el)
+        el.select()
+        document.execCommand('copy')
+        document.body.removeChild(el)
+      }
       toast.success('Lien copié ! (partage de fichier non supporté sur ce navigateur)')
     }
   }
 
   const handleCopyCode = () => {
-    navigator.clipboard.writeText(referralCode)
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(referralCode)
+    } else {
+      const el = document.createElement('textarea')
+      el.value = referralCode
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+    }
     toast.success('Code copié !')
   }
 
@@ -423,12 +441,30 @@ export default function ReferralPage() {
   const shareMessage = `Rejoins Budget Pilot avec mon code ${referralCode} : ${referralLink}`
 
   const copyCode = () => {
-    navigator.clipboard.writeText(referralCode)
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(referralCode)
+    } else {
+      const el = document.createElement('textarea')
+      el.value = referralCode
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+    }
     toast.success('Code copié !')
   }
 
   const copyLink = () => {
-    navigator.clipboard.writeText(referralLink)
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(referralLink)
+    } else {
+      const el = document.createElement('textarea')
+      el.value = referralLink
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+    }
     toast.success('Lien copié !')
   }
 

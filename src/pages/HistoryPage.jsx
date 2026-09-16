@@ -22,7 +22,7 @@ function fmt(n) {
 function fmtDate(d) {
   if (!d) return '—'
   try {
-    return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+    return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
   } catch { return d }
 }
 
@@ -767,8 +767,8 @@ const menuItem = {
 }
 
 // Colonnes identiques header + cartes : Nom | Référence | Date | Montant | Statut | Actions
-const COL_TEMPLATE = '1fr 180px 150px 150px 100px 1fr'
-const COL_GAP = '12px'
+const COL_TEMPLATE = '1fr 180px 160px 170px 120px 1fr'
+const COL_GAP = '20px'
 const COL_PADDING = '16px 20px'
 
 // ─── Page principale ──────────────────────────────────────────────────────────
@@ -780,7 +780,7 @@ const TABS = [
   { key: 'receipts', label: 'Recettes' },
 ]
 
-const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
+const MONTHS = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sept','Oct','Nov','Déc']
 
 export default function HistoryPage() {
   const [searchParams] = useSearchParams()

@@ -116,9 +116,14 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
   const tvaAmountConverted      = tvaAmount * cr
   const total = totalRaw * cr
 
-  const logoUrl      = profile?.logo_path ? `${STORAGE_BASE_URL}/${profile.logo_path}` : null
-  const signatureUrl = profile?.signature_path && profile.signature_path !== '0'
-    ? `${STORAGE_BASE_URL}/${profile.signature_path}` : null
+  const normalizeStorageUrl = (p) => {
+    if (!p || p === '0') return null
+    if (p.startsWith('http://') || p.startsWith('https://')) return p
+    const clean = p.startsWith('/') ? p.slice(1) : p
+    return `${STORAGE_BASE_URL}/${clean}`
+  }
+  const logoUrl      = normalizeStorageUrl(profile?.logo_path)
+  const signatureUrl = normalizeStorageUrl(profile?.signature_path)
 
   const grouped = {}
   itemsWithTotal.forEach(item => {
@@ -586,13 +591,72 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
     // Convertit une URL storage en URL proxy API (CORS garanti)
     const toProxyUrl = (u) => {
       try {
-        const storageBase = STORAGE_BASE_URL // ex: http://172.20.10.12:8000/storage
+        if (!u) return null
+        if (u.includes('/storage/')) {
+          return u.replace('/storage/', '/api/storage-proxy/')
+        }
+        const storageBase = STORAGE_BASE_URL
         const apiBase = storageBase.replace('/storage', '/api/storage-proxy')
-        // u = http://172.20.10.12:8000/storage/logos/xxx.jpg
-        // → http://172.20.10.12:8000/api/storage-proxy/logos/xxx.jpg
         const relativePath = u.replace(storageBase + '/', '')
         return `${apiBase}/${relativePath}`
       } catch { return u }
+    }
+
+    const processBlob = async (rawBlob) => {
+      if (!rawBlob || rawBlob.size === 0) return null
+
+      let blob = rawBlob
+      // 1. Détecter et supprimer un éventuel UTF-8 BOM (0xEF, 0xBB, 0xBF)
+      try {
+        const sliceHeader = await blob.slice(0, 4).arrayBuffer()
+        const header = new Uint8Array(sliceHeader)
+        if (header[0] === 0xef && header[1] === 0xbb && header[2] === 0xbf) {
+          blob = blob.slice(3, blob.size, blob.type)
+        }
+      } catch {}
+
+      // 2. Vérifier les magic bytes pour JPEG et PNG
+      try {
+        const sliceHeader = await blob.slice(0, 4).arrayBuffer()
+        const h = new Uint8Array(sliceHeader)
+        const isJpeg = h[0] === 0xff && h[1] === 0xd8
+        const isPng = h[0] === 0x89 && h[1] === 0x50 && h[2] === 0x4e && h[3] === 0x47
+
+        if (isJpeg || isPng) {
+          return await new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result)
+            reader.onerror = reject
+            reader.readAsDataURL(blob)
+          })
+        }
+      } catch {}
+
+      // 3. Fallback canvas pour les autres formats (WebP, SVG, etc.) ou conversion standard
+      return await new Promise((resolve) => {
+        const objectUrl = URL.createObjectURL(blob)
+        const img = new window.Image()
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas')
+            canvas.width = img.naturalWidth || img.width || 100
+            canvas.height = img.naturalHeight || img.height || 100
+            const ctx = canvas.getContext('2d')
+            ctx.drawImage(img, 0, 0)
+            const dataUrl = canvas.toDataURL('image/png')
+            URL.revokeObjectURL(objectUrl)
+            resolve(dataUrl)
+          } catch {
+            URL.revokeObjectURL(objectUrl)
+            resolve(null)
+          }
+        }
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl)
+          resolve(null)
+        }
+        img.src = objectUrl
+      })
     }
 
     const proxyUrl = toProxyUrl(url)
@@ -600,27 +664,26 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
     // Tentative 1 : via proxy API (CORS garanti)
     try {
       const res = await fetch(proxyUrl, { mode: 'cors' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const ct = res.headers.get('content-type') || ''
+      if (!res.ok || ct.includes('text/html') || ct.includes('application/json')) {
+        throw new Error(`Invalid response ${res.status}`)
+      }
       const blob = await res.blob()
-      return await new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result)
-        reader.onerror  = reject
-        reader.readAsDataURL(blob)
-      })
+      const dataUrl = await processBlob(blob)
+      if (dataUrl) return dataUrl
+    } catch {}
+
+    // Tentative 2 : fetch direct
+    try {
+      const res = await fetch(url, { mode: 'cors', credentials: 'omit' })
+      const ct = res.headers.get('content-type') || ''
+      if (!res.ok || ct.includes('text/html') || ct.includes('application/json')) {
+        throw new Error(`Invalid response ${res.status}`)
+      }
+      const blob = await res.blob()
+      return await processBlob(blob)
     } catch {
-      // Tentative 2 : fetch direct
-      try {
-        const res = await fetch(url, { mode: 'cors', credentials: 'omit' })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const blob = await res.blob()
-        return await new Promise((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onloadend = () => resolve(reader.result)
-          reader.onerror  = reject
-          reader.readAsDataURL(blob)
-        })
-      } catch { return null }
+      return null
     }
   }
 
@@ -634,9 +697,16 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
       setDoc(docRes.data)
       const prof = profileRes.data.user || profileRes.data
       setProfile(prof)
-      const logoUrl = prof?.logo_path ? `${STORAGE_BASE_URL}/${prof.logo_path}` : null
-      const sigUrl  = prof?.signature_path && prof.signature_path !== '0'
-        ? `${STORAGE_BASE_URL}/${prof.signature_path}` : null
+
+      const normalizeStorageUrl = (p) => {
+        if (!p || p === '0') return null
+        if (p.startsWith('http://') || p.startsWith('https://')) return p
+        const clean = p.startsWith('/') ? p.slice(1) : p
+        return `${STORAGE_BASE_URL}/${clean}`
+      }
+
+      const logoUrl = normalizeStorageUrl(prof?.logo_path)
+      const sigUrl  = normalizeStorageUrl(prof?.signature_path)
       const [logo, sig] = await Promise.all([toDataUrl(logoUrl), toDataUrl(sigUrl)])
       setLogoDataUrl(logo)
       setSigDataUrl(sig)
