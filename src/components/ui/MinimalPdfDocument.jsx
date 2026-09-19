@@ -20,6 +20,8 @@ import {
   StyleSheet,
   pdf,
 } from '@react-pdf/renderer'
+import { getTextColor, accentToBoxBg, accentToSubtotalBg, getSecondaryColor, getSecondaryTextColor, mixWithWhite } from './pdfColorUtils'
+import { withFont, resolveFontFamily } from './pdfFonts'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -188,8 +190,9 @@ function toNum(v) {
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
+// Les styles dépendants de l'accent sont générés dynamiquement dans le composant.
 
-const S = StyleSheet.create({
+const S_STATIC = StyleSheet.create({
   page: {
     fontFamily: 'Helvetica',
     fontSize: 10,
@@ -208,13 +211,6 @@ const S = StyleSheet.create({
   },
   headerCol: {
     flex: 1,
-  },
-  logoBox: {
-    width: 44,
-    height: 44,
-    backgroundColor: '#4CAF50',
-    borderRadius: 4,
-    marginBottom: 6,
   },
   logoImg: {
     width: 44,
@@ -240,19 +236,11 @@ const S = StyleSheet.create({
   },
   companyDetail: {
     fontSize: 9,
-    color: '#444',
+    color: '#000',
     marginTop: 1,
   },
 
   // ── En-tête tableau ──
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#000',
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-  },
   thText: {
     color: '#fff',
     fontSize: 10,
@@ -260,13 +248,6 @@ const S = StyleSheet.create({
   },
 
   // ── Corps tableau ──
-  tableBody: {
-    borderLeft: '1.5px solid #000',
-    borderRight: '1.5px solid #000',
-    borderBottom: '1.5px solid #000',
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 10,
-  },
   tableRow: {
     flexDirection: 'row',
     paddingVertical: 4,
@@ -310,17 +291,6 @@ const S = StyleSheet.create({
     color: '#444',
     marginTop: 1,
   },
-  // Bloc totaux — en flux normal, aligné à droite
-  totalsBox: {
-    width: 210,
-    border: '2px solid #000',
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    overflow: 'hidden',
-    alignSelf: 'flex-end',
-    marginBottom: 4,
-    marginRight: 4,
-  },
   totalsInner: {
     padding: 8,
   },
@@ -331,12 +301,6 @@ const S = StyleSheet.create({
   },
   totalLabel: { fontSize: 10, color: '#000' },
   totalValue: { fontSize: 10, color: '#000' },
-  totalFinalBar: {
-    backgroundColor: '#000',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    flexDirection: 'column',
-  },
   totalFinalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -367,13 +331,6 @@ const S = StyleSheet.create({
   sigLabel: { fontSize: 10, color: '#000', marginBottom: 4 },
   sigImg:   { maxHeight: 44, maxWidth: 160, objectFit: 'contain' },
   sigSpace: { height: 44 },
-  brandingBar: {
-    borderTop: '1px solid #ddd',
-    paddingTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
   brandingLeft: {
     flexDirection: 'column',
     gap: 4,
@@ -400,7 +357,58 @@ const S = StyleSheet.create({
 
 // ─── Composant Document ───────────────────────────────────────────────────────
 
-export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0 }) {
+export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0, accentColor = '#1E88E5', showQrCode = true, showBranding = true, noColor = false, fontChoice = 'helvetica' }) {
+  // Agencement façon Prestige : la couleur principale pilote fonds ET labels (comme
+  // le navy) ; la secondaire est l'accent sur fond coloré (barre du total final,
+  // comme le "TOTAL TTC" doré) + le fond clair du sous-total — le texte de l'en-tête
+  // du tableau reste en contraste auto (comme sur Prestige, où il reste blanc).
+  const headerTextColor  = noColor ? '#fff' : getTextColor(accentColor)
+  const labelColor       = noColor ? '#000' : accentColor
+  // Couleur secondaire complémentaire (dérivée automatiquement)
+  const secondaryColor   = getSecondaryColor(accentColor)
+  const subtotalBg       = mixWithWhite(secondaryColor, 0.35)
+  const boxBg            = accentToBoxBg(accentColor)
+  const totalBarTextColor = noColor ? '#fff' : getSecondaryTextColor(accentColor, secondaryColor)
+
+  // État "sans coloration" — reproduit le design d'origine (en-tête/barre de total noirs, sans accent)
+  const S = withFont({
+    ...S_STATIC,
+    logoBox: { width: 44, height: 44, backgroundColor: noColor ? '#000' : accentColor, borderRadius: 4, marginBottom: 6 },
+    tableHeader: {
+      flexDirection: 'row', backgroundColor: noColor ? '#000' : accentColor,
+      borderTopLeftRadius: 10, borderTopRightRadius: 10,
+      paddingVertical: 7, paddingHorizontal: 10,
+    },
+    thText: { ...S_STATIC.thText, color: headerTextColor },
+    tableBody: {
+      borderLeft: `1.5px solid ${noColor ? '#000' : accentColor}`,
+      borderRight: `1.5px solid ${noColor ? '#000' : accentColor}`,
+      borderBottom: `1.5px solid ${noColor ? '#000' : accentColor}`,
+      borderBottomLeftRadius: 10, borderBottomRightRadius: 10,
+    },
+    subtotalRow: {
+      flexDirection: 'row', paddingVertical: 5, paddingHorizontal: 10,
+      backgroundColor: noColor ? '#f0f0f0' : subtotalBg, marginTop: 6, marginBottom: 6,
+    },
+    subtotalText: { fontFamily: 'Helvetica-Bold', color: noColor ? '#111' : accentColor },
+    totalsBox: {
+      width: 210, border: `2px solid ${noColor ? '#000' : accentColor}`,
+      borderRadius: 10, backgroundColor: noColor ? '#fff' : boxBg,
+      overflow: 'hidden', alignSelf: 'flex-end',
+      marginBottom: 4, marginRight: 4,
+    },
+    totalFinalBar: {
+      backgroundColor: noColor ? '#000' : accentColor,
+      paddingVertical: 8, paddingHorizontal: 14, flexDirection: 'column',
+    },
+    totalFinalLabel: { fontSize: 11, color: totalBarTextColor, fontFamily: 'Helvetica-Bold' },
+    totalFinalValue: { fontSize: 11, color: totalBarTextColor, fontFamily: 'Helvetica-Bold' },
+    brandingBar: {
+      borderTop: '1px solid #ddd', paddingTop: 10,
+      flexDirection: 'row', alignItems: 'center', gap: 20,
+    },
+  }, fontChoice)
+  const fontBold = resolveFontFamily(fontChoice, 'bold')
   const company = {
     name:    profile?.company_name    || profile?.name    || 'Mon Entreprise',
     address: profile?.company_address || '',
@@ -452,8 +460,12 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
   const groupEntries   = Object.entries(grouped)
   const showCatSubtotal = groupEntries.length > 1
 
-  // ── Pagination manuelle : max 16 lignes par page ──────────────────────────
+  // ── Pagination manuelle ──────────────────────────────────────────────────
+  // La dernière page accueille également les totaux, le montant en lettres et
+  // les signatures. Lui réserver moins de lignes évite que react-pdf crée une
+  // page de débordement vide avant la suite du tableau.
   const ITEMS_PER_PAGE = 20
+  const ITEMS_ON_LAST_PAGE = 6
 
   // Aplatir tous les items avec leur catégorie
   const flatItems = []
@@ -462,11 +474,20 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
     flatItems.push({ __subtotal: true, _cat: cat, _catItems: catItems })
   })
 
-  // Découper en tranches de ITEMS_PER_PAGE
+  // Découper : les pages ordinaires peuvent contenir 20 lignes, mais la dernière
+  // est volontairement limitée à 10 lignes pour garder la zone finale sur page.
   const pageSlices = []
-  for (let i = 0; i < flatItems.length; i += ITEMS_PER_PAGE) {
-    pageSlices.push(flatItems.slice(i, i + ITEMS_PER_PAGE))
+  const lastPageItems = flatItems.length > ITEMS_PER_PAGE
+    ? flatItems.slice(-ITEMS_ON_LAST_PAGE)
+    : []
+  const itemsBeforeLastPage = lastPageItems.length > 0
+    ? flatItems.slice(0, -ITEMS_ON_LAST_PAGE)
+    : flatItems
+
+  for (let i = 0; i < itemsBeforeLastPage.length; i += ITEMS_PER_PAGE) {
+    pageSlices.push(itemsBeforeLastPage.slice(i, i + ITEMS_PER_PAGE))
   }
+  if (lastPageItems.length > 0) pageSlices.push(lastPageItems)
   if (pageSlices.length === 0) pageSlices.push([])
   const totalPagesCount = pageSlices.length
 
@@ -484,14 +505,14 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
         {doc.due_date && <Text style={S.refSmall}>Éch. {fmtDate(doc.due_date)}</Text>}
       </View>
       <View style={S.headerCol}>
-        <Text style={[S.companyName, { marginBottom: 2 }]}>ÉMETTEUR</Text>
-        <Text style={S.companyDetail}>{company.name}</Text>
+        <Text style={[S.companyName, { marginBottom: 2, color: '#111' }]}>ÉMETTEUR</Text>
+        <Text style={[S.companyDetail, { fontFamily: fontBold }]}>{company.name}</Text>
         {!!company.phone   && <Text style={S.companyDetail}>{company.phone}</Text>}
         {!!company.address && <Text style={S.companyDetail}>{company.address}</Text>}
       </View>
       <View style={S.headerCol}>
-        <Text style={[S.companyName, { marginBottom: 2 }]}>DESTINATAIRE</Text>
-        <Text style={S.companyDetail}>{client.name || '—'}</Text>
+        <Text style={[S.companyName, { marginBottom: 2, color: '#111' }]}>DESTINATAIRE</Text>
+        <Text style={[S.companyDetail, { fontFamily: fontBold }]}>{client.name || '—'}</Text>
         {!!client.phone   && <Text style={S.companyDetail}>{client.phone}</Text>}
         {!!client.email   && <Text style={S.companyDetail}>{client.email}</Text>}
         {!!client.address && <Text style={S.companyDetail}>{client.address}</Text>}
@@ -503,7 +524,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
     <>
       {!!doc.title && (
         <View style={{ marginBottom: 6, alignItems: 'center' }}>
-          <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: '#000', letterSpacing: 0.3 }}>
+          <Text style={{ fontSize: 10, fontFamily: fontBold, color: '#111', letterSpacing: 0.3, textAlign: 'center' }}>
             {doc.title.toUpperCase()}
           </Text>
         </View>
@@ -517,35 +538,41 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
     </>
   )
 
-  const PageFooter = () => (
-    <View style={S.footer} fixed>
-      <View style={S.sigRow}>
-        <View style={S.sigBox}>
-          <Text style={S.sigLabel}>Signature émetteur</Text>
-          {signatureDataUrl
-            ? <Image src={signatureDataUrl} style={S.sigImg} />
-            : <View style={S.sigSpace} />
-          }
-        </View>
-        <View style={S.sigBox}>
-          <Text style={S.sigLabel}>Signature destinataire</Text>
-          <View style={S.sigSpace} />
-        </View>
-      </View>
-      <View style={S.brandingBar}>
-        <View style={S.brandingLeft}>
-          <Text style={S.brandingConcuPar}>Conçu par</Text>
-          <View style={S.brandingPilotRow}>
-            {logoBbDataUrl ? <Image src={logoBbDataUrl} style={S.brandingLogoImg} /> : null}
-            <Text style={S.brandingPilot}>Pilot</Text>
+  const PageFooter = ({ showSignature }) => (
+    <View style={S.footer}>
+      {showSignature && (
+        <View style={S.sigRow}>
+          <View style={S.sigBox}>
+            <Text style={S.sigLabel}>Signature émetteur</Text>
+            {signatureDataUrl
+              ? <Image src={signatureDataUrl} style={S.sigImg} />
+              : <View style={S.sigSpace} />
+            }
+          </View>
+          <View style={S.sigBox}>
+            <Text style={S.sigLabel}>Signature destinataire</Text>
+            <View style={S.sigSpace} />
           </View>
         </View>
-        <View style={S.brandingDivider} />
+      )}
+      <View style={S.brandingBar}>
+        {showBranding && (
+          <>
+            <View style={S.brandingLeft}>
+              <Text style={S.brandingConcuPar}>Conçu par</Text>
+              <View style={S.brandingPilotRow}>
+                {logoBbDataUrl ? <Image src={logoBbDataUrl} style={S.brandingLogoImg} /> : null}
+                <Text style={S.brandingPilot}>Pilot</Text>
+              </View>
+            </View>
+            <View style={S.brandingDivider} />
+          </>
+        )}
         <View style={S.brandingQrArea}>
-          {qrDataUrl
+          {showQrCode && (qrDataUrl
             ? <Image src={qrDataUrl} style={S.qrImg} />
             : <View style={{ width: 52, height: 52, backgroundColor: '#f0f0f0' }} />
-          }
+          )}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Link src="https://www.getbudgetpilot.com" style={S.brandingLink}>
               www.getbudgetpilot.com
@@ -572,10 +599,10 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
                   const catTotal = row._catItems.reduce((s, i) => s + i._total, 0)
                   return showCatSubtotal ? (
                     <View key={`sub-${ri}`} style={S.subtotalRow}>
-                      <Text style={[S.tdDesc, { flex: 7, fontFamily: 'Helvetica-Bold' }]}>
+                      <Text style={[S.tdDesc, { flex: 7, fontFamily: fontBold, color: labelColor }]}>
                         Sous-total {row._cat}
                       </Text>
-                      <Text style={[S.tdTotal, { flex: 2, fontFamily: 'Helvetica-Bold' }]}>
+                      <Text style={[S.tdTotal, { flex: 2, fontFamily: fontBold, color: labelColor }]}>
                         {fmtCurrency(catTotal * cr, currency)}
                       </Text>
                     </View>
@@ -595,10 +622,10 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
               {isLastPage && (
                 <View style={S.footerZone}>
                   <View style={S.paymentBox}>
-                    <Text style={S.paymentTitle}>Paiement</Text>
-                    <Text style={S.paymentDetail}>Statut : <Text style={{ fontFamily: 'Helvetica-Bold' }}>{statusLabel(doc.status)}</Text></Text>
+                    <Text style={[S.paymentTitle, { color: '#111' }]}>Paiement</Text>
+                    <Text style={S.paymentDetail}>Statut : <Text style={{ fontFamily: fontBold }}>{statusLabel(doc.status)}</Text></Text>
                     {!!doc.due_date && (
-                      <Text style={S.paymentDetail}>Échéance : <Text style={{ fontFamily: 'Helvetica-Bold' }}>{fmtDate(doc.due_date)}</Text></Text>
+                      <Text style={S.paymentDetail}>Échéance : <Text style={{ fontFamily: fontBold }}>{fmtDate(doc.due_date)}</Text></Text>
                     )}
                   </View>
                   <View style={S.totalsBox}>
@@ -610,7 +637,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
                       {totalDiscount > 0 && (
                         <View style={S.totalRow}>
                           <Text style={S.totalLabel}>Remise :</Text>
-                          <Text style={S.totalValue}>{fmt(totalDiscountConverted)}</Text>
+                          <Text style={S.totalValue}>- {fmt(totalDiscountConverted)}</Text>
                         </View>
                       )}
                       {doc.has_tva && (
@@ -634,7 +661,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
             {/* Montant en lettres — uniquement sur la dernière page */}
             {isLastPage && (
               <View style={{ marginTop: 8, marginHorizontal: 15, flexDirection: 'row', flexWrap: 'wrap' }}>
-                <Text style={{ fontSize: 9, color: '#000', fontFamily: 'Helvetica-Bold' }}>Total : </Text>
+                <Text style={{ fontSize: 9, color: '#000', fontFamily: fontBold }}>Arrêtée la présente facture à la somme de : </Text>
                 <Text style={{
                   fontSize: (() => { const l = amountToWords(total, currency).length; return l <= 40 ? 11 : l <= 60 ? 10 : l <= 80 ? 9 : 8 })(),
                   color: '#000',
@@ -645,7 +672,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
               </View>
             )}
 
-            <PageFooter />
+            <PageFooter showSignature={isLastPage || totalPagesCount === 1} />
           </Page>
         )
       })}
@@ -655,17 +682,16 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
 
 // ─── Fonction utilitaire pour générer le blob PDF ────────────────────────────
 
-export async function generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0) {
+export async function generateMinimalPdfBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0, customization = {}) {
+  const { accentColor = '#1E88E5', showQrCode = true, showBranding = true, noColor = false, fontChoice = 'helvetica' } = customization
   const blob = await pdf(
     <MinimalPdfDocument
-      doc={doc}
-      profile={profile}
-      qrDataUrl={qrDataUrl}
-      logoDataUrl={logoDataUrl}
-      signatureDataUrl={signatureDataUrl}
-      logoBbDataUrl={logoBbDataUrl}
-      currency={currency}
-      conversionRate={conversionRate}
+      doc={doc} profile={profile}
+      qrDataUrl={qrDataUrl} logoDataUrl={logoDataUrl}
+      signatureDataUrl={signatureDataUrl} logoBbDataUrl={logoBbDataUrl}
+      currency={currency} conversionRate={conversionRate}
+      accentColor={accentColor} showQrCode={showQrCode} showBranding={showBranding}
+      noColor={noColor} fontChoice={fontChoice}
     />
   ).toBlob()
   return blob

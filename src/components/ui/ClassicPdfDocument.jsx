@@ -17,6 +17,8 @@ import {
 } from '@react-pdf/renderer'
 import { amountToWords } from './MinimalPdfDocument'
 import { STORAGE_BASE_URL } from '../../config/constants'
+import { getTextColor, accentToBoxBg, accentToSubtotalBg, getSecondaryColor, mixWithWhite } from './pdfColorUtils'
+import { withFont, resolveFontFamily } from './pdfFonts'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -45,7 +47,7 @@ function toNum(v) { return isNaN(parseFloat(v)) ? 0 : parseFloat(v) }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const S = StyleSheet.create({
+const BASE_STYLES = StyleSheet.create({
   page: {
     fontFamily: 'Helvetica',
     fontSize: 11,
@@ -70,9 +72,9 @@ const S = StyleSheet.create({
   },
   logoBox: { width: 52, height: 52, backgroundColor: '#e0e0e0', borderRadius: 3 },
   logoImg: { width: 52, height: 52, objectFit: 'contain' },
-  headerRight: { alignItems: 'flex-end' },
+  headerRight: { alignItems: 'flex-end', maxWidth: 280 },
   refNum: { fontSize: 24, fontFamily: 'Helvetica-Bold', color: '#111' },
-  docTitle: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: '#111', marginTop: 3 },
+  docTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#111', marginTop: 3 },
   docDate: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: '#111', marginTop: 3 },
 
   // ── Émetteur / Destinataire ──
@@ -91,7 +93,7 @@ const S = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 6,
   },
-  partyDetail: { fontSize: 10, color: '#444', marginTop: 2, lineHeight: 1.5 },
+  partyDetail: { fontSize: 10, color: '#000', marginTop: 2, lineHeight: 1.5 },
   partyName: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: '#111', marginBottom: 2 },
 
   // ── Tableau ──
@@ -194,7 +196,9 @@ const S = StyleSheet.create({
 
 // ─── Composant Document ───────────────────────────────────────────────────────
 
-export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0 }) {
+export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0, accentColor = '#1E88E5', frameWidth = 1.5, noColor = false, fontChoice = 'helvetica' }) {
+  const S = withFont(BASE_STYLES, fontChoice)
+  const fontBold = resolveFontFamily(fontChoice, 'bold')
   const company = {
     name:    profile?.company_name    || profile?.name    || 'Mon Entreprise',
     address: profile?.company_address || '',
@@ -205,6 +209,38 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
   const client = doc.client || {}
   const items  = doc.items  || []
   const cr     = conversionRate || 1.0
+
+  // Agencement façon Prestige : la couleur principale pilote les fonds structurels
+  // ET les SEULS libellés courts de section (ÉMETTEUR/DESTINATAIRE/Paiement/Signature,
+  // footer) — les données elles-mêmes (nom, contact, statut, montants) restent en
+  // noir/gris neutre, exactement comme sur Prestige. La secondaire sert d'accent sur
+  // fond coloré et de fond clair pour le sous-total (comme l'or).
+  const headerTextColor = noColor ? '#111' : getTextColor(accentColor)
+  const labelColor      = noColor ? '#111' : accentColor
+  // Couleur secondaire complémentaire (dérivée automatiquement) — fond du SOUS TOTAL
+  const secondaryColor  = getSecondaryColor(accentColor)
+  const secondaryBg     = mixWithWhite(secondaryColor, 0.35)
+
+  // État "sans coloration" — reproduit le design d'origine (noir/blanc, sans fond coloré)
+  const dynS = noColor ? {
+    frame:         { ...S.frame, border: `${frameWidth}px solid #111` },
+    tableHeader:   { ...S.tableHeader, borderBottom: `${frameWidth}px solid #111` },
+    thText:        { ...S.thText, color: '#111' },
+    subtotalRow:   { ...S.subtotalRow, borderTop: `${frameWidth}px solid #111`, borderBottom: `${frameWidth}px solid #111`, marginTop: 6, marginBottom: 6 },
+    subtotalText:  { color: '#111', fontFamily: fontBold },
+    sigLabel:      { ...S.sigLabel, color: '#111' },
+    footerLink:    { ...S.footerLink, color: labelColor },
+    pageNum:       { ...S.pageNum, color: labelColor },
+  } : {
+    frame:         { ...S.frame, border: `${frameWidth}px solid ${accentColor}` },
+    tableHeader:   { ...S.tableHeader, borderBottom: `${frameWidth}px solid ${accentColor}`, backgroundColor: accentColor },
+    thText:        { ...S.thText, color: headerTextColor },
+    subtotalRow:   { ...S.subtotalRow, borderTop: `${frameWidth}px solid ${accentColor}`, borderBottom: `${frameWidth}px solid ${accentColor}`, backgroundColor: secondaryBg, marginTop: 6, marginBottom: 6 },
+    subtotalText:  { color: accentColor, fontFamily: fontBold },
+    sigLabel:      { ...S.sigLabel, color: '#111' },
+    footerLink:    { ...S.footerLink, color: labelColor },
+    pageNum:       { ...S.pageNum, color: labelColor },
+  }
 
   // Calculs
   const itemsWithTotal = items.map(i => ({
@@ -225,7 +261,6 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
   const tvaAmount     = doc.has_tva ? subtotalAfter * (tvaRate / 100) : 0
   const totalRaw      = toNum(doc.total_amount) || (subtotalAfter + tvaAmount)
   const total         = totalRaw * cr
-  const subtotalHT    = (subtotalBefore - totalDiscount) * cr  // HT après remise avant TVA
 
   // Grouper par catégorie
   const grouped = {}
@@ -265,33 +300,35 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
 
   // Composant réutilisable : header tableau
   const TableHeader = () => (
-    <View style={S.tableHeader}>
-      <Text style={[S.thText, { flex: 4 }]}>DESCRIPTION :</Text>
-      <Text style={[S.thText, { flex: 1, textAlign: 'center' }]}>QUANTITÉ :</Text>
-      <Text style={[S.thText, { flex: 2, textAlign: 'right' }]}>PRIX UNITAIRE</Text>
-      <Text style={[S.thText, { flex: 2, textAlign: 'right' }]}>TOTAL [{currency}]</Text>
+    <View style={[dynS.tableHeader, { alignItems: 'center', minHeight: 26 }]}>
+      <Text style={[dynS.thText, { flex: 4, textAlign: 'center' }]}>DESCRIPTION</Text>
+      <Text style={[dynS.thText, { flex: 1, textAlign: 'center' }]}>QUANTITÉ</Text>
+      <Text style={[dynS.thText, { flex: 2, textAlign: 'center' }]}>PRIX UNITAIRE</Text>
+      <Text style={[dynS.thText, { flex: 2, textAlign: 'center' }]}>TOTAL [{currency}]</Text>
     </View>
   )
 
   // Composant footer
-  const Footer = () => (
+  const Footer = ({ showSignature = true }) => (
     <View style={S.footer}>
-      <View style={S.sigRow}>
-        <View style={S.sigBox}>
-          <Text style={S.sigLabel}>SIGNATURE ÉMETTEUR</Text>
-          {signatureDataUrl
-            ? <Image src={signatureDataUrl} style={S.sigImg} />
-            : <View style={S.sigSpace} />
-          }
+      {showSignature && (
+        <View style={S.sigRow}>
+          <View style={S.sigBox}>
+            <Text style={dynS.sigLabel}>SIGNATURE ÉMETTEUR</Text>
+            {signatureDataUrl
+              ? <Image src={signatureDataUrl} style={S.sigImg} />
+              : <View style={S.sigSpace} />
+            }
+          </View>
+          <View style={S.sigBox}>
+            <Text style={dynS.sigLabel}>SIGNATURE DESTINATAIRE</Text>
+            <View style={S.sigSpace} />
+          </View>
         </View>
-        <View style={S.sigBox}>
-          <Text style={S.sigLabel}>SIGNATURE DESTINATAIRE</Text>
-          <View style={S.sigSpace} />
-        </View>
-      </View>
+      )}
       <View style={S.footerBottom}>
-        <Text style={S.footerLink}>GETBUDGETPILOT.COM</Text>
-        <Text style={S.pageNum} render={({ pageNumber, totalPages }) => `${pageNumber}/${totalPages}`} fixed />
+        <Text style={dynS.footerLink}>GETBUDGETPILOT.COM</Text>
+        <Text style={dynS.pageNum} render={({ pageNumber, totalPages }) => `${pageNumber}/${totalPages}`} fixed />
       </View>
     </View>
   )
@@ -302,7 +339,7 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
         const isLastPage = pageIdx === pages.length - 1
         return (
           <Page key={pageIdx} size="A4" style={S.page}>
-            <View style={[S.frame, { flex: 1 }]}>
+            <View style={[dynS.frame, { flex: 1 }]}>
 
               {/* ── HEADER : toutes les pages ── */}
               <View style={[S.headerRow, { marginBottom: 10 }]}>
@@ -322,7 +359,7 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
 
                   <View style={[S.partiesRow, { marginBottom: 20 }]}>
                     <View style={{ flex: 1 }}>
-                      <Text style={S.partyLabel}>ÉMETTEUR :</Text>
+                      <Text style={[S.partyLabel, { color: '#111' }]}>ÉMETTEUR :</Text>
                       <Text style={S.partyName}>{company.name}</Text>
                       {!!company.phone   && <Text style={S.partyDetail}>{company.phone}</Text>}
                       {!!company.email   && <Text style={S.partyDetail}>{company.email}</Text>}
@@ -330,7 +367,7 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
                       {!!company.nif     && <Text style={S.partyDetail}>NIF : {company.nif}</Text>}
                     </View>
                     <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                      <Text style={S.partyLabel}>DESTINATAIRE :</Text>
+                      <Text style={[S.partyLabel, { color: '#111' }]}>DESTINATAIRE :</Text>
                       <Text style={S.partyName}>{client.name || '—'}</Text>
                       {!!client.phone   && <Text style={S.partyDetail}>{client.phone}</Text>}
                       {!!client.email   && <Text style={S.partyDetail}>{client.email}</Text>}
@@ -344,9 +381,9 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
               {pageRows.map((row, ri) => {
                 if (row.type === 'subtotal') {
                   return (
-                    <View key={`sub-${ri}`} style={S.subtotalRow}>
-                      <Text style={[S.tdDesc, { flex: 7, fontFamily: 'Helvetica-Bold' }]}>SOUSTOTAL</Text>
-                      <Text style={[S.tdTotal, { fontFamily: 'Helvetica-Bold' }]}>{fmt(row.catTotal * cr)}</Text>
+                    <View key={`sub-${ri}`} style={dynS.subtotalRow}>
+                      <Text style={[S.tdDesc, { flex: 7 }, dynS.subtotalText]}>SOUS TOTAL{row.cat ? ` ${row.cat}` : ''}</Text>
+                      <Text style={[S.tdTotal, dynS.subtotalText]}>{fmt(row.catTotal * cr)}</Text>
                     </View>
                   )
                 }
@@ -364,29 +401,22 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
               {isLastPage && (
                 <>
                   {!showCatSubtotal && (
-                    <View style={S.subtotalRow}>
-                      <Text style={[S.tdDesc, { flex: 7, fontFamily: 'Helvetica-Bold' }]}>SOUSTOTAL</Text>
-                      <Text style={[S.tdTotal, { fontFamily: 'Helvetica-Bold' }]}>{fmt((subtotalBefore - totalDiscount) * cr)}</Text>
+                    <View style={dynS.subtotalRow}>
+                      <Text style={[S.tdDesc, { flex: 7 }, dynS.subtotalText]}>SOUS TOTAL</Text>
+                      <Text style={[S.tdTotal, dynS.subtotalText]}>{fmt((subtotalBefore - totalDiscount) * cr)}</Text>
                     </View>
                   )}
 
                   <View style={S.bottomZone}>
                     <View style={S.paymentBox}>
-                      <Text style={S.paymentTitle}>Paiement</Text>
+                      <Text style={[S.paymentTitle, { color: '#111' }]}>Paiement</Text>
                       <Text style={S.paymentDetail}>Statut : {statusLabel(doc.status)}</Text>
                       {!!doc.due_date && <Text style={S.paymentDetail}>Échéance : {fmtDate(doc.due_date)}</Text>}
                     </View>
                     <View style={S.totalsBox}>
                       <View style={S.totalsRow}>
-                        <Text style={S.totalsLabel}>TOTAL HT :</Text>
-                        <Text style={S.totalsValue}>{fmt(subtotalHT)}</Text>
-                      </View>
-                      <View style={S.totalsRow}>
-                        <Text style={S.totalsLabel}>TVA :</Text>
-                        {doc.has_tva
-                          ? <Text style={S.totalsValue}>{fmt(tvaAmount * cr)}</Text>
-                          : <Text style={S.totalsValueDash}>00,00</Text>
-                        }
+                        <Text style={S.totalsLabel}>SOUS-TOTAL GLOBAL :</Text>
+                        <Text style={S.totalsValue}>{fmt(subtotalBefore * cr)}</Text>
                       </View>
                       <View style={S.totalsRow}>
                         <Text style={S.totalsLabel}>REMISE :</Text>
@@ -395,13 +425,20 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
                           : <Text style={S.totalsValueDash}>-</Text>
                         }
                       </View>
+                      <View style={S.totalsRow}>
+                        <Text style={S.totalsLabel}>TVA :</Text>
+                        {doc.has_tva
+                          ? <Text style={S.totalsValue}>{fmt(tvaAmount * cr)}</Text>
+                          : <Text style={S.totalsValueDash}>00,00</Text>
+                        }
+                      </View>
                       <View style={S.totalTTCRow}>
                         <Text style={S.totalTTCLabel}>TOTAL TTC :</Text>
                         <Text style={S.totalTTCValue}>{fmt(total)}</Text>
                       </View>
                       <View style={{ marginTop: 4 }}>
                         <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Oblique', color: '#444', textAlign: 'right' }}>
-                          {amountToWords(total, currency)}
+                          Arrêtée la présente facture à la somme de : {amountToWords(total, currency)}
                         </Text>
                       </View>
                     </View>
@@ -411,23 +448,7 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
 
               {/* ── FOOTER : toutes les pages ── */}
               <View style={[S.footer, { marginTop: 'auto' }]}>
-                <View style={S.sigRow}>
-                  <View style={S.sigBox}>
-                    <Text style={S.sigLabel}>SIGNATURE ÉMETTEUR</Text>
-                    {signatureDataUrl
-                      ? <Image src={signatureDataUrl} style={S.sigImg} />
-                      : <View style={S.sigSpace} />
-                    }
-                  </View>
-                  <View style={S.sigBox}>
-                    <Text style={S.sigLabel}>SIGNATURE DESTINATAIRE</Text>
-                    <View style={S.sigSpace} />
-                  </View>
-                </View>
-                <View style={S.footerBottom}>
-                  <Text style={S.footerLink}>GETBUDGETPILOT.COM</Text>
-                  <Text style={S.pageNum} render={({ pageNumber, totalPages }) => `${pageNumber}/${totalPages}`} />
-                </View>
+                <Footer showSignature={isLastPage || pages.length === 1} />
               </View>
 
             </View>
@@ -440,8 +461,12 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
 
 // ─── Preview HTML ─────────────────────────────────────────────────────────────
 
-export function ClassicTemplate({ doc, profile, currency = 'XOF', conversionRate = 1.0 }) {
+export function ClassicTemplate({ doc, profile, currency = 'XOF', conversionRate = 1.0, accentColor = '#1E88E5', frameWidth = 1.5 }) {
   const storageBase = STORAGE_BASE_URL || ''
+  const headerTextColor = getTextColor(accentColor)
+  const labelColor      = accentColor
+  const subtotalBgHtml  = accentToSubtotalBg(accentColor)
+  const boxBgHtml       = accentToBoxBg(accentColor)
 
   const company = {
     name:    profile?.company_name    || profile?.name    || 'Mon Entreprise',
@@ -473,7 +498,6 @@ export function ClassicTemplate({ doc, profile, currency = 'XOF', conversionRate
   const tvaAmount     = doc.has_tva ? subtotalAfter * (tvaRate / 100) : 0
   const totalRaw      = toNum(doc.total_amount) || (subtotalAfter + tvaAmount)
   const total         = totalRaw * cr
-  const subtotalHT    = (subtotalBefore - totalDiscount) * cr
 
   const logoUrl      = profile?.logo_path ? `${storageBase}/${profile.logo_path}` : null
   const signatureUrl = profile?.signature_path && profile.signature_path !== '0'
@@ -495,7 +519,7 @@ export function ClassicTemplate({ doc, profile, currency = 'XOF', conversionRate
       fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '11px', color: '#111',
       background: '#fff', width: '794px',
       boxSizing: 'border-box',
-      border: '1.5px solid #111',
+      border: `${frameWidth}px solid ${accentColor}`,
       margin: '20px auto',
     }}>
       {/* Contenu intérieur avec padding uniforme */}
@@ -510,38 +534,38 @@ export function ClassicTemplate({ doc, profile, currency = 'XOF', conversionRate
           }
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 26, fontWeight: 'bold', letterSpacing: '-0.5px' }}>{doc.reference_number}</div>
-          {doc.title && <div style={{ fontSize: 13, fontWeight: 'bold', color: '#111', marginTop: 4 }}>{doc.title.toUpperCase()}</div>}
-          <div style={{ fontSize: 12, fontWeight: 'bold', color: '#111', marginTop: 4 }}>{fmtD(doc.issue_date || doc.created_at)}</div>
-          {doc.due_date && <div style={{ fontSize: 11, fontWeight: 'bold', color: '#111', marginTop: 2 }}>Éch. {fmtD(doc.due_date)}</div>}
+          <div style={{ fontSize: 26, fontWeight: 'bold', letterSpacing: '-0.5px', color: labelColor }}>{doc.reference_number}</div>
+          {doc.title && <div style={{ fontSize: 11, fontWeight: 'bold', color: labelColor, marginTop: 4 }}>{doc.title.toUpperCase()}</div>}
+          <div style={{ fontSize: 12, fontWeight: 'bold', color: labelColor, marginTop: 4 }}>{fmtD(doc.issue_date || doc.created_at)}</div>
+          {doc.due_date && <div style={{ fontSize: 11, fontWeight: 'bold', color: labelColor, marginTop: 2 }}>Éch. {fmtD(doc.due_date)}</div>}
         </div>
       </div>
 
       {/* ÉMETTEUR / DESTINATAIRE */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>ÉMETTEUR :</div>
-          <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 3 }}>{company.name}</div>
-          {company.address && <div style={{ fontSize: 11, color: '#444', lineHeight: '1.6' }}>{company.address}</div>}
-          {company.phone   && <div style={{ fontSize: 11, color: '#444', lineHeight: '1.6' }}>{company.phone}</div>}
-          {company.email   && <div style={{ fontSize: 11, color: '#444', lineHeight: '1.6' }}>{company.email}</div>}
-          {company.nif     && <div style={{ fontSize: 11, color: '#444', lineHeight: '1.6' }}>NIF: {company.nif}</div>}
+          <div style={{ fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6, color: '#111' }}>ÉMETTEUR :</div>
+          <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 3, color: labelColor }}>{company.name}</div>
+          {company.address && <div style={{ fontSize: 11, color: labelColor, lineHeight: '1.6' }}>{company.address}</div>}
+          {company.phone   && <div style={{ fontSize: 11, color: labelColor, lineHeight: '1.6' }}>{company.phone}</div>}
+          {company.email   && <div style={{ fontSize: 11, color: labelColor, lineHeight: '1.6' }}>{company.email}</div>}
+          {company.nif     && <div style={{ fontSize: 11, color: labelColor, lineHeight: '1.6' }}>NIF: {company.nif}</div>}
         </div>
         <div style={{ flex: 1, textAlign: 'right' }}>
-          <div style={{ fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>DESTINATAIRE :</div>
-          <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 3 }}>{client.name || '—'}</div>
-          {client.phone   && <div style={{ fontSize: 11, color: '#444', lineHeight: '1.6' }}>{client.phone}</div>}
-          {client.email   && <div style={{ fontSize: 11, color: '#444', lineHeight: '1.6' }}>{client.email}</div>}
-          {client.address && <div style={{ fontSize: 11, color: '#444', lineHeight: '1.6' }}>{client.address}</div>}
+          <div style={{ fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6, color: '#111' }}>DESTINATAIRE :</div>
+          <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 3, color: labelColor }}>{client.name || '—'}</div>
+          {client.phone   && <div style={{ fontSize: 11, color: labelColor, lineHeight: '1.6' }}>{client.phone}</div>}
+          {client.email   && <div style={{ fontSize: 11, color: labelColor, lineHeight: '1.6' }}>{client.email}</div>}
+          {client.address && <div style={{ fontSize: 11, color: labelColor, lineHeight: '1.6' }}>{client.address}</div>}
         </div>
       </div>
 
       {/* TABLEAU */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 0 }}>
         <thead>
-          <tr style={{ borderBottom: '1.5px solid #111' }}>
-            {[['DESCRIPTION :', 'left'], ['QUANTITÉ :', 'center'], ['PRIX UNITAIRE', 'right'], [`TOTAL [${currency}]`, 'right']].map(([label, align], i) => (
-              <th key={i} style={{ textAlign: align, padding: '0 8px 8px', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.3px' }}>{label}</th>
+          <tr style={{ borderBottom: `${frameWidth}px solid ${accentColor}`, backgroundColor: accentColor }}>
+            {[['DESCRIPTION', 'center'], ['QUANTITÉ', 'center'], ['PRIX UNITAIRE', 'center'], [`TOTAL [${currency}]`, 'center']].map(([label, align], i) => (
+              <th key={i} style={{ textAlign: align, verticalAlign: 'middle', padding: '8px', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.3px', color: headerTextColor, height: 32 }}>{label}</th>
             ))}
           </tr>
         </thead>
@@ -559,19 +583,27 @@ export function ClassicTemplate({ doc, profile, currency = 'XOF', conversionRate
                   </tr>
                 ))}
                 {showCatSubtotal && (
-                  <tr key={`sub-${gi}`} style={{ borderTop: '1.5px solid #111', borderBottom: '1.5px solid #111' }}>
-                    <td colSpan={3} style={{ padding: '8px', fontWeight: 'bold', fontSize: 11, textTransform: 'uppercase' }}>SOUSTOTAL</td>
-                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', fontSize: 11 }}>{fmt(catTotal * cr)}</td>
-                  </tr>
+                  <>
+                    <tr><td colSpan={4} style={{ height: 6, padding: 0, border: 'none' }}></td></tr>
+                    <tr key={`sub-${gi}`} style={{ borderTop: `${frameWidth}px solid ${accentColor}`, borderBottom: `${frameWidth}px solid ${accentColor}`, backgroundColor: subtotalBgHtml }}>
+                      <td colSpan={3} style={{ padding: '8px', fontWeight: 'bold', fontSize: 11, textTransform: 'uppercase', color: accentColor }}>SOUS TOTAL {showCatSubtotal ? cat : ''}</td>
+                      <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', fontSize: 11, color: accentColor }}>{fmt(catTotal * cr)}</td>
+                    </tr>
+                    <tr><td colSpan={4} style={{ height: 6, padding: 0, border: 'none' }}></td></tr>
+                  </>
                 )}
               </Fragment>
             )
           })}
           {!showCatSubtotal && (
-            <tr style={{ borderTop: '1.5px solid #111', borderBottom: '1.5px solid #111' }}>
-              <td colSpan={3} style={{ padding: '8px', fontWeight: 'bold', fontSize: 11, textTransform: 'uppercase' }}>SOUS TOTAL</td>
-              <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', fontSize: 11 }}>{fmt((subtotalBefore - totalDiscount) * cr)}</td>
-            </tr>
+            <>
+              <tr><td colSpan={4} style={{ height: 6, padding: 0, border: 'none' }}></td></tr>
+              <tr style={{ borderTop: `${frameWidth}px solid ${accentColor}`, borderBottom: `${frameWidth}px solid ${accentColor}`, backgroundColor: subtotalBgHtml }}>
+                <td colSpan={3} style={{ padding: '8px', fontWeight: 'bold', fontSize: 11, textTransform: 'uppercase', color: accentColor }}>SOUS TOTAL</td>
+                <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', fontSize: 11, color: accentColor }}>{fmt((subtotalBefore - totalDiscount) * cr)}</td>
+              </tr>
+              <tr><td colSpan={4} style={{ height: 6, padding: 0, border: 'none' }}></td></tr>
+            </>
           )}
         </tbody>
       </table>
@@ -579,27 +611,27 @@ export function ClassicTemplate({ doc, profile, currency = 'XOF', conversionRate
       {/* TOTAUX + PAIEMENT */}
       <div style={{ display: 'flex', marginTop: 20, gap: 16 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 'bold', fontSize: 12, marginBottom: 5 }}>Paiement</div>
-          <div style={{ fontSize: 11, color: '#444' }}>Statut : {sL(doc.status)}</div>
-          {doc.due_date && <div style={{ fontSize: 11, color: '#444' }}>Échéance : {fmtD(doc.due_date)}</div>}
+          <div style={{ fontWeight: 'bold', fontSize: 12, marginBottom: 5, color: '#111' }}>Paiement</div>
+          <div style={{ fontSize: 11, color: labelColor }}>Statut : {sL(doc.status)}</div>
+          {doc.due_date && <div style={{ fontSize: 11, color: labelColor }}>Échéance : {fmtD(doc.due_date)}</div>}
         </div>
         <div style={{ flex: 1 }}>
           {[
-            ['TOTAL HT :', fmt(subtotalHT)],
-            ['TVA :', doc.has_tva ? fmt(tvaAmount * cr) : '00,00'],
+            ['SOUS-TOTAL GLOBAL :', fmt(subtotalBefore * cr)],
             ['REMISE :', totalDiscount > 0 ? `- ${fmt(totalDiscount * cr)}` : '-'],
+            ['TVA :', doc.has_tva ? fmt(tvaAmount * cr) : '00,00'],
           ].map(([label, value], i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-              <span style={{ fontSize: 12, fontWeight: 'bold', color: '#333' }}>{label}</span>
-              <span style={{ fontSize: 12, color: value === '-' || value === '00,00' ? '#aaa' : '#111', minWidth: 90, textAlign: 'right' }}>{value}</span>
+              <span style={{ fontSize: 12, fontWeight: 'bold', color: labelColor }}>{label}</span>
+              <span style={{ fontSize: 12, color: labelColor, minWidth: 90, textAlign: 'right' }}>{value}</span>
             </div>
           ))}
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', marginTop: 2 }}>
-            <span style={{ fontSize: 14, fontWeight: 'bold' }}>TOTAL TTC :</span>
-            <span style={{ fontSize: 14, fontWeight: 'bold', minWidth: 90, textAlign: 'right' }}>{fmt(total)}</span>
+            <span style={{ fontSize: 14, fontWeight: 'bold', color: labelColor }}>TOTAL TTC :</span>
+            <span style={{ fontSize: 14, fontWeight: 'bold', minWidth: 90, textAlign: 'right', color: labelColor }}>{fmt(total)}</span>
           </div>
           <div style={{ marginTop: 4, fontSize: 10, color: '#444', fontStyle: 'italic', textAlign: 'right' }}>
-            {amountToWords(total, currency)}
+            Arrêtée la présente facture à la somme de : {amountToWords(total, currency)}
           </div>
         </div>
       </div>
@@ -608,20 +640,20 @@ export function ClassicTemplate({ doc, profile, currency = 'XOF', conversionRate
       <div style={{ marginTop: 'auto', paddingTop: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
           <div style={{ width: 160, textAlign: 'center' }}>
-            <div style={{ fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>SIGNATURE ÉMETTEUR</div>
+            <div style={{ fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8, color: '#111' }}>SIGNATURE ÉMETTEUR</div>
             {signatureUrl
               ? <img src={signatureUrl} alt="Signature" style={{ maxHeight: 44, maxWidth: 140, objectFit: 'contain' }} />
               : <div style={{ height: 44 }} />
             }
           </div>
           <div style={{ width: 160, textAlign: 'center' }}>
-            <div style={{ fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>SIGNATURE DESTINATAIRE</div>
+            <div style={{ fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8, color: '#111' }}>SIGNATURE DESTINATAIRE</div>
             <div style={{ height: 44 }} />
           </div>
         </div>
         <div style={{ paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 9, color: '#111', letterSpacing: '0.5px' }}>GETBUDGETPILOT.COM</span>
-          <span style={{ fontSize: 9, color: '#111' }}>1/1</span>
+          <span style={{ fontSize: 9, color: labelColor, letterSpacing: '0.5px' }}>GETBUDGETPILOT.COM</span>
+          <span style={{ fontSize: 9, color: labelColor }}>1/1</span>
         </div>
       </div>
 
@@ -632,13 +664,15 @@ export function ClassicTemplate({ doc, profile, currency = 'XOF', conversionRate
 
 // ─── Génération blob ──────────────────────────────────────────────────────────
 
-export async function generateClassicPdfBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0) {
+export async function generateClassicPdfBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0, customization = {}) {
+  const { accentColor = '#1E88E5', frameWidth = 1.5, noColor = false, fontChoice = 'helvetica' } = customization
   return pdf(
     <ClassicPdfDocument
       doc={doc} profile={profile}
       qrDataUrl={qrDataUrl} logoDataUrl={logoDataUrl}
       signatureDataUrl={signatureDataUrl} logoBbDataUrl={logoBbDataUrl}
       currency={currency} conversionRate={conversionRate}
+      accentColor={accentColor} frameWidth={frameWidth} noColor={noColor} fontChoice={fontChoice}
     />
   ).toBlob()
 }

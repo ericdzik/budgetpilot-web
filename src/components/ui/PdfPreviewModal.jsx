@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Download, Share2 } from 'lucide-react'
+import { X, Download, Share2, ChevronDown, ChevronUp, Sliders } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { BlobProvider } from '@react-pdf/renderer'
 import { Document as PdfDoc, Page as PdfPage, pdfjs } from 'react-pdf'
@@ -11,6 +11,55 @@ import { STORAGE_BASE_URL } from '../../config/constants'
 import { generateMinimalPdfBlob, amountToWords } from './MinimalPdfDocument'
 import { formatAmount } from '../../store/currencyStore'
 import { PDF_TEMPLATES, generatePdfBlob } from './pdfTemplates'
+import usePremiumGate from '../../hooks/usePremiumGate'
+import { getTextColor, accentToBoxBg, accentToSubtotalBg } from './pdfColorUtils'
+import { FONT_CHOICES } from './pdfFonts'
+
+// Templates réservés aux comptes premium (Basic / Pro)
+const PREMIUM_TEMPLATES = ['classic', 'modern', 'corporate']
+
+// ─── Defaults de personnalisation par template ────────────────────────────────
+const ACCENT_PRESETS = [
+  { color: '#16A34A', label: 'Vert' },
+  { color: '#E1A100', label: 'Jaune' },
+  { color: '#1E88E5', label: 'Bleu appli' },
+  { color: '#C0392B', label: 'Rouge' },
+  { color: '#7B3FE4', label: 'Violet' },
+  { color: '#000000', label: 'Noir' },
+]
+const CUSTOMIZATION_DEFAULTS = {
+  // showQrCode/showBranding ne sont plus personnalisables : dérivées automatiquement
+  // du statut premium (voir buildPdfBlob / rendu de l'aperçu).
+  minimal:       { accentColor: '#1E88E5', noColor: true, fontChoice: 'helvetica' },
+  classic:       { accentColor: '#1E88E5', frameWidth: 1.5, noColor: true, fontChoice: 'helvetica' },
+  modern:        { accentColor: '#1E88E5', accentLight: '#f0f0f0', boxRadius: 32, noColor: true, fontChoice: 'helvetica' },
+  corporate:     { accentColor: '#1E88E5', noColor: true, fontChoice: 'helvetica' },
+  administrative: { accentColor: '#1E88E5', noColor: false, fontChoice: 'helvetica' },
+}
+
+function loadCustomization() {
+  try {
+    const saved = localStorage.getItem('budgetpilot_pdf_customization')
+    if (!saved) return { ...CUSTOMIZATION_DEFAULTS }
+    const parsed = JSON.parse(saved)
+    // Fusionner par template pour ne garder que les clés de personnalisation connues
+    const safeKeys = ['accentColor', 'frameWidth', 'accentLight', 'boxRadius', 'noColor', 'fontChoice']
+    const result = { ...CUSTOMIZATION_DEFAULTS }
+    Object.keys(CUSTOMIZATION_DEFAULTS).forEach(tplId => {
+      if (parsed[tplId]) {
+        result[tplId] = { ...CUSTOMIZATION_DEFAULTS[tplId] }
+        safeKeys.forEach(k => {
+          if (parsed[tplId][k] !== undefined) result[tplId][k] = parsed[tplId][k]
+        })
+      }
+    })
+    return result
+  } catch { return { ...CUSTOMIZATION_DEFAULTS } }
+}
+
+function saveCustomization(all) {
+  try { localStorage.setItem('budgetpilot_pdf_customization', JSON.stringify(all)) } catch { /* ignore */ }
+}
 
 // ─── Config pdfjs worker ──────────────────────────────────────────────────────
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -77,8 +126,13 @@ function statusLabel(s) {
 // ─── Template Minimal (aperçu HTML — injecté dans le registre via PreviewComponent) ──
 
 const MINIMAL_ITEMS_PER_PAGE = 20
+const MINIMAL_ITEMS_ON_LAST_PAGE = 6
 
-function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversionRate = 1.0 }) {
+function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversionRate = 1.0, accentColor = '#000000', showQrCode = true, showBranding = true }) {
+  const headerTextColor = getTextColor(accentColor)
+  const subtotalBgHtml  = accentToSubtotalBg(accentColor)
+  const boxBgHtml       = accentToBoxBg(accentColor)
+
   const company = {
     name:    profile?.company_name    || profile?.name    || 'Mon Entreprise',
     address: profile?.company_address || '',
@@ -133,16 +187,24 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
   })
   const showCatSubtotal = Object.keys(grouped).length > 1
 
-  // Aplatir + découper en pages de MINIMAL_ITEMS_PER_PAGE
+  // Aplatir + découper : la dernière page doit réserver la place des totaux,
+  // du montant en lettres et des signatures, comme le PDF généré.
   const flatItems = []
   Object.entries(grouped).forEach(([cat, catItems]) => {
     catItems.forEach(item => flatItems.push({ ...item, _cat: cat }))
     flatItems.push({ __subtotal: true, _cat: cat, _catItems: catItems })
   })
   const pageSlices = []
-  for (let i = 0; i < flatItems.length; i += MINIMAL_ITEMS_PER_PAGE) {
-    pageSlices.push(flatItems.slice(i, i + MINIMAL_ITEMS_PER_PAGE))
+  const lastPageItems = flatItems.length > MINIMAL_ITEMS_PER_PAGE
+    ? flatItems.slice(-MINIMAL_ITEMS_ON_LAST_PAGE)
+    : []
+  const itemsBeforeLastPage = lastPageItems.length > 0
+    ? flatItems.slice(0, -MINIMAL_ITEMS_ON_LAST_PAGE)
+    : flatItems
+  for (let i = 0; i < itemsBeforeLastPage.length; i += MINIMAL_ITEMS_PER_PAGE) {
+    pageSlices.push(itemsBeforeLastPage.slice(i, i + MINIMAL_ITEMS_PER_PAGE))
   }
+  if (lastPageItems.length > 0) pageSlices.push(lastPageItems)
   if (pageSlices.length === 0) pageSlices.push([])
 
   const PAGE_W = '794px'
@@ -153,26 +215,26 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
       <div style={{ flex: 1 }}>
         {logoUrl
           ? <img src={logoUrl} alt="Logo" style={{ width: 44, height: 44, objectFit: 'contain', marginBottom: 6, display: 'block' }} />
-          : <div style={{ width: 44, height: 44, background: '#4CAF50', borderRadius: 4, marginBottom: 6 }} />
+          : <div style={{ width: 44, height: 44, background: accentColor, borderRadius: 4, marginBottom: 6 }} />
         }
-        <div style={{ fontSize: 9, color: '#555', lineHeight: 1.6 }}>
-          <div style={{ fontWeight: 'bold', color: '#000' }}>{doc.reference_number}</div>
+        <div style={{ fontSize: 9, color: headerColor, lineHeight: 1.6 }}>
+          <div style={{ fontWeight: 'bold', color: headerColor }}>{doc.reference_number}</div>
           <div>Date : {fmtDate(doc.issue_date || doc.created_at)}</div>
           {doc.due_date && <div>Éch. {fmtDate(doc.due_date)}</div>}
         </div>
       </div>
       <div style={{ flex: 1, fontSize: 9, lineHeight: 1.6 }}>
-        <div style={{ fontWeight: 'bold', color: '#000', marginBottom: 2 }}>ÉMETTEUR</div>
-        <div style={{ color: '#444' }}>{company.name}</div>
-        {company.phone   && <div style={{ color: '#444' }}>{company.phone}</div>}
-        {company.address && <div style={{ color: '#444' }}>{company.address}</div>}
+        <div style={{ fontWeight: 'bold', color: '#111', marginBottom: 2 }}>ÉMETTEUR</div>
+        <div style={{ color: headerColor, fontWeight: 'bold' }}>{company.name}</div>
+        {company.phone   && <div style={{ color: headerColor }}>{company.phone}</div>}
+        {company.address && <div style={{ color: headerColor }}>{company.address}</div>}
       </div>
       <div style={{ flex: 1, fontSize: 9, lineHeight: 1.6 }}>
-        <div style={{ fontWeight: 'bold', color: '#000', marginBottom: 2 }}>DESTINATAIRE</div>
-        <div style={{ color: '#444' }}>{client.name || '—'}</div>
-        {client.phone   && <div style={{ color: '#444' }}>{client.phone}</div>}
-        {client.email   && <div style={{ color: '#444' }}>{client.email}</div>}
-        {client.address && <div style={{ color: '#444' }}>{client.address}</div>}
+        <div style={{ fontWeight: 'bold', color: '#111', marginBottom: 2 }}>DESTINATAIRE</div>
+        <div style={{ color: headerColor, fontWeight: 'bold' }}>{client.name || '—'}</div>
+        {client.phone   && <div style={{ color: headerColor }}>{client.phone}</div>}
+        {client.email   && <div style={{ color: headerColor }}>{client.email}</div>}
+        {client.address && <div style={{ color: headerColor }}>{client.address}</div>}
       </div>
     </div>
   )
@@ -180,49 +242,57 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
   const TableHead = () => (
     <>
       {doc.title && (
-        <div style={{ textAlign: 'center', fontSize: '13px', fontWeight: 'bold', color: '#000', marginBottom: '8px', letterSpacing: '0.3px' }}>
+        <div style={{ textAlign: 'center', fontSize: '12px', fontWeight: 'bold', color: '#000', marginBottom: '8px', letterSpacing: '0.3px' }}>
           {doc.title.toUpperCase()}
         </div>
       )}
-      <div style={{ background: '#000', borderRadius: '10px 10px 0 0', display: 'flex', padding: '7px 10px' }}>
-        <div style={{ flex: 4, color: '#fff', fontWeight: 'bold', fontSize: 10, paddingLeft: 6 }}>Description</div>
-        <div style={{ flex: 1, color: '#fff', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>QTÉ</div>
-        <div style={{ flex: 2, color: '#fff', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>Prix unitaire</div>
-        <div style={{ flex: 2, color: '#fff', fontWeight: 'bold', fontSize: 10, textAlign: 'right', paddingRight: 8 }}>Total ({currency})</div>
+      <div style={{ background: accentColor, borderRadius: '10px 10px 0 0', display: 'flex', padding: '7px 10px' }}>
+        <div style={{ flex: 4, color: headerTextColor, fontWeight: 'bold', fontSize: 10, paddingLeft: 6 }}>Description</div>
+        <div style={{ flex: 1, color: headerTextColor, fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>QTÉ</div>
+        <div style={{ flex: 2, color: headerTextColor, fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>Prix unitaire</div>
+        <div style={{ flex: 2, color: headerTextColor, fontWeight: 'bold', fontSize: 10, textAlign: 'right', paddingRight: 8 }}>Total ({currency})</div>
       </div>
     </>
   )
 
-  const Footer = ({ pageNum, totalPages }) => (
+  const Footer = ({ pageNum, totalPages, showSignature }) => (
     <div style={{ padding: '0 32px 24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-evenly', marginBottom: 28, paddingTop: 12 }}>
-        <div style={{ width: 190, textAlign: 'center' }}>
-          <div style={{ fontSize: 10, color: '#000', marginBottom: 6 }}>Signature émetteur</div>
-          <div style={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-            {signatureUrl && <img src={signatureUrl} alt="Signature" style={{ maxHeight: 48, maxWidth: 170, objectFit: 'contain' }} />}
+      {showSignature && (
+        <div style={{ display: 'flex', justifyContent: 'space-evenly', marginBottom: 28, paddingTop: 12 }}>
+          <div style={{ width: 190, textAlign: 'center' }}>
+            <div style={{ fontSize: 10, color: '#000', marginBottom: 6 }}>Signature émetteur</div>
+            <div style={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+              {signatureUrl && <img src={signatureUrl} alt="Signature" style={{ maxHeight: 48, maxWidth: 170, objectFit: 'contain' }} />}
+            </div>
+          </div>
+          <div style={{ width: 190, textAlign: 'center' }}>
+            <div style={{ fontSize: 10, color: '#000', marginBottom: 6 }}>Signature destinataire</div>
+            <div style={{ height: 48, marginBottom: 6 }} />
           </div>
         </div>
-        <div style={{ width: 190, textAlign: 'center' }}>
-          <div style={{ fontSize: 10, color: '#000', marginBottom: 6 }}>Signature destinataire</div>
-          <div style={{ height: 48, marginBottom: 6 }} />
-        </div>
-      </div>
+      )}
       <div style={{ borderTop: '1px solid #ddd', paddingTop: 14, display: 'flex', alignItems: 'center', gap: 24 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 14, color: '#000' }}>Conçu par</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <img src="/logo_bb.svg" alt="Budget Pilot" style={{ width: 32, height: 32, objectFit: 'contain', filter: 'brightness(0) saturate(100%)' }} />
-            <span style={{ fontWeight: 'bold', fontSize: 20, color: '#000' }}>Pilot</span>
-          </div>
-        </div>
-        <div style={{ width: 1, height: 60, background: '#e0e0e0', flexShrink: 0 }} />
+        {showBranding && (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 14, color: '#000' }}>Conçu par</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <img src="/logo_bb.svg" alt="Budget Pilot" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                <span style={{ fontWeight: 'bold', fontSize: 20, color: '#000' }}>Pilot</span>
+              </div>
+            </div>
+            <div style={{ width: 1, height: 60, background: '#e0e0e0', flexShrink: 0 }} />
+          </>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
-          <div style={{ width: 80, height: 80, flexShrink: 0 }}>
-            {qrDataUrl
-              ? <img src={qrDataUrl} alt="QR" style={{ width: 80, height: 80, display: 'block' }} />
-              : <div style={{ width: 80, height: 80, background: '#f0f0f0', border: '1px solid #ccc' }} />
-            }
-          </div>
+          {showQrCode && (
+            <div style={{ width: 80, height: 80, flexShrink: 0 }}>
+              {qrDataUrl
+                ? <img src={qrDataUrl} alt="QR" style={{ width: 80, height: 80, display: 'block' }} />
+                : <div style={{ width: 80, height: 80, background: '#f0f0f0', border: '1px solid #ccc' }} />
+              }
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <a href="https://www.getbudgetpilot.com" target="_blank" rel="noreferrer"
               style={{ color: '#1E88E5', textDecoration: 'underline', fontSize: 14 }}>
@@ -257,9 +327,9 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
                   if (row.__subtotal) {
                     const catTotal = row._catItems.reduce((s, i) => s + i._total, 0)
                     return showCatSubtotal ? (
-                      <div key={`sub-${ri}`} style={{ display: 'flex', padding: '5px 10px', background: '#f0f0f0' }}>
-                        <div style={{ flex: 7, paddingLeft: 6, fontWeight: 'bold', fontSize: 10 }}>Sous-total {row._cat}</div>
-                        <div style={{ flex: 2, textAlign: 'right', paddingRight: 8, fontWeight: 'bold', fontSize: 10 }}>{formatAmount(catTotal * cr, currency)}</div>
+                      <div key={`sub-${ri}`} style={{ display: 'flex', padding: '5px 10px', background: subtotalBgHtml, marginTop: 6, marginBottom: 6 }}>
+                        <div style={{ flex: 7, paddingLeft: 6, fontWeight: 'bold', fontSize: 10, color: accentColor }}>Sous-total {row._cat}</div>
+                        <div style={{ flex: 2, textAlign: 'right', paddingRight: 8, fontWeight: 'bold', fontSize: 10, color: accentColor }}>{formatAmount(catTotal * cr, currency)}</div>
                       </div>
                     ) : null
                   }
@@ -285,7 +355,7 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
                         </div>
                       </div>
                       <div style={{ display: 'table-cell', verticalAlign: 'bottom', padding: '0', width: '50%', textAlign: 'right' }}>
-                        <div style={{ display: 'inline-block', background: '#fff', border: '2px solid #000', borderRadius: '10px', minWidth: 200, overflow: 'hidden', marginBottom: '-2px', marginRight: 20 }}>
+                        <div style={{ display: 'inline-block', background: boxBgHtml, border: `2px solid ${accentColor}`, borderRadius: '10px', minWidth: 200, overflow: 'hidden', marginBottom: '-2px', marginRight: 20 }}>
                           <div style={{ padding: '8px 14px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                               <span style={{ fontSize: 10 }}>Sous Total :</span>
@@ -304,10 +374,10 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
                               </div>
                             )}
                           </div>
-                          <div style={{ background: '#000', padding: '8px 14px' }}>
+                          <div style={{ background: accentColor, padding: '8px 14px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ fontSize: 11, color: '#fff', fontWeight: 'bold' }}>Total :</span>
-                              <span style={{ fontSize: 11, color: '#fff', fontWeight: 'bold' }}>{fmt(total)}</span>
+                              <span style={{ fontSize: 11, color: headerTextColor, fontWeight: 'bold' }}>Total :</span>
+                              <span style={{ fontSize: 11, color: headerTextColor, fontWeight: 'bold' }}>{fmt(total)}</span>
                             </div>
                           </div>
                         </div>
@@ -321,13 +391,13 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
             {/* Montant en lettres — collé sous le tableau à gauche */}
             {isLastPage && (
               <div style={{ padding: '6px 0 0 0' }}>
-                <span style={{ fontWeight: 'bold', fontSize: 9, color: '#000' }}>Total : </span>
+                <span style={{ fontWeight: 'bold', fontSize: 9, color: '#000' }}>Arrêtée la présente facture à la somme de : </span>
                 <span style={{ fontSize: 9, color: '#000', fontStyle: 'italic' }}>{amountToWords(total, currency)}</span>
               </div>
             )}
 
             {/* Footer */}
-            <Footer pageNum={pageIdx + 1} totalPages={pageSlices.length} />
+            <Footer pageNum={pageIdx + 1} totalPages={pageSlices.length} showSignature={isLastPage || pageSlices.length === 1} />
           </div>
         )
       })}
@@ -336,196 +406,163 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
 }
 // ─── Miniatures de sélection de template ─────────────────────────────────────
 
-// Thumbnails SVG inline — représentation simplifiée de chaque design
-const TEMPLATE_THUMBS = {
-  minimal: (
-    <svg viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
-      {/* fond blanc */}
-      <rect width="80" height="110" fill="#fff" />
-      {/* header 3 cols */}
-      <rect x="4" y="5" width="12" height="12" rx="2" fill="#e0e0e0" />
-      <rect x="28" y="5" width="20" height="3" rx="1" fill="#ccc" />
-      <rect x="28" y="10" width="14" height="2" rx="1" fill="#e0e0e0" />
-      <rect x="55" y="5" width="18" height="3" rx="1" fill="#ccc" />
-      <rect x="55" y="10" width="14" height="2" rx="1" fill="#e0e0e0" />
-      {/* tableau header arrondi noir */}
-      <rect x="4" y="22" width="72" height="9" rx="4" fill="#111" />
-      <rect x="7" y="25" width="30" height="3" rx="1" fill="#fff" opacity="0.8" />
-      <rect x="50" y="25" width="10" height="3" rx="1" fill="#fff" opacity="0.6" />
-      <rect x="63" y="25" width="10" height="3" rx="1" fill="#fff" opacity="0.6" />
-      {/* lignes tableau */}
-      {[0,1,2,3].map(i => (
-        <g key={i}>
-          <rect x="4" y={33+i*9} width="72" height="8" fill={i%2===0 ? '#fff' : '#fafafa'} />
-          <rect x="7" y={36+i*9} width="28" height="2" rx="1" fill="#ddd" />
-          <rect x="52" y={36+i*9} width="8" height="2" rx="1" fill="#ddd" />
-          <rect x="64" y={36+i*9} width="9" height="2" rx="1" fill="#ddd" />
-          <line x1="4" y1={33+i*9} x2="76" y2={33+i*9} stroke="#f0f0f0" strokeWidth="0.5" />
-        </g>
-      ))}
-      {/* bordure tableau */}
-      <rect x="4" y="22" width="72" height="70" rx="4" fill="none" stroke="#111" strokeWidth="1.2" />
-      {/* bloc totaux arrondi */}
-      <rect x="40" y="75" width="34" height="22" rx="3" fill="#fff" stroke="#111" strokeWidth="1" />
-      <rect x="40" y="89" width="34" height="8" rx="3" fill="#111" />
-      <rect x="43" y="78" width="16" height="2" rx="1" fill="#ccc" />
-      <rect x="43" y="83" width="12" height="2" rx="1" fill="#ccc" />
-      <rect x="43" y="91" width="14" height="3" rx="1" fill="#fff" opacity="0.8" />
-      {/* footer */}
-      <line x1="4" y1="100" x2="76" y2="100" stroke="#e0e0e0" strokeWidth="0.8" />
-      <rect x="4" y="103" width="18" height="2" rx="1" fill="#ccc" />
-      <rect x="60" y="103" width="14" height="2" rx="1" fill="#e0e0e0" />
-    </svg>
-  ),
-  corporate: (
-    <svg viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
-      <rect width="80" height="110" fill="#fff" />
-      {/* logo gauche */}
-      <rect x="4" y="5" width="13" height="13" rx="2" fill="#e0e0e0" />
-      {/* ref grande droite */}
-      <rect x="44" y="5" width="30" height="6" rx="1.5" fill="#222" />
-      <rect x="48" y="13" width="22" height="2.5" rx="1" fill="#bbb" />
-      <rect x="48" y="17" width="16" height="2" rx="1" fill="#ddd" />
-      {/* separator */}
-      <line x1="4" y1="22" x2="76" y2="22" stroke="#ccc" strokeWidth="0.8" />
-      {/* info client */}
-      <rect x="4" y="25" width="22" height="3" rx="1" fill="#555" />
-      <rect x="4" y="30" width="16" height="2" rx="1" fill="#ddd" />
-      <rect x="4" y="34" width="20" height="2" rx="1" fill="#ddd" />
-      {/* tableau header */}
-      <line x1="4" y1="42" x2="76" y2="42" stroke="#111" strokeWidth="1.5" />
-      <rect x="4" y="37" width="28" height="4" rx="1" fill="#bbb" />
-      <rect x="50" y="37" width="10" height="4" rx="1" fill="#bbb" />
-      <rect x="64" y="37" width="10" height="4" rx="1" fill="#bbb" />
-      {/* lignes */}
-      {[0,1,2,3].map(i => (
-        <g key={i}>
-          <rect x="4" y={44+i*8} width="72" height="7" fill="#fff" />
-          <rect x="4" y={51+i*8} width="72" height="0.5" fill="#ebebeb" />
-          <rect x="6" y={47+i*8} width="24" height="2" rx="1" fill="#ddd" />
-          <rect x="52" y={47+i*8} width="8" height="2" rx="1" fill="#ddd" />
-          <rect x="64" y={47+i*8} width="9" height="2" rx="1" fill="#ddd" />
-        </g>
-      ))}
-      {/* totaux */}
-      <rect x="40" y="76" width="34" height="18" rx="2" fill="#fafafa" />
-      <rect x="42" y="78" width="14" height="2.5" rx="1" fill="#ccc" />
-      <rect x="42" y="83" width="12" height="2" rx="1" fill="#ddd" />
-      <line x1="40" y1="88" x2="74" y2="88" stroke="#111" strokeWidth="1.5" />
-      <rect x="42" y="90" width="18" height="3" rx="1" fill="#333" />
-      {/* footer */}
-      <line x1="4" y1="102" x2="76" y2="102" stroke="#ddd" strokeWidth="0.8" />
-      <rect x="4" y="105" width="18" height="2" rx="1" fill="#ccc" />
-      <rect x="58" y="105" width="16" height="2" rx="1" fill="#e0e0e0" />
-    </svg>
-  ),
-  classic: (
-    <svg viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
-      <rect width="80" height="110" fill="#fff" />
-      {/* logo gauche */}
-      <rect x="4" y="5" width="12" height="12" rx="2" fill="#e0e0e0" />
-      {/* ref droite grande */}
-      <rect x="46" y="5" width="28" height="5" rx="1.5" fill="#222" />
-      <rect x="50" y="12" width="20" height="2" rx="1" fill="#bbb" />
-      {/* separator */}
-      <line x1="4" y1="21" x2="76" y2="21" stroke="#ccc" strokeWidth="0.8" />
-      {/* 2 colonnes émetteur/destinataire */}
-      <rect x="4" y="24" width="20" height="2.5" rx="1" fill="#888" />
-      <line x1="4" y1="28" x2="36" y2="28" stroke="#ccc" strokeWidth="0.5" />
-      <rect x="4" y="30" width="18" height="2" rx="1" fill="#ccc" />
-      <rect x="4" y="34" width="14" height="2" rx="1" fill="#e0e0e0" />
-      {/* separateur vertical */}
-      <line x1="40" y1="24" x2="40" y2="44" stroke="#ccc" strokeWidth="0.8" />
-      {/* destinataire */}
-      <rect x="44" y="24" width="20" height="2.5" rx="1" fill="#888" />
-      <line x1="44" y1="28" x2="76" y2="28" stroke="#ccc" strokeWidth="0.5" />
-      <rect x="44" y="30" width="18" height="2" rx="1" fill="#ccc" />
-      <rect x="44" y="34" width="14" height="2" rx="1" fill="#e0e0e0" />
-      {/* tableau */}
-      <line x1="4" y1="48" x2="76" y2="48" stroke="#111" strokeWidth="1.5" />
-      <rect x="4" y="44" width="26" height="3.5" rx="1" fill="#bbb" />
-      <rect x="50" y="44" width="10" height="3.5" rx="1" fill="#bbb" />
-      <rect x="64" y="44" width="10" height="3.5" rx="1" fill="#bbb" />
-      {[0,1,2].map(i => (
-        <g key={i}>
-          <rect x="4" y={50+i*8} width="72" height="7" fill="#fff" />
-          <line x1="4" y1={57+i*8} x2="76" y2={57+i*8} stroke="#e0e0e0" strokeWidth="0.5" />
-          <rect x="6" y={53+i*8} width="24" height="2" rx="1" fill="#ddd" />
-          <rect x="52" y={53+i*8} width="8" height="2" rx="1" fill="#ddd" />
-          <rect x="64" y={53+i*8} width="9" height="2" rx="1" fill="#ddd" />
-        </g>
-      ))}
-      {/* SOUSTOTAL */}
-      <line x1="4" y1="74" x2="76" y2="74" stroke="#111" strokeWidth="1.5" />
-      <rect x="4" y="75" width="72" height="7" fill="#fff" />
-      <rect x="6" y="77.5" width="20" height="2" rx="1" fill="#444" />
-      <rect x="62" y="77.5" width="10" height="2" rx="1" fill="#444" />
-      <line x1="4" y1="82" x2="76" y2="82" stroke="#111" strokeWidth="1.5" />
-      {/* totaux droite */}
-      <rect x="40" y="85" width="34" height="16" rx="1" fill="#fafafa" />
-      <rect x="42" y="87" width="16" height="2" rx="1" fill="#ccc" />
-      <rect x="42" y="91" width="14" height="2" rx="1" fill="#ddd" />
-      <line x1="40" y1="95" x2="74" y2="95" stroke="#111" strokeWidth="1.5" />
-      <rect x="42" y="97" width="18" height="3" rx="1" fill="#333" />
-      {/* footer */}
-      <rect x="8" y="104" width="22" height="2" rx="1" fill="#888" />
-      <rect x="50" y="104" width="22" height="2" rx="1" fill="#888" />
-      <rect x="30" y="107" width="20" height="1.5" rx="1" fill="#ccc" />
-    </svg>
-  ),
-  modern: (
+// Génère la miniature SVG d'un template en reflétant sa personnalisation réelle
+// (couleur accent / sans-couleur) — évite d'avoir à ouvrir le template en grand
+// juste pour voir le rendu des couleurs choisies.
+function renderTemplateThumb(id, custom = {}) {
+  const accentColor = custom.accentColor || '#1E88E5'
+  const noColor = !!custom.noColor
+  const brand = noColor ? '#111' : accentColor
+  const brandTint = noColor ? '#fff' : accentToBoxBg(accentColor)
+  const brandText = noColor ? '#111' : getTextColor(accentColor)
+
+  if (id === 'minimal') {
+    return (
+      <svg viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+        <rect width="80" height="110" fill="#fff" />
+        <rect x="4" y="5" width="12" height="12" rx="2" fill="#e0e0e0" />
+        <rect x="28" y="5" width="20" height="3" rx="1" fill="#ccc" />
+        <rect x="28" y="10" width="14" height="2" rx="1" fill="#e0e0e0" />
+        <rect x="55" y="5" width="18" height="3" rx="1" fill="#ccc" />
+        <rect x="55" y="10" width="14" height="2" rx="1" fill="#e0e0e0" />
+        <rect x="4" y="22" width="72" height="9" rx="4" fill={brand} />
+        <rect x="7" y="25" width="30" height="3" rx="1" fill={brandText} opacity="0.8" />
+        <rect x="50" y="25" width="10" height="3" rx="1" fill={brandText} opacity="0.6" />
+        <rect x="63" y="25" width="10" height="3" rx="1" fill={brandText} opacity="0.6" />
+        {[0,1,2,3].map(i => (
+          <g key={i}>
+            <rect x="4" y={33+i*9} width="72" height="8" fill={i%2===0 ? '#fff' : '#fafafa'} />
+            <rect x="7" y={36+i*9} width="28" height="2" rx="1" fill="#ddd" />
+            <rect x="52" y={36+i*9} width="8" height="2" rx="1" fill="#ddd" />
+            <rect x="64" y={36+i*9} width="9" height="2" rx="1" fill="#ddd" />
+            <line x1="4" y1={33+i*9} x2="76" y2={33+i*9} stroke="#f0f0f0" strokeWidth="0.5" />
+          </g>
+        ))}
+        <rect x="4" y="22" width="72" height="70" rx="4" fill="none" stroke={brand} strokeWidth="1.2" />
+        <rect x="40" y="75" width="34" height="22" rx="3" fill="#fff" stroke={brand} strokeWidth="1" />
+        <rect x="40" y="89" width="34" height="8" rx="3" fill={brand} />
+        <rect x="43" y="78" width="16" height="2" rx="1" fill="#ccc" />
+        <rect x="43" y="83" width="12" height="2" rx="1" fill="#ccc" />
+        <rect x="43" y="91" width="14" height="3" rx="1" fill={brandText} opacity="0.8" />
+        <line x1="4" y1="100" x2="76" y2="100" stroke="#e0e0e0" strokeWidth="0.8" />
+        <rect x="4" y="103" width="18" height="2" rx="1" fill="#ccc" />
+        <rect x="60" y="103" width="14" height="2" rx="1" fill="#e0e0e0" />
+      </svg>
+    )
+  }
+
+  if (id === 'corporate') {
+    return (
+      <svg viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+        <rect width="80" height="110" fill="#fff" />
+        <rect x="4" y="5" width="13" height="13" rx="2" fill="#e0e0e0" />
+        <rect x="44" y="5" width="30" height="6" rx="1.5" fill="#222" />
+        <rect x="48" y="13" width="22" height="2.5" rx="1" fill="#bbb" />
+        <rect x="48" y="17" width="16" height="2" rx="1" fill="#ddd" />
+        <line x1="4" y1="22" x2="76" y2="22" stroke="#ccc" strokeWidth="0.8" />
+        <rect x="4" y="25" width="22" height="3" rx="1" fill="#555" />
+        <rect x="4" y="30" width="16" height="2" rx="1" fill="#ddd" />
+        <rect x="4" y="34" width="20" height="2" rx="1" fill="#ddd" />
+        <rect x="4" y="37" width="72" height="7" rx="1" fill={brand} />
+        <rect x="6" y="39" width="20" height="2.5" rx="1" fill={brandText} opacity="0.85" />
+        <rect x="52" y="39" width="8" height="2.5" rx="1" fill={brandText} opacity="0.6" />
+        <rect x="64" y="39" width="8" height="2.5" rx="1" fill={brandText} opacity="0.6" />
+        {[0,1,2,3].map(i => (
+          <g key={i}>
+            <rect x="4" y={46+i*8} width="72" height="7" fill="#fff" />
+            <rect x="4" y={53+i*8} width="72" height="0.5" fill="#ebebeb" />
+            <rect x="6" y={49+i*8} width="24" height="2" rx="1" fill="#ddd" />
+            <rect x="52" y={49+i*8} width="8" height="2" rx="1" fill="#ddd" />
+            <rect x="64" y={49+i*8} width="9" height="2" rx="1" fill="#ddd" />
+          </g>
+        ))}
+        <rect x="40" y="78" width="34" height="18" rx="2" fill={brandTint} />
+        <rect x="42" y="80" width="14" height="2.5" rx="1" fill="#ccc" />
+        <rect x="42" y="85" width="12" height="2" rx="1" fill="#ddd" />
+        <line x1="40" y1="90" x2="74" y2="90" stroke={brand} strokeWidth="1.5" />
+        <rect x="42" y="92" width="18" height="3" rx="1" fill={brand} />
+        <line x1="4" y1="102" x2="76" y2="102" stroke="#ddd" strokeWidth="0.8" />
+        <rect x="4" y="105" width="18" height="2" rx="1" fill="#ccc" />
+        <rect x="58" y="105" width="16" height="2" rx="1" fill="#e0e0e0" />
+      </svg>
+    )
+  }
+
+  if (id === 'classic') {
+    return (
+      <svg viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+        <rect width="80" height="110" fill="#fff" />
+        <rect width="80" height="110" fill="none" stroke={brand} strokeWidth="1.5" />
+        <rect x="6" y="7" width="12" height="12" rx="2" fill="#e0e0e0" />
+        <rect x="46" y="7" width="28" height="5" rx="1.5" fill="#222" />
+        <rect x="50" y="14" width="20" height="2" rx="1" fill="#bbb" />
+        <line x1="6" y1="23" x2="74" y2="23" stroke="#ccc" strokeWidth="0.8" />
+        <rect x="6" y="26" width="20" height="2.5" rx="1" fill="#888" />
+        <line x1="6" y1="30" x2="36" y2="30" stroke="#ccc" strokeWidth="0.5" />
+        <rect x="6" y="32" width="18" height="2" rx="1" fill="#ccc" />
+        <line x1="40" y1="26" x2="40" y2="46" stroke="#ccc" strokeWidth="0.8" />
+        <rect x="44" y="26" width="20" height="2.5" rx="1" fill="#888" />
+        <line x1="44" y1="30" x2="74" y2="30" stroke="#ccc" strokeWidth="0.5" />
+        <rect x="44" y="32" width="18" height="2" rx="1" fill="#ccc" />
+        <line x1="6" y1="50" x2="74" y2="50" stroke={brand} strokeWidth="1.5" />
+        <rect x="6" y="46" width="26" height="3.5" rx="1" fill="#bbb" />
+        <rect x="50" y="46" width="10" height="3.5" rx="1" fill="#bbb" />
+        {[0,1,2].map(i => (
+          <g key={i}>
+            <rect x="6" y={52+i*8} width="68" height="7" fill="#fff" />
+            <line x1="6" y1={59+i*8} x2="74" y2={59+i*8} stroke="#e0e0e0" strokeWidth="0.5" />
+            <rect x="8" y={55+i*8} width="24" height="2" rx="1" fill="#ddd" />
+            <rect x="52" y={55+i*8} width="8" height="2" rx="1" fill="#ddd" />
+          </g>
+        ))}
+        <line x1="6" y1="76" x2="74" y2="76" stroke={brand} strokeWidth="1.5" />
+        <rect x="6" y="77" width="68" height="7" fill={brandTint} />
+        <rect x="8" y="79.5" width="20" height="2" rx="1" fill="#444" />
+        <line x1="6" y1="84" x2="74" y2="84" stroke={brand} strokeWidth="1.5" />
+        <rect x="40" y="87" width="34" height="14" rx="1" fill="#fafafa" />
+        <rect x="42" y="89" width="16" height="2" rx="1" fill="#ccc" />
+        <line x1="40" y1="95" x2="74" y2="95" stroke={brand} strokeWidth="1.5" />
+        <rect x="42" y="97" width="18" height="3" rx="1" fill={brand} />
+        <rect x="10" y="104" width="20" height="2" rx="1" fill="#888" />
+        <rect x="50" y="104" width="20" height="2" rx="1" fill="#888" />
+      </svg>
+    )
+  }
+
+  // modern
+  return (
     <svg viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
       <rect width="80" height="110" fill="#fff" />
-      {/* Nom société grand */}
       <rect x="4" y="5" width="42" height="7" rx="1.5" fill="#111" />
-      {/* adresse droite */}
       <rect x="58" y="5" width="16" height="2" rx="1" fill="#ccc" />
       <rect x="58" y="9" width="14" height="2" rx="1" fill="#e0e0e0" />
-      {/* carrés décoratifs */}
-      <rect x="4" y="15" width="5" height="5" rx="1" fill="#888" />
-      <rect x="11" y="15" width="5" height="5" rx="1" fill="#888" />
-      <rect x="18" y="15" width="5" height="5" rx="1" fill="#f0f0f0" stroke="#888" strokeWidth="0.5" />
-      <rect x="25" y="15" width="5" height="5" rx="1" fill="#f0f0f0" stroke="#888" strokeWidth="0.5" />
-      <rect x="32" y="15" width="5" height="5" rx="1" fill="#f0f0f0" stroke="#888" strokeWidth="0.5" />
-      {/* 2 boxes arrondies */}
-      <rect x="4" y="23" width="34" height="18" rx="3" fill="#fff" stroke="#ccc" strokeWidth="0.8" />
-      <rect x="7" y="26" width="20" height="4" rx="1" fill="#333" />
-      <rect x="7" y="32" width="14" height="2" rx="1" fill="#bbb" />
-      <rect x="7" y="36" width="18" height="2" rx="1" fill="#ddd" />
-      <rect x="42" y="23" width="34" height="18" rx="3" fill="#fff" stroke="#ccc" strokeWidth="0.8" />
-      <rect x="45" y="26" width="10" height="2" rx="1" fill="#bbb" />
-      <rect x="45" y="30" width="24" height="3" rx="1" fill="#444" />
-      <rect x="45" y="35" width="18" height="2" rx="1" fill="#ddd" />
-      {/* tableau */}
-      <line x1="4" y1="46" x2="76" y2="46" stroke="#111" strokeWidth="1.5" />
-      <rect x="4" y="42" width="24" height="3.5" rx="1" fill="#bbb" />
-      <rect x="50" y="42" width="10" height="3.5" rx="1" fill="#bbb" />
-      <rect x="64" y="42" width="10" height="3.5" rx="1" fill="#bbb" />
-      {[0,1,2,3].map(i => (
+      <rect x="4" y="16" width="26" height="20" rx="2" fill="#e0e0e0" />
+      <rect x="4" y="39" width="16" height="20" rx="3" fill={brand} />
+      <rect x="7" y="42" width="10" height="4" rx="1" fill={brandText} opacity="0.85" />
+      <rect x="7" y="48" width="7" height="2" rx="1" fill={brandText} opacity="0.6" />
+      <rect x="7" y="52" width="9" height="2" rx="1" fill={brandText} opacity="0.6" />
+      <rect x="24" y="39" width="52" height="20" rx="3" fill={brandTint} stroke="#ccc" strokeWidth="0.6" />
+      <rect x="27" y="42" width="10" height="2" rx="1" fill="#bbb" />
+      <rect x="27" y="46" width="24" height="3" rx="1" fill="#444" />
+      <rect x="27" y="51" width="18" height="2" rx="1" fill="#ddd" />
+      <line x1="4" y1="63" x2="76" y2="63" stroke="#111" strokeWidth="1.5" />
+      <rect x="4" y="59" width="24" height="3.5" rx="1" fill="#bbb" />
+      <rect x="50" y="59" width="10" height="3.5" rx="1" fill="#bbb" />
+      {[0,1].map(i => (
         <g key={i}>
-          <rect x="4" y={48+i*7} width="72" height="6" fill="#fff" />
-          <line x1="4" y1={54+i*7} x2="76" y2={54+i*7} stroke="#ebebeb" strokeWidth="0.5" />
-          <rect x="6" y={50.5+i*7} width="22" height="2" rx="1" fill="#ddd" />
-          <rect x="52" y={50.5+i*7} width="7" height="2" rx="1" fill="#ddd" />
-          <rect x="63" y={50.5+i*7} width="9" height="2" rx="1" fill="#ddd" />
+          <rect x="4" y={65+i*7} width="72" height="6" fill="#fff" />
+          <line x1="4" y1={71+i*7} x2="76" y2={71+i*7} stroke="#ebebeb" strokeWidth="0.5" />
         </g>
       ))}
-      {/* SOUS TOTAL gris */}
-      <rect x="4" y="76" width="72" height="7" fill="#f0f0f0" />
-      <rect x="6" y="78.5" width="18" height="2" rx="1" fill="#555" />
-      <rect x="62" y="78.5" width="10" height="2" rx="1" fill="#555" />
-      {/* totaux */}
-      <rect x="40" y="86" width="34" height="15" rx="1" fill="#fafafa" />
-      <rect x="42" y="88" width="16" height="2" rx="1" fill="#ccc" />
-      <rect x="42" y="92" width="14" height="2" rx="1" fill="#ddd" />
-      <line x1="40" y1="96" x2="74" y2="96" stroke="#111" strokeWidth="1.5" />
-      <rect x="42" y="98" width="18" height="3" rx="1" fill="#333" />
-      {/* footer */}
-      <line x1="4" y1="104" x2="76" y2="104" stroke="#ddd" strokeWidth="0.8" />
-      <rect x="4" y="106" width="16" height="2" rx="1" fill="#ccc" />
-      <rect x="58" y="106" width="16" height="2" rx="1" fill="#e0e0e0" />
+      <rect x="4" y="80" width="72" height="7" fill="#f0f0f0" />
+      <rect x="6" y="82.5" width="18" height="2" rx="1" fill="#555" />
+      <rect x="40" y="90" width="34" height="15" rx="1" fill="#fafafa" />
+      <rect x="42" y="92" width="16" height="2" rx="1" fill="#ccc" />
+      <line x1="40" y1="100" x2="74" y2="100" stroke={brand} strokeWidth="1.5" />
+      <rect x="42" y="102" width="18" height="3" rx="1" fill={brand} />
+      <line x1="4" y1="107" x2="76" y2="107" stroke="#ddd" strokeWidth="0.8" />
     </svg>
-  ),
+  )
 }
 
 // ─── Modal principale ─────────────────────────────────────────────────────────
@@ -542,7 +579,19 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   const [logoBbDataUrl, setLogoBbDataUrl] = useState(null)
 
   // ── Sélection du template ──
-  const [selectedTemplate, setSelectedTemplate] = useState('minimal')
+  const [selectedTemplate, setSelectedTemplate] = useState(() => {
+    return localStorage.getItem('budgetpilot_default_template') || 'minimal'
+  })
+  const [defaultTemplate, setDefaultTemplate] = useState(() => {
+    return localStorage.getItem('budgetpilot_default_template') || 'minimal'
+  })
+
+  // ── Personnalisation des templates ──
+  const [templateCustomization, setTemplateCustomization] = useState(() => loadCustomization())
+  // Ouvert par défaut : la personnalisation était trop peu découvrable une fois repliée
+  const [customPanelOpen, setCustomPanelOpen] = useState(true)
+
+  const { isPremium, requirePremium, modal: premiumModal } = usePremiumGate()
 
   // Inject le MinimalTemplate dans le registre (évite l'import circulaire)
   const TEMPLATES_WITH_PREVIEW = PDF_TEMPLATES.map(t =>
@@ -559,14 +608,10 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   }, [])
 
   useEffect(() => {
-    const svgToPngBlack = async () => {
+    const svgToPng = async () => {
       try {
         const res  = await fetch('/logo_bb.svg')
-        let svgText = await res.text()
-        svgText = svgText
-          .replace(/stroke:#ebf7ff/g, 'stroke:#000000')
-          .replace(/stop-color:#ebf7ff/g, 'stop-color:#000000')
-          .replace(/fill:#ebf7ff/g, 'fill:#000000')
+        const svgText = await res.text()
         const blob = new Blob([svgText], { type: 'image/svg+xml' })
         const url  = URL.createObjectURL(blob)
         const img  = new window.Image()
@@ -582,46 +627,36 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
         img.src = url
       } catch { /* fallback silencieux */ }
     }
-    svgToPngBlack()
+    svgToPng()
   }, [])
 
-  const toDataUrl = async (url) => {
-    if (!url) return null
+  const toDataUrl = async (storagePath) => {
+    if (!storagePath) return null
 
-    // Convertit une URL storage en URL proxy API (CORS garanti)
-    const toProxyUrl = (u) => {
-      try {
-        if (!u) return null
-        if (u.includes('/storage/')) {
-          return u.replace('/storage/', '/api/storage-proxy/')
-        }
-        const storageBase = STORAGE_BASE_URL
-        const apiBase = storageBase.replace('/storage', '/api/storage-proxy')
-        const relativePath = u.replace(storageBase + '/', '')
-        return `${apiBase}/${relativePath}`
-      } catch { return u }
-    }
+    // Normalise le chemin en path relatif (ex: logos/xxx.jpg)
+    const relativePath = storagePath
+      .replace(/^https?:\/\/[^/]+\/storage\//, '')
+      .replace(/^storage\//, '')
+      .replace(/^\/+/, '')
 
+    // Détecte et supprime un BOM UTF-8 éventuel, valide les magic bytes JPEG/PNG
     const processBlob = async (rawBlob) => {
       if (!rawBlob || rawBlob.size === 0) return null
-
       let blob = rawBlob
-      // 1. Détecter et supprimer un éventuel UTF-8 BOM (0xEF, 0xBB, 0xBF)
+
+      // 1. Supprimer le BOM UTF-8 (0xEF 0xBB 0xBF) si présent
       try {
-        const sliceHeader = await blob.slice(0, 4).arrayBuffer()
-        const header = new Uint8Array(sliceHeader)
+        const header = new Uint8Array(await blob.slice(0, 4).arrayBuffer())
         if (header[0] === 0xef && header[1] === 0xbb && header[2] === 0xbf) {
           blob = blob.slice(3, blob.size, blob.type)
         }
       } catch {}
 
-      // 2. Vérifier les magic bytes pour JPEG et PNG
+      // 2. Vérifier les signatures magiques JPEG / PNG
       try {
-        const sliceHeader = await blob.slice(0, 4).arrayBuffer()
-        const h = new Uint8Array(sliceHeader)
+        const h = new Uint8Array(await blob.slice(0, 4).arrayBuffer())
         const isJpeg = h[0] === 0xff && h[1] === 0xd8
-        const isPng = h[0] === 0x89 && h[1] === 0x50 && h[2] === 0x4e && h[3] === 0x47
-
+        const isPng  = h[0] === 0x89 && h[1] === 0x50 && h[2] === 0x4e && h[3] === 0x47
         if (isJpeg || isPng) {
           return await new Promise((resolve, reject) => {
             const reader = new FileReader()
@@ -632,17 +667,16 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
         }
       } catch {}
 
-      // 3. Fallback canvas pour les autres formats (WebP, SVG, etc.) ou conversion standard
+      // 3. Fallback canvas pour WebP, SVG ou tout autre format
       return await new Promise((resolve) => {
         const objectUrl = URL.createObjectURL(blob)
         const img = new window.Image()
         img.onload = () => {
           try {
             const canvas = document.createElement('canvas')
-            canvas.width = img.naturalWidth || img.width || 100
+            canvas.width  = img.naturalWidth  || img.width  || 100
             canvas.height = img.naturalHeight || img.height || 100
-            const ctx = canvas.getContext('2d')
-            ctx.drawImage(img, 0, 0)
+            canvas.getContext('2d').drawImage(img, 0, 0)
             const dataUrl = canvas.toDataURL('image/png')
             URL.revokeObjectURL(objectUrl)
             resolve(dataUrl)
@@ -651,37 +685,27 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
             resolve(null)
           }
         }
-        img.onerror = () => {
-          URL.revokeObjectURL(objectUrl)
-          resolve(null)
-        }
+        img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(null) }
         img.src = objectUrl
       })
     }
 
-    const proxyUrl = toProxyUrl(url)
-
-    // Tentative 1 : via proxy API (CORS garanti)
+    // Tentative 1 : via le proxy API authentifié (axios, CORS garanti)
     try {
-      const res = await fetch(proxyUrl, { mode: 'cors' })
-      const ct = res.headers.get('content-type') || ''
-      if (!res.ok || ct.includes('text/html') || ct.includes('application/json')) {
-        throw new Error(`Invalid response ${res.status}`)
-      }
-      const blob = await res.blob()
-      const dataUrl = await processBlob(blob)
+      const response = await api.get(`/storage-proxy/${relativePath}`, { responseType: 'blob' })
+      const ct = response.headers?.['content-type'] || ''
+      if (ct.includes('text/html') || ct.includes('application/json')) throw new Error('bad content-type')
+      const dataUrl = await processBlob(response.data)
       if (dataUrl) return dataUrl
     } catch {}
 
-    // Tentative 2 : fetch direct
+    // Tentative 2 : fetch direct (sans auth, pour images publiques)
     try {
-      const res = await fetch(url, { mode: 'cors', credentials: 'omit' })
-      const ct = res.headers.get('content-type') || ''
-      if (!res.ok || ct.includes('text/html') || ct.includes('application/json')) {
-        throw new Error(`Invalid response ${res.status}`)
-      }
-      const blob = await res.blob()
-      return await processBlob(blob)
+      const fullUrl = `${STORAGE_BASE_URL}/${relativePath}`
+      const res = await fetch(fullUrl, { mode: 'cors', credentials: 'omit' })
+      const ct  = res.headers.get('content-type') || ''
+      if (!res.ok || ct.includes('text/html') || ct.includes('application/json')) throw new Error('bad response')
+      return await processBlob(await res.blob())
     } catch {
       return null
     }
@@ -697,17 +721,10 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
       setDoc(docRes.data)
       const prof = profileRes.data.user || profileRes.data
       setProfile(prof)
-
-      const normalizeStorageUrl = (p) => {
-        if (!p || p === '0') return null
-        if (p.startsWith('http://') || p.startsWith('https://')) return p
-        const clean = p.startsWith('/') ? p.slice(1) : p
-        return `${STORAGE_BASE_URL}/${clean}`
-      }
-
-      const logoUrl = normalizeStorageUrl(prof?.logo_path)
-      const sigUrl  = normalizeStorageUrl(prof?.signature_path)
-      const [logo, sig] = await Promise.all([toDataUrl(logoUrl), toDataUrl(sigUrl)])
+      const [logo, sig] = await Promise.all([
+        toDataUrl(prof?.logo_path),
+        toDataUrl(prof?.signature_path && prof.signature_path !== '0' ? prof.signature_path : null),
+      ])
       setLogoDataUrl(logo)
       setSigDataUrl(sig)
     } catch {
@@ -718,8 +735,16 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
     }
   }
 
-  const buildPdfBlob = () =>
-    generatePdfBlob(selectedTemplate, doc, profile, qrDataUrl, logoDataUrl, sigDataUrl, logoBbDataUrl, doc?.currency || 'XOF', 1.0)
+  const buildPdfBlob = () => {
+    const custom = { ...(templateCustomization[selectedTemplate] || {}) }
+    // QR code + branding "Conçu par" : offerts en gratuit (attribution/upsell),
+    // retirés automatiquement pour les comptes premium — plus un choix manuel.
+    if (selectedTemplate === 'minimal') {
+      custom.showQrCode = !isPremium
+      custom.showBranding = !isPremium
+    }
+    return generatePdfBlob(selectedTemplate, doc, profile, qrDataUrl, logoDataUrl, sigDataUrl, logoBbDataUrl, doc?.currency || 'XOF', 1.0, custom)
+  }
 
   const buildFilename = () => {
     const ref = doc?.reference_number || docId
@@ -738,6 +763,10 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
   }
 
   const handleDownload = async () => {
+    if (PREMIUM_TEMPLATES.includes(selectedTemplate) && !isPremium) {
+      requirePremium('Templates PDF Premium', true)
+      return
+    }
     setDownloading(true)
     try {
       const blob     = await buildPdfBlob()
@@ -787,8 +816,55 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
     }
   }
 
+  // ── Mise à jour de la personnalisation ──
+  const updateCustomization = (key, value) => {
+    setTemplateCustomization(prev => {
+      const next = {
+        ...prev,
+        [selectedTemplate]: { ...(prev[selectedTemplate] || {}), [key]: value },
+      }
+      saveCustomization(next)
+      return next
+    })
+  }
+
+  // Change plusieurs clés en une seule fois (ex : choisir une couleur ET sortir du mode "sans couleur")
+  const updateCustomizationMulti = (patch) => {
+    setTemplateCustomization(prev => {
+      const next = {
+        ...prev,
+        [selectedTemplate]: { ...(prev[selectedTemplate] || {}), ...patch },
+      }
+      saveCustomization(next)
+      return next
+    })
+  }
+
+  // Sélectionner une couleur accent désactive automatiquement le mode "sans couleur"
+  const pickAccentColor = (color) => updateCustomizationMulti({ accentColor: color, noColor: false })
+
+  // Raccourci pour lire la customisation du template actif
+  const activeCustom = templateCustomization[selectedTemplate] || CUSTOMIZATION_DEFAULTS[selectedTemplate] || {}
+
+
+  // Réinitialise toute la personnalisation du template actif à ses valeurs par défaut
+  const resetCustomization = () => {
+    setTemplateCustomization(prev => {
+      const next = { ...prev, [selectedTemplate]: { ...CUSTOMIZATION_DEFAULTS[selectedTemplate] } }
+      saveCustomization(next)
+      return next
+    })
+    toast.success('Personnalisation réinitialisée')
+  }
+
   // ── Sélection du template ──
   const [sheetOpen, setSheetOpen] = useState(false)
+
+  const saveAsDefault = (templateId) => {
+    localStorage.setItem('budgetpilot_default_template', templateId)
+    setDefaultTemplate(templateId)
+    toast.success(`Template "${TEMPLATES_WITH_PREVIEW.find(t => t.id === templateId)?.label}" défini par défaut`)
+  }
 
   // Aperçu : vrai PDF via BlobProvider → iframe
   const activePdfDoc = TEMPLATES_WITH_PREVIEW.find(t => t.id === selectedTemplate)
@@ -876,6 +952,8 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
           ) : doc && PdfDocComp ? (
             <BlobProvider document={
               <PdfDocComp
+                {...(activeCustom)}
+                {...(selectedTemplate === 'minimal' ? { showQrCode: !isPremium, showBranding: !isPremium } : {})}
                 doc={doc}
                 profile={profile}
                 qrDataUrl={qrDataUrl}
@@ -903,8 +981,35 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
                     boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
                     flexShrink: 0,
                     background: '#fff',
+                    position: 'relative',
                   }}>
                     <PdfViewer url={url} />
+                    {/* Overlay Premium pour compte gratuit */}
+                    {PREMIUM_TEMPLATES.includes(selectedTemplate) && !isPremium && (
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        backgroundColor: 'rgba(0,0,0,0.55)',
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center',
+                        gap: 12, borderRadius: 4,
+                        backdropFilter: 'blur(2px)',
+                      }}>
+                        <div style={{ fontSize: 36 }}>👑</div>
+                        <div style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Template Premium</div>
+                        <div style={{ color: '#ddd', fontSize: 13, textAlign: 'center', maxWidth: 220 }}>
+                          Passez à un plan payant pour télécharger ce template
+                        </div>
+                        <button
+                          onClick={() => requirePremium('Templates PDF Premium', true)}
+                          style={{
+                            marginTop: 8, padding: '10px 24px',
+                            backgroundColor: '#F59E0B', color: '#fff',
+                            border: 'none', borderRadius: 24,
+                            fontSize: 13, fontWeight: '700', cursor: 'pointer',
+                          }}
+                        >Voir les offres</button>
+                      </div>
+                    )}
                   </div>
                 )
               }}
@@ -936,6 +1041,13 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
           >
             <span style={{ fontSize: 16 }}>◧</span>
             Template : {activeTemplate?.label}
+            {/* Pastille de couleur — signale que la personnalisation est disponible */}
+            <span style={{
+              width: 12, height: 12, borderRadius: '50%',
+              backgroundColor: activeCustom.noColor ? '#fff' : (activeCustom.accentColor || '#1E88E5'),
+              border: '1.5px solid rgba(255,255,255,0.6)',
+              flexShrink: 0,
+            }} />
             <span style={{
               display: 'inline-block',
               transform: sheetOpen ? 'rotate(180deg)' : 'rotate(0deg)',
@@ -966,6 +1078,8 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
           zIndex: 11,
           transform: sheetOpen ? 'translateY(0)' : 'translateY(100%)',
           transition: 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+          maxHeight: '75vh',
+          overflowY: 'auto',
         }}>
           {/* Poignée */}
           <div style={{
@@ -985,6 +1099,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
           }}>
             {TEMPLATES_WITH_PREVIEW.map(tpl => {
               const isActive = selectedTemplate === tpl.id
+              const isPremiumTpl = PREMIUM_TEMPLATES.includes(tpl.id)
               return (
                 <button
                   key={tpl.id}
@@ -1011,7 +1126,30 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
                       fontSize: 11, color: '#fff', fontWeight: 'bold',
                     }}>✓</div>
                   )}
-                  {/* Miniature SVG plus grande */}
+                  {/* Badge Premium */}
+                  {isPremiumTpl && !isPremium && (
+                    <div style={{
+                      position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)',
+                      backgroundColor: '#F59E0B', color: '#fff',
+                      fontSize: 9, fontWeight: '700', letterSpacing: 0.5,
+                      padding: '2px 8px', borderRadius: 20,
+                      whiteSpace: 'nowrap',
+                    }}>✦ PREMIUM</div>
+                  )}
+                  {/* Étoile défaut */}
+                  <div
+                    onClick={e => { e.stopPropagation(); saveAsDefault(tpl.id) }}
+                    title={defaultTemplate === tpl.id ? 'Template par défaut' : 'Définir par défaut'}
+                    style={{
+                      position: 'absolute', top: 8, left: 8,
+                      fontSize: 16, cursor: 'pointer', lineHeight: 1,
+                      color: defaultTemplate === tpl.id ? '#F59E0B' : '#ccc',
+                      transition: 'color 0.15s',
+                    }}
+                  >
+                    {defaultTemplate === tpl.id ? '★' : '☆'}
+                  </div>
+                  {/* Miniature SVG — reflète la couleur choisie pour ce template */}
                   <div style={{
                     width: 72, height: 96,
                     borderRadius: 6,
@@ -1020,7 +1158,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
                       ? '0 4px 16px rgba(30,136,229,0.3)'
                       : '0 2px 8px rgba(0,0,0,0.12)',
                   }}>
-                    {TEMPLATE_THUMBS[tpl.id]}
+                    {renderTemplateThumb(tpl.id, templateCustomization[tpl.id] || CUSTOMIZATION_DEFAULTS[tpl.id])}
                   </div>
                   {/* Label + description */}
                   <div style={{ textAlign: 'center' }}>
@@ -1038,11 +1176,166 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
               )
             })}
           </div>
+
+          {/* ── Panneau personnalisation ── */}
+          <div style={{ marginTop: 18, borderTop: '1px solid #f0f0f0', paddingTop: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <button
+                onClick={() => setCustomPanelOpen(v => !v)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 13, fontWeight: '600', color: '#333', padding: 0,
+                }}
+              >
+                <Sliders size={15} />
+                Personnaliser le template
+                {customPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+
+              {customPanelOpen && (
+                <button
+                  onClick={resetCustomization}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontSize: 12, fontWeight: '600', color: '#888', padding: 0,
+                  }}
+                >
+                  ↺ Réinitialiser
+                </button>
+              )}
+            </div>
+
+            {customPanelOpen && (
+              <div style={{
+                marginTop: 14,
+                display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start',
+                gap: '16px 40px',
+              }}>
+
+                {/* ── Couleur — pilote fonds et labels sur tout le template ── */}
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: '600', color: '#444', display: 'block', marginBottom: 8 }}>
+                    Couleur
+                  </label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {/* Sans couleur — restaure le design d'origine noir/blanc, sans fond coloré */}
+                    <button
+                      onClick={() => updateCustomization('noColor', true)}
+                      title="Sans couleur (design d'origine)"
+                      style={{
+                        width: 32, height: 32, borderRadius: '50%',
+                        border: '1px solid #ccc', backgroundColor: '#fff', cursor: 'pointer', flexShrink: 0,
+                        position: 'relative', overflow: 'hidden',
+                        boxShadow: activeCustom.noColor ? '0 0 0 3px #fff, 0 0 0 5px #111' : '0 1px 4px rgba(0,0,0,0.2)',
+                        transform: activeCustom.noColor ? 'scale(1.15)' : 'scale(1)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <span style={{
+                        position: 'absolute', left: '50%', top: '50%',
+                        width: '135%', height: 1.5, backgroundColor: '#e53e3e',
+                        transform: 'translate(-50%, -50%) rotate(-45deg)',
+                      }} />
+                    </button>
+                    {ACCENT_PRESETS.map(p => {
+                      const isActive = !activeCustom.noColor && (activeCustom.accentColor || '#1E88E5') === p.color
+                      return (
+                        <button key={p.color} onClick={() => pickAccentColor(p.color)}
+                          title={p.label}
+                          style={{
+                            width: 32, height: 32, borderRadius: '50%', border: 'none',
+                            backgroundColor: p.color, cursor: 'pointer', flexShrink: 0,
+                            boxShadow: isActive ? `0 0 0 3px #fff, 0 0 0 5px ${p.color}` : '0 1px 4px rgba(0,0,0,0.2)',
+                            transform: isActive ? 'scale(1.15)' : 'scale(1)',
+                            transition: 'all 0.15s',
+                          }}
+                        />
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* ── Police — s'applique à tout le contenu du PDF ── */}
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: '600', color: '#444', display: 'block', marginBottom: 8 }}>
+                    Police
+                  </label>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'nowrap' }}>
+                    {FONT_CHOICES.map(f => {
+                      const isActive = (activeCustom.fontChoice || 'helvetica') === f.id
+                      return (
+                        <button key={f.id} onClick={() => updateCustomization('fontChoice', f.id)}
+                          style={{
+                            padding: '5px 14px', fontSize: 12, fontWeight: '600',
+                            background: isActive ? '#E3F2FD' : '#fff',
+                            border: `1.5px solid ${isActive ? '#1E88E5' : '#ddd'}`,
+                            borderRadius: 20, cursor: 'pointer',
+                            color: isActive ? '#1E88E5' : '#555',
+                          }}
+                        >
+                          {f.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* ── Options Classic ── */}
+                {selectedTemplate === 'classic' && (
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: '600', color: '#444', display: 'block', marginBottom: 8 }}>
+                      Épaisseur du cadre
+                    </label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {[1, 1.5, 2].map(w => (
+                        <button key={w} onClick={() => updateCustomization('frameWidth', w)}
+                          style={{
+                            flex: 1, padding: '6px 0', fontSize: 12, fontWeight: '600',
+                            border: `${w}px solid ${(activeCustom.frameWidth ?? 1.5) === w ? '#1E88E5' : '#ddd'}`,
+                            borderRadius: 8, cursor: 'pointer',
+                            background: (activeCustom.frameWidth ?? 1.5) === w ? '#E3F2FD' : '#fff',
+                            color: (activeCustom.frameWidth ?? 1.5) === w ? '#1E88E5' : '#555',
+                          }}
+                        >{w}px</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Options Modern ── */}
+                {selectedTemplate === 'modern' && (
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: '600', color: '#444', display: 'block', marginBottom: 8 }}>
+                      Arrondi des boxes info
+                    </label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {[{ label: 'Carré', value: 0 }, { label: 'Doux', value: 16 }, { label: 'Rond', value: 32 }].map(opt => (
+                        <button key={opt.value} onClick={() => updateCustomization('boxRadius', opt.value)}
+                          style={{
+                            flex: 1, padding: '6px 0', fontSize: 11, fontWeight: '600',
+                            border: `1.5px solid ${(activeCustom.boxRadius ?? 32) === opt.value ? '#1E88E5' : '#ddd'}`,
+                            borderRadius: opt.value === 0 ? 4 : opt.value === 16 ? 8 : 16,
+                            cursor: 'pointer',
+                            background: (activeCustom.boxRadius ?? 32) === opt.value ? '#E3F2FD' : '#fff',
+                            color: (activeCustom.boxRadius ?? 32) === opt.value ? '#1E88E5' : '#555',
+                          }}
+                        >{opt.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            )}
+          </div>
         </div>
 
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      {premiumModal}
     </div>
   )
 }
