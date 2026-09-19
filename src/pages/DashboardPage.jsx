@@ -456,6 +456,7 @@ export default function DashboardPage() {
                       fontSize: '16px', fontWeight: '600', cursor: 'pointer',
                       whiteSpace: 'nowrap',
                     }}
+                  onClick={() => window.open('https://wa.me/22878996909', '_blank')}
                   >
                     Support Client
                   </button>

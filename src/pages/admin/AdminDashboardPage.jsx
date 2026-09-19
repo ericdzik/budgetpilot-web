@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { adminService } from '../../services/adminService'
 import { toast } from 'react-hot-toast'

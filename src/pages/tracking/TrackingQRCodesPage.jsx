@@ -6,7 +6,7 @@ import useTrackingAuthStore from '../../store/trackingAuthStore'
 
 const COLOR = { getdenis: '#E65100', client: '#1565C0' }
 const BG    = { getdenis: '#fff3ee', client: '#e8f0fe' }
-const BACKEND_BASE = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://192.168.1.68:8000'
+const BACKEND_BASE = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://172.20.10.12:8000'
 
 // ─── Stat pill ────────────────────────────────────────────────────────────────
 function StatPill({ icon, label, value, sub, accent }) {

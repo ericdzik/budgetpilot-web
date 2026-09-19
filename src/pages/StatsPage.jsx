@@ -322,9 +322,9 @@ export default function StatsPage() {
                       borderBottom: i < topClients.length - 1 ? '1px solid #f8f8f8' : 'none',
                       cursor: 'pointer',
                     }}>
-                      <span style={{ fontSize: '24px', fontWeight: '700', color: '#111' }}>{client.name}</span>
+                      <span style={{ fontSize: '16px', fontWeight: '500', color: '#111' }}>{client.name}</span>
                       <span style={{ fontSize: '16px', color: '#666' }}>{client.invoices_count} Facture{client.invoices_count !== 1 ? 's' : ''}</span>
-                      <span style={{ fontSize: '17px', fontWeight: '700', color: '#111' }}>{fmt(client.total_amount)}</span>
+                      <span style={{ fontSize: '15px', fontWeight: '500', color: '#111' }}>{fmt(client.total_amount)}</span>
                     </div>
                   ))
                 )}
