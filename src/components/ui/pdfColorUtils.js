@@ -79,3 +79,69 @@ export function accentToSubtotalBg(hex) {
 export function accentToMediumBg(hex) {
   return mixWithWhite(hex, 0.22)
 }
+
+/**
+ * Convertit un hex en { h, s, l } (h en degrés 0-360, s et l en 0-1)
+ */
+export function hexToHsl(hex) {
+  const { r, g, b } = hexToRgb(hex)
+  const rn = r / 255, gn = g / 255, bn = b / 255
+  const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn)
+  const l = (max + min) / 2
+  const delta = max - min
+  if (delta === 0) return { h: 0, s: 0, l }
+  const s = delta / (1 - Math.abs(2 * l - 1))
+  let h
+  if (max === rn) h = 60 * (((gn - bn) / delta) % 6)
+  else if (max === gn) h = 60 * ((bn - rn) / delta + 2)
+  else h = 60 * ((rn - gn) / delta + 4)
+  if (h < 0) h += 360
+  return { h, s, l }
+}
+
+/**
+ * Convertit { h, s, l } en hex (h en degrés 0-360, s et l en 0-1)
+ */
+export function hslToHex(h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+  const m = l - c / 2
+  let rp = 0, gp = 0, bp = 0
+  if (h < 60)       { rp = c; gp = x; bp = 0 }
+  else if (h < 120) { rp = x; gp = c; bp = 0 }
+  else if (h < 180) { rp = 0; gp = c; bp = x }
+  else if (h < 240) { rp = 0; gp = x; bp = c }
+  else if (h < 300) { rp = x; gp = 0; bp = c }
+  else              { rp = c; gp = 0; bp = x }
+  const toHex = v => Math.round((v + m) * 255).toString(16).padStart(2, '0')
+  return `#${toHex(rp)}${toHex(gp)}${toHex(bp)}`
+}
+
+/**
+ * Teinte secondaire dérivée de la couleur d'accent, comme dans l'application
+ * mobile. Une seule couleur choisie pilote donc l'ensemble du document : la
+ * teinte secondaire contient 55 % de l'accent et 45 % de blanc.
+ */
+export function getSecondaryColor(accentHex) {
+  return mixWithWhite(accentHex, 0.55)
+}
+
+/**
+ * Couleur du texte posé SUR un fond en couleur principale, pour les éléments
+ * de mise en avant (référence dans une boîte colorée, total final dans une barre
+ * colorée). La teinte secondaire étant dérivée de l'accent, on l'utilise seulement
+ * si elle garde un contraste suffisant ; sinon on bascule sur noir ou blanc.
+ * Seuil de contraste WCAG-like : ratio >= 2.5.
+ */
+export function getSecondaryTextColor(accentHex, secondaryHex) {
+  try {
+    const lAccent = getLuminance(accentHex)
+    const lSecondary = getLuminance(secondaryHex)
+    const lighter = Math.max(lAccent, lSecondary)
+    const darker  = Math.min(lAccent, lSecondary)
+    const ratio = (lighter + 0.05) / (darker + 0.05)
+    return ratio >= 2.5 ? secondaryHex : getTextColor(accentHex)
+  } catch {
+    return getTextColor(accentHex)
+  }
+}

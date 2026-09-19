@@ -34,7 +34,8 @@ import {
 } from '@react-pdf/renderer'
 import { amountToWords } from './MinimalPdfDocument'
 import { STORAGE_BASE_URL } from '../../config/constants'
-import { getTextColor, accentToBoxBg, accentToSubtotalBg } from './pdfColorUtils'
+import { getTextColor, accentToBoxBg, accentToSubtotalBg, getSecondaryColor, mixWithWhite } from './pdfColorUtils'
+import { withFont, resolveFontFamily } from './pdfFonts'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -67,7 +68,7 @@ const GAP     = 12   // espace entre les 2 colonnes
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const S = StyleSheet.create({
+const BASE_STYLES = StyleSheet.create({
   page: {
     fontFamily: 'Helvetica',
     fontSize: 10,
@@ -262,7 +263,9 @@ function sliceItemsIntoPages(groupEntries) {
 
 // ─── Composant Document ───────────────────────────────────────────────────────
 
-export function CorporatePdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0, accentColor = '#1E88E5', headerColor = '#000000' }) {
+export function CorporatePdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0, accentColor = '#1E88E5', noColor = false, fontChoice = 'helvetica' }) {
+  const S = withFont(BASE_STYLES, fontChoice)
+  const fontBold = resolveFontFamily(fontChoice, 'bold')
   const company = {
     name:    profile?.company_name    || profile?.name    || 'Mon Entreprise',
     address: profile?.company_address || '',
@@ -274,19 +277,27 @@ export function CorporatePdfDocument({ doc, profile, qrDataUrl, logoDataUrl, sig
   const items  = doc.items  || []
   const cr     = conversionRate || 1.0
 
-  // Styles dynamiques dépendant de accentColor
-  const headerTextColor = getTextColor(accentColor)
-  const subtotalBg      = accentToSubtotalBg(accentColor)
+  // Agencement façon Prestige : la couleur principale pilote fonds ET labels directement
+  const headerTextColor = noColor ? '#111' : getTextColor(accentColor)
+  const labelColor      = noColor ? '#111' : accentColor
   const boxBg           = accentToBoxBg(accentColor)
+  // Couleur secondaire complémentaire (dérivée automatiquement) — fond du SOUS TOTAL
+  const secondaryColor  = getSecondaryColor(accentColor)
+  const secondaryBg     = mixWithWhite(secondaryColor, 0.35)
 
-  const dynS = {
+  // État "sans coloration" — reproduit le design d'origine (noir/blanc/gris, sans fond coloré)
+  const dynS = noColor ? {
+    rightCol:    { ...S.rightCol,    border: '1.5px solid #bbb' },
+    tableHeader: { ...S.tableHeader, borderBottom: '1px solid #bbb' },
+    thText:      { ...S.thText,      color: '#111' },
+    subtotalRow: { ...S.subtotalRow, borderTop: '1px solid #bbb', borderBottom: '1px solid #bbb', backgroundColor: '#fff', marginTop: 6, marginBottom: 6 },
+    subtotalText:{ fontFamily: fontBold, color: '#111', fontSize: 12 },
+  } : {
     rightCol:    { ...S.rightCol,    border: `1.5px solid ${accentColor}` },
     tableHeader: { ...S.tableHeader, borderBottom: `1px solid ${accentColor}`, backgroundColor: accentColor },
     thText:      { ...S.thText,      color: headerTextColor },
-    subtotalRow: { ...S.subtotalRow, borderTop: `1px solid ${accentColor}`, borderBottom: `1px solid ${accentColor}`, backgroundColor: subtotalBg, marginTop: 6, marginBottom: 6 },
-    subtotalText:{ fontFamily: 'Helvetica-Bold', color: accentColor, fontSize: 12 },
-    totalFinalLabel: { ...S.totalFinalLabel, color: accentColor },
-    totalFinalValue: { ...S.totalFinalValue, color: accentColor },
+    subtotalRow: { ...S.subtotalRow, borderTop: `1px solid ${accentColor}`, borderBottom: `1px solid ${accentColor}`, backgroundColor: secondaryBg, marginTop: 6, marginBottom: 6 },
+    subtotalText:{ fontFamily: fontBold, color: accentColor, fontSize: 12 },
   }
 
   // Calculs
@@ -308,7 +319,6 @@ export function CorporatePdfDocument({ doc, profile, qrDataUrl, logoDataUrl, sig
   const tvaAmount     = doc.has_tva ? subtotalAfter * (tvaRate / 100) : 0
   const totalRaw      = toNum(doc.total_amount) || (subtotalAfter + tvaAmount)
   const total         = totalRaw * cr
-  const subtotalDisp  = (subtotalBefore - totalDiscount) * cr
 
   // Grouper par catégorie
   const grouped = {}
@@ -327,20 +337,20 @@ export function CorporatePdfDocument({ doc, profile, qrDataUrl, logoDataUrl, sig
   const LeftColumn = ({ isLastPage }) => (
     <View style={S.leftCol}>
       <View>
-        <Text style={[S.clientName, { color: headerColor }]}>{client.name || '—'}</Text>
-        {!!client.phone   && <Text style={[S.clientDetail, { color: headerColor }]}>{client.phone}</Text>}
-        {!!client.email   && <Text style={[S.clientDetail, { color: headerColor }]}>{client.email}</Text>}
-        {!!client.address && <Text style={[S.clientDetail, { color: headerColor }]}>{client.address}</Text>}
+        <Text style={S.clientName}>{client.name || '—'}</Text>
+        {!!client.phone   && <Text style={S.clientDetail}>{client.phone}</Text>}
+        {!!client.email   && <Text style={S.clientDetail}>{client.email}</Text>}
+        {!!client.address && <Text style={S.clientDetail}>{client.address}</Text>}
       </View>
 
       {isLastPage && (
         <View style={{ marginTop: 240 }}>
-          <Text style={S.paymentTitle}>Paiement</Text>        <Text style={S.paymentDetail}>
-            {'Statut : '}<Text style={{ fontFamily: 'Helvetica-Bold' }}>{statusLabel(doc.status)}</Text>
+          <Text style={[S.paymentTitle, { color: '#111' }]}>Paiement</Text>        <Text style={S.paymentDetail}>
+            {'Statut : '}<Text style={{ fontFamily: fontBold }}>{statusLabel(doc.status)}</Text>
           </Text>
           {!!doc.due_date && (
             <Text style={S.paymentDetail}>
-              {'Échéance : '}<Text style={{ fontFamily: 'Helvetica-Bold' }}>{fmtDate(doc.due_date)}</Text>
+              {'Échéance : '}<Text style={{ fontFamily: fontBold }}>{fmtDate(doc.due_date)}</Text>
             </Text>
           )}
           <Text style={[S.sigTitle, { marginTop: 40 }]}>Signature émetteur</Text>
@@ -372,15 +382,8 @@ export function CorporatePdfDocument({ doc, profile, qrDataUrl, logoDataUrl, sig
     <View style={S.totalsBlock}>
       <View style={S.totalsInner}>
         <View style={S.totalsRow}>
-          <Text style={S.totalsLabel}>Sous-total :</Text>
-          <Text style={S.totalsValue}>{fmt(subtotalDisp)}</Text>
-        </View>
-        <View style={S.totalsRow}>
-          <Text style={S.totalsLabel}>TVA ({tvaRate}%) :</Text>
-          {doc.has_tva
-            ? <Text style={S.totalsValue}>{fmt(tvaAmount * cr)}</Text>
-            : <Text style={S.totalsValueMuted}>{fmt(0)}</Text>
-          }
+          <Text style={S.totalsLabel}>Sous-total global :</Text>
+          <Text style={S.totalsValue}>{fmt(subtotalBefore * cr)}</Text>
         </View>
         {totalDiscount > 0 && (
           <View style={S.totalsRow}>
@@ -388,11 +391,18 @@ export function CorporatePdfDocument({ doc, profile, qrDataUrl, logoDataUrl, sig
             <Text style={S.totalsValue}>- {fmt(totalDiscount * cr)}</Text>
           </View>
         )}
-        <View style={S.totalFinalRow}>
-          <Text style={dynS.totalFinalLabel}>TOTAL :</Text>
-          <Text style={dynS.totalFinalValue}>{fmt(total)}</Text>
+        <View style={S.totalsRow}>
+          <Text style={S.totalsLabel}>TVA ({tvaRate}%) :</Text>
+          {doc.has_tva
+            ? <Text style={S.totalsValue}>{fmt(tvaAmount * cr)}</Text>
+            : <Text style={S.totalsValueMuted}>{fmt(0)}</Text>
+          }
         </View>
-        <Text style={S.wordsText}>{amountToWords(total, currency)}</Text>
+        <View style={S.totalFinalRow}>
+          <Text style={S.totalFinalLabel}>TOTAL :</Text>
+          <Text style={S.totalFinalValue}>{fmt(total)}</Text>
+        </View>
+        <Text style={S.wordsText}>Arrêtée la présente facture à la somme de : {amountToWords(total, currency)}</Text>
       </View>
     </View>
   )
@@ -406,16 +416,16 @@ export function CorporatePdfDocument({ doc, profile, qrDataUrl, logoDataUrl, sig
           : <View style={S.logoBox} />
         }
         <View>
-          <Text style={[S.companyName, { color: headerColor }]}>{company.name}</Text>
-          {!!company.phone && <Text style={[S.companyLine, { color: headerColor }]}>{company.phone}</Text>}
+          <Text style={S.companyName}>{company.name}</Text>
+          {!!company.phone && <Text style={S.companyLine}>{company.phone}</Text>}
           {(!!company.city || !!company.address) && (
-            <Text style={[S.companyLine, { color: headerColor }]}>{[company.city, company.address].filter(Boolean).join(', ')}</Text>
+            <Text style={S.companyLine}>{[company.city, company.address].filter(Boolean).join(', ')}</Text>
           )}
-          {!!company.nif && <Text style={[S.companyLine, { color: headerColor }]}>NIF : {company.nif}</Text>}
+          {!!company.nif && <Text style={S.companyLine}>NIF : {company.nif}</Text>}
         </View>
       </View>
       <View style={S.headerRight}>
-        <Text style={[S.refNum, { color: headerColor }]}>{doc.reference_number}</Text>
+        <Text style={S.refNum}>{doc.reference_number}</Text>
         {!!doc.title && <Text style={S.docTitle}>{doc.title.toUpperCase()}</Text>}
         <Text style={S.docDate}>{fmtDate(doc.issue_date || doc.created_at)}</Text>
       </View>
@@ -484,9 +494,10 @@ export function CorporatePdfDocument({ doc, profile, qrDataUrl, logoDataUrl, sig
 
 // ─── Preview HTML (aperçu dans la modal) ─────────────────────────────────────
 
-export function CorporateTemplate({ doc, profile, currency = 'XOF', conversionRate = 1.0, accentColor = '#1E88E5', headerColor = '#000000' }) {
+export function CorporateTemplate({ doc, profile, currency = 'XOF', conversionRate = 1.0, accentColor = '#1E88E5' }) {
   const storageBase = STORAGE_BASE_URL || ''
   const headerTextColor = getTextColor(accentColor)
+  const labelColor      = accentColor
   const subtotalBgHtml  = accentToSubtotalBg(accentColor)
   const boxBgHtml       = accentToBoxBg(accentColor)
 
@@ -520,7 +531,6 @@ export function CorporateTemplate({ doc, profile, currency = 'XOF', conversionRa
   const tvaAmount     = doc.has_tva ? subtotalAfter * (tvaRate / 100) : 0
   const totalRaw      = toNumL(doc.total_amount) || (subtotalAfter + tvaAmount)
   const total         = totalRaw * cr
-  const subtotalDisp  = (subtotalBefore - totalDiscount) * cr
 
   const logoUrl      = profile?.logo_path ? `${storageBase}/${profile.logo_path}` : null
   const signatureUrl = profile?.signature_path && profile.signature_path !== '0'
@@ -558,20 +568,20 @@ export function CorporateTemplate({ doc, profile, currency = 'XOF', conversionRa
             : <div style={{ width: 44, height: 44, background: '#e0e0e0', borderRadius: 3, border: '1px solid #ccc' }} />
           }
           <div>
-            <div style={{ fontSize: 11, fontWeight: 'bold', marginBottom: 2, color: headerColor }}>{company.name}</div>
-            {company.phone   && <div style={{ fontSize: 8.5, color: headerColor, marginTop: 1.5 }}>{company.phone}</div>}
+            <div style={{ fontSize: 11, fontWeight: 'bold', marginBottom: 2, color: labelColor }}>{company.name}</div>
+            {company.phone   && <div style={{ fontSize: 8.5, color: labelColor, marginTop: 1.5 }}>{company.phone}</div>}
             {(company.city || company.address) && (
-              <div style={{ fontSize: 8.5, color: headerColor, marginTop: 1.5 }}>
+              <div style={{ fontSize: 8.5, color: labelColor, marginTop: 1.5 }}>
                 {[company.city, company.address].filter(Boolean).join(', ')}
               </div>
             )}
-            {company.nif && <div style={{ fontSize: 8.5, color: headerColor, marginTop: 1.5 }}>NIF : {company.nif}</div>}
+            {company.nif && <div style={{ fontSize: 8.5, color: labelColor, marginTop: 1.5 }}>NIF : {company.nif}</div>}
           </div>
         </div>
         {/* Droite */}
         <div style={{ textAlign: 'right', maxWidth: 250 }}>
-          <div style={{ fontSize: 22, fontWeight: 'bold', color: headerColor }}>{doc.reference_number}</div>
-          {doc.title && <div style={{ fontSize: 10, fontWeight: 'bold', color: headerColor, marginTop: 3 }}>{doc.title.toUpperCase()}</div>}
+          <div style={{ fontSize: 22, fontWeight: 'bold', color: labelColor }}>{doc.reference_number}</div>
+          {doc.title && <div style={{ fontSize: 10, fontWeight: 'bold', color: labelColor, marginTop: 3 }}>{doc.title.toUpperCase()}</div>}
           <div style={{ fontSize: 9, color: '#555', marginTop: 3 }}>{fmtD(doc.issue_date || doc.created_at)}</div>
         </div>
       </div>
@@ -583,20 +593,20 @@ export function CorporateTemplate({ doc, profile, currency = 'XOF', conversionRa
         <div style={{ width: LEFT, flexShrink: 0, paddingRight: 12, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignSelf: 'stretch' }}>
           {/* Bloc 1 : Info client */}
           <div>
-            <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 3, color: headerColor }}>{client.name || '—'}</div>
-            {client.phone   && <div style={{ fontSize: 12, color: headerColor, marginTop: 2 }}>{client.phone}</div>}
-            {client.email   && <div style={{ fontSize: 12, color: headerColor, marginTop: 2 }}>{client.email}</div>}
-            {client.address && <div style={{ fontSize: 12, color: headerColor, marginTop: 2 }}>{client.address}</div>}
+            <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 3, color: labelColor }}>{client.name || '—'}</div>
+            {client.phone   && <div style={{ fontSize: 12, color: labelColor, marginTop: 2 }}>{client.phone}</div>}
+            {client.email   && <div style={{ fontSize: 12, color: labelColor, marginTop: 2 }}>{client.email}</div>}
+            {client.address && <div style={{ fontSize: 12, color: labelColor, marginTop: 2 }}>{client.address}</div>}
           </div>
 
           {/* Bloc 2+3 : Paiement + Signature émetteur groupés */}
           <div style={{ marginTop: 240 }}>
-            <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 4 }}>Paiement</div>
-            <div style={{ fontSize: 12, color: '#444', marginTop: 2 }}>
+            <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 4, color: '#111' }}>Paiement</div>
+            <div style={{ fontSize: 12, color: labelColor, marginTop: 2 }}>
               Statut : <strong>{sL(doc.status)}</strong>
             </div>
             {doc.due_date && (
-              <div style={{ fontSize: 12, color: '#444', marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: labelColor, marginTop: 2 }}>
                 Échéance : <strong>{fmtD(doc.due_date)}</strong>
               </div>
             )}
@@ -658,27 +668,27 @@ export function CorporateTemplate({ doc, profile, currency = 'XOF', conversionRa
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto', paddingRight: 12, paddingBottom: 8 }}>
             <div style={{ width: 200 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                <span style={{ fontSize: 9, color: '#333' }}>Sous-total :</span>
-                <span style={{ fontSize: 9 }}>{fmt(subtotalDisp)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                <span style={{ fontSize: 9, color: '#333' }}>TVA ({tvaRate}%) :</span>
-                <span style={{ fontSize: 9, color: doc.has_tva ? '#333' : '#aaa' }}>
-                  {doc.has_tva ? fmt(tvaAmount * cr) : fmt(0)}
-                </span>
+                <span style={{ fontSize: 9, color: labelColor }}>Sous-total global :</span>
+                <span style={{ fontSize: 9, color: labelColor }}>{fmt(subtotalBefore * cr)}</span>
               </div>
               {totalDiscount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                  <span style={{ fontSize: 9, color: '#333' }}>Remise :</span>
-                  <span style={{ fontSize: 9 }}>- {fmt(totalDiscount * cr)}</span>
+                  <span style={{ fontSize: 9, color: labelColor }}>Remise :</span>
+                  <span style={{ fontSize: 9, color: labelColor }}>- {fmt(totalDiscount * cr)}</span>
                 </div>
               )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                <span style={{ fontSize: 9, color: labelColor }}>TVA ({tvaRate}%) :</span>
+                <span style={{ fontSize: 9, color: labelColor }}>
+                  {doc.has_tva ? fmt(tvaAmount * cr) : fmt(0)}
+                </span>
+              </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 5, paddingTop: 4 }}>
-                <span style={{ fontSize: 13, fontWeight: 'bold', color: accentColor }}>TOTAL :</span>
-                <span style={{ fontSize: 17, fontWeight: 'bold', color: accentColor }}>{fmt(total)}</span>
+                <span style={{ fontSize: 13, fontWeight: 'bold', color: labelColor }}>TOTAL :</span>
+                <span style={{ fontSize: 17, fontWeight: 'bold', color: labelColor }}>{fmt(total)}</span>
               </div>
               <div style={{ fontSize: 8, color: '#555', fontStyle: 'italic', marginTop: 4, textAlign: 'right' }}>
-                {amountToWords(total, currency)}
+                Arrêtée la présente facture à la somme de : {amountToWords(total, currency)}
               </div>
             </div>
           </div>
@@ -700,14 +710,14 @@ export function CorporateTemplate({ doc, profile, currency = 'XOF', conversionRa
 // ─── Génération blob ──────────────────────────────────────────────────────────
 
 export async function generateCorporatePdfBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0, customization = {}) {
-  const { accentColor = '#1E88E5', headerColor = '#000000' } = customization
+  const { accentColor = '#1E88E5', noColor = false, fontChoice = 'helvetica' } = customization
   return pdf(
     <CorporatePdfDocument
       doc={doc} profile={profile}
       qrDataUrl={qrDataUrl} logoDataUrl={logoDataUrl}
       signatureDataUrl={signatureDataUrl} logoBbDataUrl={logoBbDataUrl}
       currency={currency} conversionRate={conversionRate}
-      accentColor={accentColor} headerColor={headerColor}
+      accentColor={accentColor} noColor={noColor} fontChoice={fontChoice}
     />
   ).toBlob()
 }

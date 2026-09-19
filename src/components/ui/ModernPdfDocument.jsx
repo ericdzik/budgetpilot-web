@@ -3,7 +3,6 @@
  *
  * Design (d'après screenshot) :
  * - Header : nom société très grand et gras (24px+) à gauche, adresse société petite à droite
- * - Petits carrés décoratifs colorés (5 points/carrés en ligne) sous le nom société
  * - 2 boxes arrondies côte à côte : référence+date (gauche) | destinataire (droite)
  * - Tableau : séparateurs légers, header en gras avec border-bottom
  * - SOUS TOTAL en bas du tableau, texte bold
@@ -17,7 +16,8 @@ import {
 } from '@react-pdf/renderer'
 import { amountToWords } from './MinimalPdfDocument'
 import { STORAGE_BASE_URL } from '../../config/constants'
-import { getTextColor, accentToBoxBg, accentToSubtotalBg } from './pdfColorUtils'
+import { getTextColor, accentToBoxBg, getSecondaryColor, getSecondaryTextColor } from './pdfColorUtils'
+import { withFont, resolveFontFamily } from './pdfFonts'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -44,13 +44,9 @@ function statusLabel(s) {
 
 function toNum(v) { return isNaN(parseFloat(v)) ? 0 : parseFloat(v) }
 
-// Couleur accent du template Modern
-const ACCENT = '#888888'
-const ACCENT_LIGHT = '#f0f0f0'
-
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const S = StyleSheet.create({
+const BASE_STYLES = StyleSheet.create({
   page: {
     fontFamily: 'Helvetica',
     fontSize: 10,
@@ -80,27 +76,6 @@ const S = StyleSheet.create({
     marginTop: 4,
   },
   companyAddrLine: { fontSize: 8, color: '#000', marginTop: 1 },
-
-  // Petits carrés décoratifs
-  dotsRow: {
-    flexDirection: 'row',
-    gap: 4,
-    marginBottom: 16,
-    marginTop: 4,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    backgroundColor: ACCENT,
-    borderRadius: 1,
-  },
-  dotLight: {
-    width: 8,
-    height: 8,
-    backgroundColor: ACCENT_LIGHT,
-    borderRadius: 1,
-    border: `1px solid ${ACCENT}`,
-  },
 
   // ── 2 boxes info ──
   infoRow: {
@@ -176,10 +151,7 @@ const S = StyleSheet.create({
   tdTotal: { flex: 2, fontSize: 10, textAlign: 'right' },
 
   // ── Zone totaux + paiement ──
-  bottomZone: { flexDirection: 'row', marginTop: 20, gap: 16 },
-  paymentBox: { flex: 1 },
-  paymentTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', marginBottom: 5 },
-  paymentDetail: { fontSize: 9, color: '#555', marginTop: 2 },
+  bottomZone: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 20 },
 
   totalsBox: { width: 230 },
   totalsRow: {
@@ -249,7 +221,9 @@ const S = StyleSheet.create({
 
 // ─── Composant Document ───────────────────────────────────────────────────────
 
-export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0, accentColor = '#1E88E5', accentLight = '#f0f0f0', boxRadius = 32, headerColor = '#000000' }) {
+export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0, accentColor = '#1E88E5', accentLight = '#f0f0f0', boxRadius = 32, noColor = false, fontChoice = 'helvetica' }) {
+  const S = withFont(BASE_STYLES, fontChoice)
+  const fontBold = resolveFontFamily(fontChoice, 'bold')
   const company = {
     name:    profile?.company_name    || profile?.name    || 'Mon Entreprise',
     address: profile?.company_address || '',
@@ -261,23 +235,37 @@ export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signat
   const items  = doc.items  || []
   const cr     = conversionRate || 1.0
 
-  // Styles dynamiques — écrasent les constantes ACCENT / ACCENT_LIGHT du module
-  const headerTextColor = getTextColor(accentColor)
-  const subtotalBg      = accentToSubtotalBg(accentColor)
+  // Agencement façon Prestige : la couleur principale pilote fonds ET labels (comme
+  // le navy) ; la secondaire est l'accent sur fond coloré + le fond clair du sous-total
+  // (comme l'or) — le texte des colonnes du tableau reste en contraste auto (comme sur
+  // Prestige, où l'en-tête de tableau reste blanc, pas doré).
+  const headerTextColor = noColor ? '#111' : getTextColor(accentColor)
+  const labelColor      = noColor ? '#111' : accentColor
   const boxBg           = accentToBoxBg(accentColor)
+  // La couleur secondaire est dérivée automatiquement de l'accent.
+  const secondaryColor  = getSecondaryColor(accentColor)
+  const box1TextColor   = noColor ? '#111' : getSecondaryTextColor(accentColor, secondaryColor)
 
-  const dynS = {
-    dot:        { ...S.dot,      backgroundColor: accentColor },
-    dotLight:   { ...S.dotLight, backgroundColor: boxBg, border: `1px solid ${accentColor}` },
+  // État "sans coloration" — reproduit le design d'origine (noir/blanc, sans fond coloré)
+  const dynS = noColor ? {
+    infoBox:       { ...S.infoBox, borderRadius: boxRadius },
+    infoBoxAccent: { ...S.infoBox, borderRadius: boxRadius },
+    tableHeader:   { flexDirection: 'row', borderBottom: '1.5px solid #111', paddingBottom: 5, paddingHorizontal: 6 },
+    thText:        { ...S.thText, color: '#111' },
+    subtotalRow:   { flexDirection: 'row', paddingVertical: 6, paddingHorizontal: 6, borderTop: '1px solid #ccc', marginTop: 6, marginBottom: 6 },
+    subtotalText:  { fontFamily: fontBold, color: '#111' },
+    footerSep:     { ...S.footerSep, borderLeftColor: '#ddd' },
+  } : {
     infoBox:    { ...S.infoBox,  borderRadius: boxRadius, backgroundColor: boxBg },
+    infoBoxAccent: { ...S.infoBox, borderRadius: boxRadius, backgroundColor: accentColor, border: `1px solid ${accentColor}` },
     tableHeader:{ ...S.tableHeader, backgroundColor: accentColor,
       borderTopColor: accentColor, borderBottomColor: accentColor },
     thText:     { ...S.thText,   color: headerTextColor },
     subtotalRow:{ ...S.subtotalRow,
       borderTopColor: accentColor, borderBottomColor: accentColor,
-      backgroundColor: subtotalBg, marginTop: 6, marginBottom: 6 },
-    subtotalText: { fontFamily: 'Helvetica-Bold', color: accentColor },
-    footerSep:  { ...S.footerSep, borderLeftColor: accentColor },
+      marginTop: 6, marginBottom: 6 },
+    subtotalText: { fontFamily: fontBold, color: accentColor },
+    footerSep:  { ...S.footerSep, borderLeftColor: secondaryColor },
   }
 
   // Calculs
@@ -299,7 +287,6 @@ export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signat
   const tvaAmount     = doc.has_tva ? subtotalAfter * (tvaRate / 100) : 0
   const totalRaw      = toNum(doc.total_amount) || (subtotalAfter + tvaAmount)
   const total         = totalRaw * cr
-  const subtotalHT    = (subtotalBefore - totalDiscount) * cr
 
   // Grouper par catégorie
   const grouped = {}
@@ -383,13 +370,13 @@ export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signat
             {/* ── HEADER : affiché sur toutes les pages ── */}
             <View style={S.headerRow}>
               <View>
-                <Text style={[S.companyNameBig, { color: headerColor }]}>{company.name.toUpperCase()}</Text>
+                <Text style={S.companyNameBig}>{company.name.toUpperCase()}</Text>
               </View>
               <View style={S.companyAddressBlock}>
-                <Text style={[S.companyAddrLine, { color: headerColor }]}>{company.name}</Text>
-                {!!company.address && <Text style={[S.companyAddrLine, { color: headerColor }]}>{company.address}</Text>}
-                {!!company.phone   && <Text style={[S.companyAddrLine, { color: headerColor }]}>{company.phone}</Text>}
-                {!!company.nif     && <Text style={[S.companyAddrLine, { color: headerColor }]}>NIF : {company.nif}</Text>}
+                <Text style={S.companyAddrLine}>{company.name}</Text>
+                {!!company.address && <Text style={S.companyAddrLine}>{company.address}</Text>}
+                {!!company.phone   && <Text style={S.companyAddrLine}>{company.phone}</Text>}
+                {!!company.nif     && <Text style={S.companyAddrLine}>NIF : {company.nif}</Text>}
               </View>
             </View>
 
@@ -401,29 +388,20 @@ export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signat
               }
             </View>
 
-            {/* Carrés décoratifs */}
-            <View style={S.dotsRow}>
-              <View style={dynS.dot} />
-              <View style={dynS.dot} />
-              <View style={dynS.dotLight} />
-              <View style={dynS.dotLight} />
-              <View style={dynS.dotLight} />
-            </View>
-
             {/* 2 boxes Référence / Destinataire — toutes les pages */}
             <View style={S.infoRow}>
-              <View style={[dynS.infoBox, { flex: 1 }]}>
-                <Text style={[S.infoBoxRef, { color: headerColor }]}>{doc.reference_number}</Text>
-                {doc.title && <Text style={[S.infoBoxSubtitle, { color: headerColor }]}>{doc.title.toUpperCase()}</Text>}
-                <Text style={[S.infoBoxDate, { color: headerColor }]}>{fmtDate(doc.issue_date || doc.created_at)}</Text>
-                {doc.due_date && <Text style={[S.infoBoxDate, { marginTop: 2, color: headerColor }]}>Éch. {fmtDate(doc.due_date)}</Text>}
+              <View style={[dynS.infoBoxAccent, { flex: 1 }]}>
+                <Text style={[S.infoBoxRef, { color: box1TextColor }]}>{doc.reference_number}</Text>
+                {doc.title && <Text style={[S.infoBoxSubtitle, { color: headerTextColor }]}>{doc.title.toUpperCase()}</Text>}
+                <Text style={[S.infoBoxDate, { color: headerTextColor }]}>{fmtDate(doc.issue_date || doc.created_at)}</Text>
+                {doc.due_date && <Text style={[S.infoBoxDate, { marginTop: 2, color: headerTextColor }]}>Éch. {fmtDate(doc.due_date)}</Text>}
               </View>
               <View style={[dynS.infoBox, { flex: 1.5 }]}>
-                <Text style={[S.infoBoxLabel, { color: headerColor }]}>DESTINATAIRE :</Text>
-                <Text style={[S.infoBoxName, { color: headerColor }]}>{client.name || '—'}</Text>
-                {!!client.address && <Text style={[S.infoBoxDetail, { color: headerColor }]}>{client.address}</Text>}
-                {!!client.phone   && <Text style={[S.infoBoxDetail, { color: headerColor }]}>{client.phone}</Text>}
-                {!!client.email   && <Text style={[S.infoBoxDetail, { color: headerColor }]}>{client.email}</Text>}
+                <Text style={[S.infoBoxLabel, { color: '#111' }]}>DESTINATAIRE :</Text>
+                <Text style={S.infoBoxName}>{client.name || '—'}</Text>
+                {!!client.address && <Text style={S.infoBoxDetail}>{client.address}</Text>}
+                {!!client.phone   && <Text style={S.infoBoxDetail}>{client.phone}</Text>}
+                {!!client.email   && <Text style={S.infoBoxDetail}>{client.email}</Text>}
               </View>
             </View>
 
@@ -467,27 +445,22 @@ export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signat
                 )}
 
                 <View style={S.bottomZone}>
-                  <View style={S.paymentBox}>
-                    <Text style={S.paymentTitle}>Paiement</Text>
-                    <Text style={S.paymentDetail}>Statut : {statusLabel(doc.status)}</Text>
-                    {!!doc.due_date && <Text style={S.paymentDetail}>Échéance : {fmtDate(doc.due_date)}</Text>}
-                  </View>
                   <View style={S.totalsBox}>
                     <View style={S.totalsRow}>
-                      <Text style={S.totalsLabel}>TOTAL HT :</Text>
-                      <Text style={S.totalsValue}>{fmt(subtotalHT)}</Text>
-                    </View>
-                    <View style={S.totalsRow}>
-                      <Text style={S.totalsLabel}>TVA {doc.has_tva ? tvaRate : 0}% :</Text>
-                      {doc.has_tva
-                        ? <Text style={S.totalsValue}>{fmt(tvaAmount * cr)}</Text>
-                        : <Text style={S.totalsValueDash}>-</Text>
-                      }
+                      <Text style={S.totalsLabel}>SOUS-TOTAL GLOBAL :</Text>
+                      <Text style={S.totalsValue}>{fmt(subtotalBefore * cr)}</Text>
                     </View>
                     <View style={S.totalsRow}>
                       <Text style={S.totalsLabel}>REMISE :</Text>
                       {totalDiscount > 0
                         ? <Text style={S.totalsValue}>- {fmt(totalDiscount * cr)}</Text>
+                        : <Text style={S.totalsValueDash}>-</Text>
+                      }
+                    </View>
+                    <View style={S.totalsRow}>
+                      <Text style={S.totalsLabel}>TVA {doc.has_tva ? tvaRate : 0}% :</Text>
+                      {doc.has_tva
+                        ? <Text style={S.totalsValue}>{fmt(tvaAmount * cr)}</Text>
                         : <Text style={S.totalsValueDash}>-</Text>
                       }
                     </View>
@@ -497,7 +470,7 @@ export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signat
                     </View>
                     <View style={{ marginTop: 4 }}>
                       <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Oblique', color: '#444', textAlign: 'right' }}>
-                        {amountToWords(total, currency)}
+                        Arrêtée la présente facture à la somme de : {amountToWords(total, currency)}
                       </Text>
                     </View>
                   </View>
@@ -510,7 +483,7 @@ export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signat
               <View style={S.footerLine}>
                 <View style={S.footerContent}>
                   <View style={S.footerLeft}>
-                    <Text style={S.footerPayTitle}>Paiement</Text>
+                    <Text style={[S.footerPayTitle, { color: '#111' }]}>Paiement</Text>
                     <Text style={S.footerPayDetail}>Statut : {statusLabel(doc.status)}</Text>
                     {!!doc.payment_method && <Text style={S.footerPayDetail}>{doc.payment_method}</Text>}
                     <Text style={S.footerUrl}>GETBUDGETPILOT.COM</Text>
@@ -546,10 +519,10 @@ export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signat
 
 // ─── Preview HTML ─────────────────────────────────────────────────────────────
 
-export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate = 1.0, accentColor = '#1E88E5', accentLight = '#f0f0f0', boxRadius = 32, headerColor = '#000000' }) {
+export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate = 1.0, accentColor = '#1E88E5', accentLight = '#f0f0f0', boxRadius = 32 }) {
   const storageBase = STORAGE_BASE_URL || ''
   const headerTextColor = getTextColor(accentColor)
-  const subtotalBgHtml  = accentToSubtotalBg(accentColor)
+  const labelColor      = accentColor
   const boxBgHtml       = accentToBoxBg(accentColor)
 
   const company = {
@@ -582,7 +555,6 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
   const tvaAmount     = doc.has_tva ? subtotalAfter * (tvaRate / 100) : 0
   const totalRaw      = toNumL(doc.total_amount) || (subtotalAfter + tvaAmount)
   const total         = totalRaw * cr
-  const subtotalHT    = (subtotalBefore - totalDiscount) * cr
 
   const signatureUrl = profile?.signature_path && profile.signature_path !== '0'
     ? `${storageBase}/${profile.signature_path}` : null
@@ -608,13 +580,13 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
       {/* HEADER : nom société grand */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <div>
-          <div style={{ fontSize: 32, fontWeight: 'bold', letterSpacing: '0.3px', color: headerColor }}>{company.name.toUpperCase()}</div>
+          <div style={{ fontSize: 32, fontWeight: 'bold', letterSpacing: '0.3px', color: labelColor }}>{company.name.toUpperCase()}</div>
         </div>
         <div style={{ textAlign: 'right', marginTop: 4 }}>
-          <div style={{ fontSize: 8, color: headerColor }}>{company.name}</div>
-          {company.address && <div style={{ fontSize: 8, color: headerColor }}>{company.address}</div>}
-          {company.phone   && <div style={{ fontSize: 8, color: headerColor }}>{company.phone}</div>}
-          {company.nif     && <div style={{ fontSize: 8, color: headerColor }}>NIF : {company.nif}</div>}
+          <div style={{ fontSize: 8, color: labelColor }}>{company.name}</div>
+          {company.address && <div style={{ fontSize: 8, color: labelColor }}>{company.address}</div>}
+          {company.phone   && <div style={{ fontSize: 8, color: labelColor }}>{company.phone}</div>}
+          {company.nif     && <div style={{ fontSize: 8, color: labelColor }}>NIF : {company.nif}</div>}
         </div>
       </div>
 
@@ -629,20 +601,20 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
       {/* 2 BOXES */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
         {/* Box référence */}
-        <div style={{ flex: 1, border: '1px solid #111', borderRadius: boxRadius, padding: '12px 14px', backgroundColor: boxBgHtml }}>
-          <div style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 6, color: headerColor }}>{doc.reference_number}</div>
-          {doc.title && <div style={{ fontSize: 10, fontWeight: 'bold', color: headerColor, marginBottom: 4, lineHeight: 1.6 }}>{doc.title.toUpperCase()}</div>}
-          <div style={{ fontSize: 9, color: headerColor, marginTop: 4 }}>{fmtD(doc.issue_date || doc.created_at)}</div>
-          {doc.due_date && <div style={{ fontSize: 9, color: headerColor, marginTop: 4 }}>Éch. {fmtD(doc.due_date)}</div>}
+        <div style={{ flex: 1, border: `1px solid ${accentColor}`, borderRadius: boxRadius, padding: '12px 14px', backgroundColor: accentColor }}>
+          <div style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 6, color: headerTextColor }}>{doc.reference_number}</div>
+          {doc.title && <div style={{ fontSize: 10, fontWeight: 'bold', color: headerTextColor, marginBottom: 4, lineHeight: 1.6 }}>{doc.title.toUpperCase()}</div>}
+          <div style={{ fontSize: 9, color: headerTextColor, marginTop: 4 }}>{fmtD(doc.issue_date || doc.created_at)}</div>
+          {doc.due_date && <div style={{ fontSize: 9, color: headerTextColor, marginTop: 4 }}>Éch. {fmtD(doc.due_date)}</div>}
         </div>
 
         {/* Box destinataire */}
         <div style={{ flex: 1.5, border: '1px solid #111', borderRadius: boxRadius, padding: '12px 14px', backgroundColor: boxBgHtml }}>
-          <div style={{ fontSize: 9, color: headerColor, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>DESTINATAIRE :</div>
-          <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 6, color: headerColor }}>{client.name || '—'}</div>
-          {client.address && <div style={{ fontSize: 9, color: headerColor, marginTop: 4, lineHeight: 1.6 }}>{client.address}</div>}
-          {client.phone   && <div style={{ fontSize: 9, color: headerColor, marginTop: 4, lineHeight: 1.6 }}>{client.phone}</div>}
-          {client.email   && <div style={{ fontSize: 9, color: headerColor, marginTop: 4, lineHeight: 1.6 }}>{client.email}</div>}
+          <div style={{ fontSize: 9, color: '#111', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>DESTINATAIRE :</div>
+          <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 6, color: labelColor }}>{client.name || '—'}</div>
+          {client.address && <div style={{ fontSize: 9, color: labelColor, marginTop: 4, lineHeight: 1.6 }}>{client.address}</div>}
+          {client.phone   && <div style={{ fontSize: 9, color: labelColor, marginTop: 4, lineHeight: 1.6 }}>{client.phone}</div>}
+          {client.email   && <div style={{ fontSize: 9, color: labelColor, marginTop: 4, lineHeight: 1.6 }}>{client.email}</div>}
         </div>
       </div>
 
@@ -672,7 +644,7 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
                 {showCatSubtotal && (
                   <>
                     <tr><td colSpan={4} style={{ height: 6, padding: 0, border: 'none' }}></td></tr>
-                    <tr key={`sub-${gi}`} style={{ borderTop: `1px dashed ${accentColor}`, borderBottom: `1px dashed ${accentColor}`, backgroundColor: subtotalBgHtml }}>
+                    <tr key={`sub-${gi}`} style={{ borderTop: `1px dashed ${accentColor}`, borderBottom: `1px dashed ${accentColor}` }}>
                       <td colSpan={3} style={{ padding: '6px', fontWeight: 'bold', fontSize: 10, color: accentColor }}>SOUS TOTAL{showCatSubtotal ? ` ${cat}` : ''}</td>
                       <td style={{ padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: 10, color: accentColor }}>{fmt(catTotal * cr)}</td>
                     </tr>
@@ -686,7 +658,7 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
           {!showCatSubtotal && (
             <>
               <tr><td colSpan={4} style={{ height: 6, padding: 0, border: 'none' }}></td></tr>
-              <tr style={{ borderTop: `1px dashed ${accentColor}`, borderBottom: `1px dashed ${accentColor}`, backgroundColor: subtotalBgHtml }}>
+              <tr style={{ borderTop: `1px dashed ${accentColor}`, borderBottom: `1px dashed ${accentColor}` }}>
                 <td colSpan={3} style={{ padding: '6px', fontWeight: 'bold', fontSize: 10, color: accentColor }}>SOUS TOTAL</td>
                 <td style={{ padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: 10, color: accentColor }}>{fmt((subtotalBefore - totalDiscount) * cr)}</td>
               </tr>
@@ -696,30 +668,25 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
         </tbody>
       </table>
 
-      {/* TOTAUX + PAIEMENT */}
-      <div style={{ display: 'flex', marginTop: 20, gap: 16 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 'bold', fontSize: 10, marginBottom: 5 }}>Paiement</div>
-          <div style={{ fontSize: 9, color: '#555' }}>Statut : {sL(doc.status)}</div>
-          {doc.due_date && <div style={{ fontSize: 9, color: '#555' }}>Échéance : {fmtD(doc.due_date)}</div>}
-        </div>
+      {/* TOTAUX */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
         <div style={{ width: 230 }}>
           {[
-            [`TOTAL HT :`, fmt(subtotalHT), false],
-            [`TVA ${doc.has_tva ? tvaRate : 0}% :`, doc.has_tva ? fmt(tvaAmount * cr) : '-', !doc.has_tva],
+            ['SOUS-TOTAL GLOBAL :', fmt(subtotalBefore * cr), false],
             [`REMISE :`, totalDiscount > 0 ? `- ${fmt(totalDiscount * cr)}` : '-', totalDiscount === 0],
+            [`TVA ${doc.has_tva ? tvaRate : 0}% :`, doc.has_tva ? fmt(tvaAmount * cr) : '-', !doc.has_tva],
           ].map(([label, value, isDash], i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-              <span style={{ fontSize: 10, fontWeight: 'bold' }}>{label}</span>
-              <span style={{ fontSize: 10, color: '#111' }}>{value}</span>
+              <span style={{ fontSize: 10, fontWeight: 'bold', color: labelColor }}>{label}</span>
+              <span style={{ fontSize: 10, color: labelColor }}>{value}</span>
             </div>
           ))}
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', marginTop: 3 }}>
-            <span style={{ fontSize: 12, fontWeight: 'bold' }}>TOTAL TTC :</span>
-            <span style={{ fontSize: 12, fontWeight: 'bold' }}>{fmt(total)}</span>
+            <span style={{ fontSize: 12, fontWeight: 'bold', color: labelColor }}>TOTAL TTC :</span>
+            <span style={{ fontSize: 12, fontWeight: 'bold', color: labelColor }}>{fmt(total)}</span>
           </div>
           <div style={{ marginTop: 4, fontSize: 9, color: '#444', fontStyle: 'italic', textAlign: 'right' }}>
-            {amountToWords(total, currency)}
+            Arrêtée la présente facture à la somme de : {amountToWords(total, currency)}
           </div>
         </div>
       </div>
@@ -730,9 +697,9 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
           <div style={{ display: 'flex', alignItems: 'flex-start' }}>
             {/* Gauche : Paiement */}
             <div style={{ flex: 1, paddingRight: 16 }}>
-              <div style={{ fontWeight: 'bold', fontSize: 10, marginBottom: 4 }}>Paiement</div>
-              <div style={{ fontSize: 9, color: '#555', marginTop: 2 }}>Statut : {sL(doc.status)}</div>
-              {doc.payment_method && <div style={{ fontSize: 9, color: '#555', marginTop: 2 }}>{doc.payment_method}</div>}
+              <div style={{ fontWeight: 'bold', fontSize: 10, marginBottom: 4, color: '#111' }}>Paiement</div>
+              <div style={{ fontSize: 9, color: labelColor, marginTop: 2 }}>Statut : {sL(doc.status)}</div>
+              {doc.payment_method && <div style={{ fontSize: 9, color: labelColor, marginTop: 2 }}>{doc.payment_method}</div>}
               <div style={{ fontSize: 8, color: '#000', letterSpacing: 0.5, marginTop: 12 }}>GETBUDGETPILOT.COM</div>
             </div>
 
@@ -765,14 +732,14 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
 // ─── Génération blob ──────────────────────────────────────────────────────────
 
 export async function generateModernPdfBlob(doc, profile, qrDataUrl, logoDataUrl, signatureDataUrl, logoBbDataUrl, currency = 'XOF', conversionRate = 1.0, customization = {}) {
-  const { accentColor = '#1E88E5', accentLight = '#f0f0f0', boxRadius = 32, headerColor = '#000000' } = customization
+  const { accentColor = '#1E88E5', accentLight = '#f0f0f0', boxRadius = 32, noColor = false, fontChoice = 'helvetica' } = customization
   return pdf(
     <ModernPdfDocument
       doc={doc} profile={profile}
       qrDataUrl={qrDataUrl} logoDataUrl={logoDataUrl}
       signatureDataUrl={signatureDataUrl} logoBbDataUrl={logoBbDataUrl}
       currency={currency} conversionRate={conversionRate}
-      accentColor={accentColor} accentLight={accentLight} boxRadius={boxRadius} headerColor={headerColor}
+      accentColor={accentColor} accentLight={accentLight} boxRadius={boxRadius} noColor={noColor} fontChoice={fontChoice}
     />
   ).toBlob()
 }

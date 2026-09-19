@@ -13,27 +13,28 @@ import { formatAmount } from '../../store/currencyStore'
 import { PDF_TEMPLATES, generatePdfBlob } from './pdfTemplates'
 import usePremiumGate from '../../hooks/usePremiumGate'
 import { getTextColor, accentToBoxBg, accentToSubtotalBg } from './pdfColorUtils'
+import { FONT_CHOICES } from './pdfFonts'
 
 // Templates réservés aux comptes premium (Basic / Pro)
 const PREMIUM_TEMPLATES = ['classic', 'modern', 'corporate']
 
 // ─── Defaults de personnalisation par template ────────────────────────────────
 const ACCENT_PRESETS = [
+  { color: '#16A34A', label: 'Vert' },
+  { color: '#E1A100', label: 'Jaune' },
   { color: '#1E88E5', label: 'Bleu appli' },
+  { color: '#C0392B', label: 'Rouge' },
   { color: '#7B3FE4', label: 'Violet' },
-  { color: '#1A3A6B', label: 'Bleu marine' },
-]
-const HEADER_COLOR_PRESETS = [
   { color: '#000000', label: 'Noir' },
-  { color: '#1E88E5', label: 'Bleu' },
-  { color: '#1A3A6B', label: 'Marine' },
 ]
-
 const CUSTOMIZATION_DEFAULTS = {
-  minimal:   { accentColor: '#1E88E5', headerColor: '#000000', showQrCode: true, showBranding: true },
-  classic:   { accentColor: '#1E88E5', headerColor: '#000000', frameWidth: 1.5 },
-  modern:    { accentColor: '#1E88E5', headerColor: '#000000', accentLight: '#f0f0f0', boxRadius: 32 },
-  corporate: { accentColor: '#1E88E5', headerColor: '#000000' },
+  // showQrCode/showBranding ne sont plus personnalisables : dérivées automatiquement
+  // du statut premium (voir buildPdfBlob / rendu de l'aperçu).
+  minimal:       { accentColor: '#1E88E5', noColor: true, fontChoice: 'helvetica' },
+  classic:       { accentColor: '#1E88E5', frameWidth: 1.5, noColor: true, fontChoice: 'helvetica' },
+  modern:        { accentColor: '#1E88E5', accentLight: '#f0f0f0', boxRadius: 32, noColor: true, fontChoice: 'helvetica' },
+  corporate:     { accentColor: '#1E88E5', noColor: true, fontChoice: 'helvetica' },
+  administrative: { accentColor: '#1E88E5', noColor: false, fontChoice: 'helvetica' },
 }
 
 function loadCustomization() {
@@ -42,7 +43,7 @@ function loadCustomization() {
     if (!saved) return { ...CUSTOMIZATION_DEFAULTS }
     const parsed = JSON.parse(saved)
     // Fusionner par template pour ne garder que les clés de personnalisation connues
-    const safeKeys = ['accentColor', 'headerColor', 'showQrCode', 'showBranding', 'frameWidth', 'accentLight', 'boxRadius']
+    const safeKeys = ['accentColor', 'frameWidth', 'accentLight', 'boxRadius', 'noColor', 'fontChoice']
     const result = { ...CUSTOMIZATION_DEFAULTS }
     Object.keys(CUSTOMIZATION_DEFAULTS).forEach(tplId => {
       if (parsed[tplId]) {
@@ -125,6 +126,7 @@ function statusLabel(s) {
 // ─── Template Minimal (aperçu HTML — injecté dans le registre via PreviewComponent) ──
 
 const MINIMAL_ITEMS_PER_PAGE = 20
+const MINIMAL_ITEMS_ON_LAST_PAGE = 6
 
 function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversionRate = 1.0, accentColor = '#000000', showQrCode = true, showBranding = true }) {
   const headerTextColor = getTextColor(accentColor)
@@ -185,16 +187,24 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
   })
   const showCatSubtotal = Object.keys(grouped).length > 1
 
-  // Aplatir + découper en pages de MINIMAL_ITEMS_PER_PAGE
+  // Aplatir + découper : la dernière page doit réserver la place des totaux,
+  // du montant en lettres et des signatures, comme le PDF généré.
   const flatItems = []
   Object.entries(grouped).forEach(([cat, catItems]) => {
     catItems.forEach(item => flatItems.push({ ...item, _cat: cat }))
     flatItems.push({ __subtotal: true, _cat: cat, _catItems: catItems })
   })
   const pageSlices = []
-  for (let i = 0; i < flatItems.length; i += MINIMAL_ITEMS_PER_PAGE) {
-    pageSlices.push(flatItems.slice(i, i + MINIMAL_ITEMS_PER_PAGE))
+  const lastPageItems = flatItems.length > MINIMAL_ITEMS_PER_PAGE
+    ? flatItems.slice(-MINIMAL_ITEMS_ON_LAST_PAGE)
+    : []
+  const itemsBeforeLastPage = lastPageItems.length > 0
+    ? flatItems.slice(0, -MINIMAL_ITEMS_ON_LAST_PAGE)
+    : flatItems
+  for (let i = 0; i < itemsBeforeLastPage.length; i += MINIMAL_ITEMS_PER_PAGE) {
+    pageSlices.push(itemsBeforeLastPage.slice(i, i + MINIMAL_ITEMS_PER_PAGE))
   }
+  if (lastPageItems.length > 0) pageSlices.push(lastPageItems)
   if (pageSlices.length === 0) pageSlices.push([])
 
   const PAGE_W = '794px'
@@ -214,13 +224,13 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
         </div>
       </div>
       <div style={{ flex: 1, fontSize: 9, lineHeight: 1.6 }}>
-        <div style={{ fontWeight: 'bold', color: headerColor, marginBottom: 2 }}>ÉMETTEUR</div>
+        <div style={{ fontWeight: 'bold', color: '#111', marginBottom: 2 }}>ÉMETTEUR</div>
         <div style={{ color: headerColor, fontWeight: 'bold' }}>{company.name}</div>
         {company.phone   && <div style={{ color: headerColor }}>{company.phone}</div>}
         {company.address && <div style={{ color: headerColor }}>{company.address}</div>}
       </div>
       <div style={{ flex: 1, fontSize: 9, lineHeight: 1.6 }}>
-        <div style={{ fontWeight: 'bold', color: headerColor, marginBottom: 2 }}>DESTINATAIRE</div>
+        <div style={{ fontWeight: 'bold', color: '#111', marginBottom: 2 }}>DESTINATAIRE</div>
         <div style={{ color: headerColor, fontWeight: 'bold' }}>{client.name || '—'}</div>
         {client.phone   && <div style={{ color: headerColor }}>{client.phone}</div>}
         {client.email   && <div style={{ color: headerColor }}>{client.email}</div>}
@@ -381,7 +391,7 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
             {/* Montant en lettres — collé sous le tableau à gauche */}
             {isLastPage && (
               <div style={{ padding: '6px 0 0 0' }}>
-                <span style={{ fontWeight: 'bold', fontSize: 9, color: '#000' }}>Total : </span>
+                <span style={{ fontWeight: 'bold', fontSize: 9, color: '#000' }}>Arrêtée la présente facture à la somme de : </span>
                 <span style={{ fontSize: 9, color: '#000', fontStyle: 'italic' }}>{amountToWords(total, currency)}</span>
               </div>
             )}
@@ -396,196 +406,163 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
 }
 // ─── Miniatures de sélection de template ─────────────────────────────────────
 
-// Thumbnails SVG inline — représentation simplifiée de chaque design
-const TEMPLATE_THUMBS = {
-  minimal: (
-    <svg viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
-      {/* fond blanc */}
-      <rect width="80" height="110" fill="#fff" />
-      {/* header 3 cols */}
-      <rect x="4" y="5" width="12" height="12" rx="2" fill="#e0e0e0" />
-      <rect x="28" y="5" width="20" height="3" rx="1" fill="#ccc" />
-      <rect x="28" y="10" width="14" height="2" rx="1" fill="#e0e0e0" />
-      <rect x="55" y="5" width="18" height="3" rx="1" fill="#ccc" />
-      <rect x="55" y="10" width="14" height="2" rx="1" fill="#e0e0e0" />
-      {/* tableau header arrondi noir */}
-      <rect x="4" y="22" width="72" height="9" rx="4" fill="#111" />
-      <rect x="7" y="25" width="30" height="3" rx="1" fill="#fff" opacity="0.8" />
-      <rect x="50" y="25" width="10" height="3" rx="1" fill="#fff" opacity="0.6" />
-      <rect x="63" y="25" width="10" height="3" rx="1" fill="#fff" opacity="0.6" />
-      {/* lignes tableau */}
-      {[0,1,2,3].map(i => (
-        <g key={i}>
-          <rect x="4" y={33+i*9} width="72" height="8" fill={i%2===0 ? '#fff' : '#fafafa'} />
-          <rect x="7" y={36+i*9} width="28" height="2" rx="1" fill="#ddd" />
-          <rect x="52" y={36+i*9} width="8" height="2" rx="1" fill="#ddd" />
-          <rect x="64" y={36+i*9} width="9" height="2" rx="1" fill="#ddd" />
-          <line x1="4" y1={33+i*9} x2="76" y2={33+i*9} stroke="#f0f0f0" strokeWidth="0.5" />
-        </g>
-      ))}
-      {/* bordure tableau */}
-      <rect x="4" y="22" width="72" height="70" rx="4" fill="none" stroke="#111" strokeWidth="1.2" />
-      {/* bloc totaux arrondi */}
-      <rect x="40" y="75" width="34" height="22" rx="3" fill="#fff" stroke="#111" strokeWidth="1" />
-      <rect x="40" y="89" width="34" height="8" rx="3" fill="#111" />
-      <rect x="43" y="78" width="16" height="2" rx="1" fill="#ccc" />
-      <rect x="43" y="83" width="12" height="2" rx="1" fill="#ccc" />
-      <rect x="43" y="91" width="14" height="3" rx="1" fill="#fff" opacity="0.8" />
-      {/* footer */}
-      <line x1="4" y1="100" x2="76" y2="100" stroke="#e0e0e0" strokeWidth="0.8" />
-      <rect x="4" y="103" width="18" height="2" rx="1" fill="#ccc" />
-      <rect x="60" y="103" width="14" height="2" rx="1" fill="#e0e0e0" />
-    </svg>
-  ),
-  corporate: (
-    <svg viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
-      <rect width="80" height="110" fill="#fff" />
-      {/* logo gauche */}
-      <rect x="4" y="5" width="13" height="13" rx="2" fill="#e0e0e0" />
-      {/* ref grande droite */}
-      <rect x="44" y="5" width="30" height="6" rx="1.5" fill="#222" />
-      <rect x="48" y="13" width="22" height="2.5" rx="1" fill="#bbb" />
-      <rect x="48" y="17" width="16" height="2" rx="1" fill="#ddd" />
-      {/* separator */}
-      <line x1="4" y1="22" x2="76" y2="22" stroke="#ccc" strokeWidth="0.8" />
-      {/* info client */}
-      <rect x="4" y="25" width="22" height="3" rx="1" fill="#555" />
-      <rect x="4" y="30" width="16" height="2" rx="1" fill="#ddd" />
-      <rect x="4" y="34" width="20" height="2" rx="1" fill="#ddd" />
-      {/* tableau header */}
-      <line x1="4" y1="42" x2="76" y2="42" stroke="#111" strokeWidth="1.5" />
-      <rect x="4" y="37" width="28" height="4" rx="1" fill="#bbb" />
-      <rect x="50" y="37" width="10" height="4" rx="1" fill="#bbb" />
-      <rect x="64" y="37" width="10" height="4" rx="1" fill="#bbb" />
-      {/* lignes */}
-      {[0,1,2,3].map(i => (
-        <g key={i}>
-          <rect x="4" y={44+i*8} width="72" height="7" fill="#fff" />
-          <rect x="4" y={51+i*8} width="72" height="0.5" fill="#ebebeb" />
-          <rect x="6" y={47+i*8} width="24" height="2" rx="1" fill="#ddd" />
-          <rect x="52" y={47+i*8} width="8" height="2" rx="1" fill="#ddd" />
-          <rect x="64" y={47+i*8} width="9" height="2" rx="1" fill="#ddd" />
-        </g>
-      ))}
-      {/* totaux */}
-      <rect x="40" y="76" width="34" height="18" rx="2" fill="#fafafa" />
-      <rect x="42" y="78" width="14" height="2.5" rx="1" fill="#ccc" />
-      <rect x="42" y="83" width="12" height="2" rx="1" fill="#ddd" />
-      <line x1="40" y1="88" x2="74" y2="88" stroke="#111" strokeWidth="1.5" />
-      <rect x="42" y="90" width="18" height="3" rx="1" fill="#333" />
-      {/* footer */}
-      <line x1="4" y1="102" x2="76" y2="102" stroke="#ddd" strokeWidth="0.8" />
-      <rect x="4" y="105" width="18" height="2" rx="1" fill="#ccc" />
-      <rect x="58" y="105" width="16" height="2" rx="1" fill="#e0e0e0" />
-    </svg>
-  ),
-  classic: (
-    <svg viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
-      <rect width="80" height="110" fill="#fff" />
-      {/* logo gauche */}
-      <rect x="4" y="5" width="12" height="12" rx="2" fill="#e0e0e0" />
-      {/* ref droite grande */}
-      <rect x="46" y="5" width="28" height="5" rx="1.5" fill="#222" />
-      <rect x="50" y="12" width="20" height="2" rx="1" fill="#bbb" />
-      {/* separator */}
-      <line x1="4" y1="21" x2="76" y2="21" stroke="#ccc" strokeWidth="0.8" />
-      {/* 2 colonnes émetteur/destinataire */}
-      <rect x="4" y="24" width="20" height="2.5" rx="1" fill="#888" />
-      <line x1="4" y1="28" x2="36" y2="28" stroke="#ccc" strokeWidth="0.5" />
-      <rect x="4" y="30" width="18" height="2" rx="1" fill="#ccc" />
-      <rect x="4" y="34" width="14" height="2" rx="1" fill="#e0e0e0" />
-      {/* separateur vertical */}
-      <line x1="40" y1="24" x2="40" y2="44" stroke="#ccc" strokeWidth="0.8" />
-      {/* destinataire */}
-      <rect x="44" y="24" width="20" height="2.5" rx="1" fill="#888" />
-      <line x1="44" y1="28" x2="76" y2="28" stroke="#ccc" strokeWidth="0.5" />
-      <rect x="44" y="30" width="18" height="2" rx="1" fill="#ccc" />
-      <rect x="44" y="34" width="14" height="2" rx="1" fill="#e0e0e0" />
-      {/* tableau */}
-      <line x1="4" y1="48" x2="76" y2="48" stroke="#111" strokeWidth="1.5" />
-      <rect x="4" y="44" width="26" height="3.5" rx="1" fill="#bbb" />
-      <rect x="50" y="44" width="10" height="3.5" rx="1" fill="#bbb" />
-      <rect x="64" y="44" width="10" height="3.5" rx="1" fill="#bbb" />
-      {[0,1,2].map(i => (
-        <g key={i}>
-          <rect x="4" y={50+i*8} width="72" height="7" fill="#fff" />
-          <line x1="4" y1={57+i*8} x2="76" y2={57+i*8} stroke="#e0e0e0" strokeWidth="0.5" />
-          <rect x="6" y={53+i*8} width="24" height="2" rx="1" fill="#ddd" />
-          <rect x="52" y={53+i*8} width="8" height="2" rx="1" fill="#ddd" />
-          <rect x="64" y={53+i*8} width="9" height="2" rx="1" fill="#ddd" />
-        </g>
-      ))}
-      {/* SOUSTOTAL */}
-      <line x1="4" y1="74" x2="76" y2="74" stroke="#111" strokeWidth="1.5" />
-      <rect x="4" y="75" width="72" height="7" fill="#fff" />
-      <rect x="6" y="77.5" width="20" height="2" rx="1" fill="#444" />
-      <rect x="62" y="77.5" width="10" height="2" rx="1" fill="#444" />
-      <line x1="4" y1="82" x2="76" y2="82" stroke="#111" strokeWidth="1.5" />
-      {/* totaux droite */}
-      <rect x="40" y="85" width="34" height="16" rx="1" fill="#fafafa" />
-      <rect x="42" y="87" width="16" height="2" rx="1" fill="#ccc" />
-      <rect x="42" y="91" width="14" height="2" rx="1" fill="#ddd" />
-      <line x1="40" y1="95" x2="74" y2="95" stroke="#111" strokeWidth="1.5" />
-      <rect x="42" y="97" width="18" height="3" rx="1" fill="#333" />
-      {/* footer */}
-      <rect x="8" y="104" width="22" height="2" rx="1" fill="#888" />
-      <rect x="50" y="104" width="22" height="2" rx="1" fill="#888" />
-      <rect x="30" y="107" width="20" height="1.5" rx="1" fill="#ccc" />
-    </svg>
-  ),
-  modern: (
+// Génère la miniature SVG d'un template en reflétant sa personnalisation réelle
+// (couleur accent / sans-couleur) — évite d'avoir à ouvrir le template en grand
+// juste pour voir le rendu des couleurs choisies.
+function renderTemplateThumb(id, custom = {}) {
+  const accentColor = custom.accentColor || '#1E88E5'
+  const noColor = !!custom.noColor
+  const brand = noColor ? '#111' : accentColor
+  const brandTint = noColor ? '#fff' : accentToBoxBg(accentColor)
+  const brandText = noColor ? '#111' : getTextColor(accentColor)
+
+  if (id === 'minimal') {
+    return (
+      <svg viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+        <rect width="80" height="110" fill="#fff" />
+        <rect x="4" y="5" width="12" height="12" rx="2" fill="#e0e0e0" />
+        <rect x="28" y="5" width="20" height="3" rx="1" fill="#ccc" />
+        <rect x="28" y="10" width="14" height="2" rx="1" fill="#e0e0e0" />
+        <rect x="55" y="5" width="18" height="3" rx="1" fill="#ccc" />
+        <rect x="55" y="10" width="14" height="2" rx="1" fill="#e0e0e0" />
+        <rect x="4" y="22" width="72" height="9" rx="4" fill={brand} />
+        <rect x="7" y="25" width="30" height="3" rx="1" fill={brandText} opacity="0.8" />
+        <rect x="50" y="25" width="10" height="3" rx="1" fill={brandText} opacity="0.6" />
+        <rect x="63" y="25" width="10" height="3" rx="1" fill={brandText} opacity="0.6" />
+        {[0,1,2,3].map(i => (
+          <g key={i}>
+            <rect x="4" y={33+i*9} width="72" height="8" fill={i%2===0 ? '#fff' : '#fafafa'} />
+            <rect x="7" y={36+i*9} width="28" height="2" rx="1" fill="#ddd" />
+            <rect x="52" y={36+i*9} width="8" height="2" rx="1" fill="#ddd" />
+            <rect x="64" y={36+i*9} width="9" height="2" rx="1" fill="#ddd" />
+            <line x1="4" y1={33+i*9} x2="76" y2={33+i*9} stroke="#f0f0f0" strokeWidth="0.5" />
+          </g>
+        ))}
+        <rect x="4" y="22" width="72" height="70" rx="4" fill="none" stroke={brand} strokeWidth="1.2" />
+        <rect x="40" y="75" width="34" height="22" rx="3" fill="#fff" stroke={brand} strokeWidth="1" />
+        <rect x="40" y="89" width="34" height="8" rx="3" fill={brand} />
+        <rect x="43" y="78" width="16" height="2" rx="1" fill="#ccc" />
+        <rect x="43" y="83" width="12" height="2" rx="1" fill="#ccc" />
+        <rect x="43" y="91" width="14" height="3" rx="1" fill={brandText} opacity="0.8" />
+        <line x1="4" y1="100" x2="76" y2="100" stroke="#e0e0e0" strokeWidth="0.8" />
+        <rect x="4" y="103" width="18" height="2" rx="1" fill="#ccc" />
+        <rect x="60" y="103" width="14" height="2" rx="1" fill="#e0e0e0" />
+      </svg>
+    )
+  }
+
+  if (id === 'corporate') {
+    return (
+      <svg viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+        <rect width="80" height="110" fill="#fff" />
+        <rect x="4" y="5" width="13" height="13" rx="2" fill="#e0e0e0" />
+        <rect x="44" y="5" width="30" height="6" rx="1.5" fill="#222" />
+        <rect x="48" y="13" width="22" height="2.5" rx="1" fill="#bbb" />
+        <rect x="48" y="17" width="16" height="2" rx="1" fill="#ddd" />
+        <line x1="4" y1="22" x2="76" y2="22" stroke="#ccc" strokeWidth="0.8" />
+        <rect x="4" y="25" width="22" height="3" rx="1" fill="#555" />
+        <rect x="4" y="30" width="16" height="2" rx="1" fill="#ddd" />
+        <rect x="4" y="34" width="20" height="2" rx="1" fill="#ddd" />
+        <rect x="4" y="37" width="72" height="7" rx="1" fill={brand} />
+        <rect x="6" y="39" width="20" height="2.5" rx="1" fill={brandText} opacity="0.85" />
+        <rect x="52" y="39" width="8" height="2.5" rx="1" fill={brandText} opacity="0.6" />
+        <rect x="64" y="39" width="8" height="2.5" rx="1" fill={brandText} opacity="0.6" />
+        {[0,1,2,3].map(i => (
+          <g key={i}>
+            <rect x="4" y={46+i*8} width="72" height="7" fill="#fff" />
+            <rect x="4" y={53+i*8} width="72" height="0.5" fill="#ebebeb" />
+            <rect x="6" y={49+i*8} width="24" height="2" rx="1" fill="#ddd" />
+            <rect x="52" y={49+i*8} width="8" height="2" rx="1" fill="#ddd" />
+            <rect x="64" y={49+i*8} width="9" height="2" rx="1" fill="#ddd" />
+          </g>
+        ))}
+        <rect x="40" y="78" width="34" height="18" rx="2" fill={brandTint} />
+        <rect x="42" y="80" width="14" height="2.5" rx="1" fill="#ccc" />
+        <rect x="42" y="85" width="12" height="2" rx="1" fill="#ddd" />
+        <line x1="40" y1="90" x2="74" y2="90" stroke={brand} strokeWidth="1.5" />
+        <rect x="42" y="92" width="18" height="3" rx="1" fill={brand} />
+        <line x1="4" y1="102" x2="76" y2="102" stroke="#ddd" strokeWidth="0.8" />
+        <rect x="4" y="105" width="18" height="2" rx="1" fill="#ccc" />
+        <rect x="58" y="105" width="16" height="2" rx="1" fill="#e0e0e0" />
+      </svg>
+    )
+  }
+
+  if (id === 'classic') {
+    return (
+      <svg viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+        <rect width="80" height="110" fill="#fff" />
+        <rect width="80" height="110" fill="none" stroke={brand} strokeWidth="1.5" />
+        <rect x="6" y="7" width="12" height="12" rx="2" fill="#e0e0e0" />
+        <rect x="46" y="7" width="28" height="5" rx="1.5" fill="#222" />
+        <rect x="50" y="14" width="20" height="2" rx="1" fill="#bbb" />
+        <line x1="6" y1="23" x2="74" y2="23" stroke="#ccc" strokeWidth="0.8" />
+        <rect x="6" y="26" width="20" height="2.5" rx="1" fill="#888" />
+        <line x1="6" y1="30" x2="36" y2="30" stroke="#ccc" strokeWidth="0.5" />
+        <rect x="6" y="32" width="18" height="2" rx="1" fill="#ccc" />
+        <line x1="40" y1="26" x2="40" y2="46" stroke="#ccc" strokeWidth="0.8" />
+        <rect x="44" y="26" width="20" height="2.5" rx="1" fill="#888" />
+        <line x1="44" y1="30" x2="74" y2="30" stroke="#ccc" strokeWidth="0.5" />
+        <rect x="44" y="32" width="18" height="2" rx="1" fill="#ccc" />
+        <line x1="6" y1="50" x2="74" y2="50" stroke={brand} strokeWidth="1.5" />
+        <rect x="6" y="46" width="26" height="3.5" rx="1" fill="#bbb" />
+        <rect x="50" y="46" width="10" height="3.5" rx="1" fill="#bbb" />
+        {[0,1,2].map(i => (
+          <g key={i}>
+            <rect x="6" y={52+i*8} width="68" height="7" fill="#fff" />
+            <line x1="6" y1={59+i*8} x2="74" y2={59+i*8} stroke="#e0e0e0" strokeWidth="0.5" />
+            <rect x="8" y={55+i*8} width="24" height="2" rx="1" fill="#ddd" />
+            <rect x="52" y={55+i*8} width="8" height="2" rx="1" fill="#ddd" />
+          </g>
+        ))}
+        <line x1="6" y1="76" x2="74" y2="76" stroke={brand} strokeWidth="1.5" />
+        <rect x="6" y="77" width="68" height="7" fill={brandTint} />
+        <rect x="8" y="79.5" width="20" height="2" rx="1" fill="#444" />
+        <line x1="6" y1="84" x2="74" y2="84" stroke={brand} strokeWidth="1.5" />
+        <rect x="40" y="87" width="34" height="14" rx="1" fill="#fafafa" />
+        <rect x="42" y="89" width="16" height="2" rx="1" fill="#ccc" />
+        <line x1="40" y1="95" x2="74" y2="95" stroke={brand} strokeWidth="1.5" />
+        <rect x="42" y="97" width="18" height="3" rx="1" fill={brand} />
+        <rect x="10" y="104" width="20" height="2" rx="1" fill="#888" />
+        <rect x="50" y="104" width="20" height="2" rx="1" fill="#888" />
+      </svg>
+    )
+  }
+
+  // modern
+  return (
     <svg viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
       <rect width="80" height="110" fill="#fff" />
-      {/* Nom société grand */}
       <rect x="4" y="5" width="42" height="7" rx="1.5" fill="#111" />
-      {/* adresse droite */}
       <rect x="58" y="5" width="16" height="2" rx="1" fill="#ccc" />
       <rect x="58" y="9" width="14" height="2" rx="1" fill="#e0e0e0" />
-      {/* carrés décoratifs */}
-      <rect x="4" y="15" width="5" height="5" rx="1" fill="#888" />
-      <rect x="11" y="15" width="5" height="5" rx="1" fill="#888" />
-      <rect x="18" y="15" width="5" height="5" rx="1" fill="#f0f0f0" stroke="#888" strokeWidth="0.5" />
-      <rect x="25" y="15" width="5" height="5" rx="1" fill="#f0f0f0" stroke="#888" strokeWidth="0.5" />
-      <rect x="32" y="15" width="5" height="5" rx="1" fill="#f0f0f0" stroke="#888" strokeWidth="0.5" />
-      {/* 2 boxes arrondies */}
-      <rect x="4" y="23" width="34" height="18" rx="3" fill="#fff" stroke="#ccc" strokeWidth="0.8" />
-      <rect x="7" y="26" width="20" height="4" rx="1" fill="#333" />
-      <rect x="7" y="32" width="14" height="2" rx="1" fill="#bbb" />
-      <rect x="7" y="36" width="18" height="2" rx="1" fill="#ddd" />
-      <rect x="42" y="23" width="34" height="18" rx="3" fill="#fff" stroke="#ccc" strokeWidth="0.8" />
-      <rect x="45" y="26" width="10" height="2" rx="1" fill="#bbb" />
-      <rect x="45" y="30" width="24" height="3" rx="1" fill="#444" />
-      <rect x="45" y="35" width="18" height="2" rx="1" fill="#ddd" />
-      {/* tableau */}
-      <line x1="4" y1="46" x2="76" y2="46" stroke="#111" strokeWidth="1.5" />
-      <rect x="4" y="42" width="24" height="3.5" rx="1" fill="#bbb" />
-      <rect x="50" y="42" width="10" height="3.5" rx="1" fill="#bbb" />
-      <rect x="64" y="42" width="10" height="3.5" rx="1" fill="#bbb" />
-      {[0,1,2,3].map(i => (
+      <rect x="4" y="16" width="26" height="20" rx="2" fill="#e0e0e0" />
+      <rect x="4" y="39" width="16" height="20" rx="3" fill={brand} />
+      <rect x="7" y="42" width="10" height="4" rx="1" fill={brandText} opacity="0.85" />
+      <rect x="7" y="48" width="7" height="2" rx="1" fill={brandText} opacity="0.6" />
+      <rect x="7" y="52" width="9" height="2" rx="1" fill={brandText} opacity="0.6" />
+      <rect x="24" y="39" width="52" height="20" rx="3" fill={brandTint} stroke="#ccc" strokeWidth="0.6" />
+      <rect x="27" y="42" width="10" height="2" rx="1" fill="#bbb" />
+      <rect x="27" y="46" width="24" height="3" rx="1" fill="#444" />
+      <rect x="27" y="51" width="18" height="2" rx="1" fill="#ddd" />
+      <line x1="4" y1="63" x2="76" y2="63" stroke="#111" strokeWidth="1.5" />
+      <rect x="4" y="59" width="24" height="3.5" rx="1" fill="#bbb" />
+      <rect x="50" y="59" width="10" height="3.5" rx="1" fill="#bbb" />
+      {[0,1].map(i => (
         <g key={i}>
-          <rect x="4" y={48+i*7} width="72" height="6" fill="#fff" />
-          <line x1="4" y1={54+i*7} x2="76" y2={54+i*7} stroke="#ebebeb" strokeWidth="0.5" />
-          <rect x="6" y={50.5+i*7} width="22" height="2" rx="1" fill="#ddd" />
-          <rect x="52" y={50.5+i*7} width="7" height="2" rx="1" fill="#ddd" />
-          <rect x="63" y={50.5+i*7} width="9" height="2" rx="1" fill="#ddd" />
+          <rect x="4" y={65+i*7} width="72" height="6" fill="#fff" />
+          <line x1="4" y1={71+i*7} x2="76" y2={71+i*7} stroke="#ebebeb" strokeWidth="0.5" />
         </g>
       ))}
-      {/* SOUS TOTAL gris */}
-      <rect x="4" y="76" width="72" height="7" fill="#f0f0f0" />
-      <rect x="6" y="78.5" width="18" height="2" rx="1" fill="#555" />
-      <rect x="62" y="78.5" width="10" height="2" rx="1" fill="#555" />
-      {/* totaux */}
-      <rect x="40" y="86" width="34" height="15" rx="1" fill="#fafafa" />
-      <rect x="42" y="88" width="16" height="2" rx="1" fill="#ccc" />
-      <rect x="42" y="92" width="14" height="2" rx="1" fill="#ddd" />
-      <line x1="40" y1="96" x2="74" y2="96" stroke="#111" strokeWidth="1.5" />
-      <rect x="42" y="98" width="18" height="3" rx="1" fill="#333" />
-      {/* footer */}
-      <line x1="4" y1="104" x2="76" y2="104" stroke="#ddd" strokeWidth="0.8" />
-      <rect x="4" y="106" width="16" height="2" rx="1" fill="#ccc" />
-      <rect x="58" y="106" width="16" height="2" rx="1" fill="#e0e0e0" />
+      <rect x="4" y="80" width="72" height="7" fill="#f0f0f0" />
+      <rect x="6" y="82.5" width="18" height="2" rx="1" fill="#555" />
+      <rect x="40" y="90" width="34" height="15" rx="1" fill="#fafafa" />
+      <rect x="42" y="92" width="16" height="2" rx="1" fill="#ccc" />
+      <line x1="40" y1="100" x2="74" y2="100" stroke={brand} strokeWidth="1.5" />
+      <rect x="42" y="102" width="18" height="3" rx="1" fill={brand} />
+      <line x1="4" y1="107" x2="76" y2="107" stroke="#ddd" strokeWidth="0.8" />
     </svg>
-  ),
+  )
 }
 
 // ─── Modal principale ─────────────────────────────────────────────────────────
@@ -611,7 +588,8 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
 
   // ── Personnalisation des templates ──
   const [templateCustomization, setTemplateCustomization] = useState(() => loadCustomization())
-  const [customPanelOpen, setCustomPanelOpen] = useState(false)
+  // Ouvert par défaut : la personnalisation était trop peu découvrable une fois repliée
+  const [customPanelOpen, setCustomPanelOpen] = useState(true)
 
   const { isPremium, requirePremium, modal: premiumModal } = usePremiumGate()
 
@@ -757,8 +735,16 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
     }
   }
 
-  const buildPdfBlob = () =>
-    generatePdfBlob(selectedTemplate, doc, profile, qrDataUrl, logoDataUrl, sigDataUrl, logoBbDataUrl, doc?.currency || 'XOF', 1.0, templateCustomization[selectedTemplate] || {})
+  const buildPdfBlob = () => {
+    const custom = { ...(templateCustomization[selectedTemplate] || {}) }
+    // QR code + branding "Conçu par" : offerts en gratuit (attribution/upsell),
+    // retirés automatiquement pour les comptes premium — plus un choix manuel.
+    if (selectedTemplate === 'minimal') {
+      custom.showQrCode = !isPremium
+      custom.showBranding = !isPremium
+    }
+    return generatePdfBlob(selectedTemplate, doc, profile, qrDataUrl, logoDataUrl, sigDataUrl, logoBbDataUrl, doc?.currency || 'XOF', 1.0, custom)
+  }
 
   const buildFilename = () => {
     const ref = doc?.reference_number || docId
@@ -842,8 +828,34 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
     })
   }
 
+  // Change plusieurs clés en une seule fois (ex : choisir une couleur ET sortir du mode "sans couleur")
+  const updateCustomizationMulti = (patch) => {
+    setTemplateCustomization(prev => {
+      const next = {
+        ...prev,
+        [selectedTemplate]: { ...(prev[selectedTemplate] || {}), ...patch },
+      }
+      saveCustomization(next)
+      return next
+    })
+  }
+
+  // Sélectionner une couleur accent désactive automatiquement le mode "sans couleur"
+  const pickAccentColor = (color) => updateCustomizationMulti({ accentColor: color, noColor: false })
+
   // Raccourci pour lire la customisation du template actif
   const activeCustom = templateCustomization[selectedTemplate] || CUSTOMIZATION_DEFAULTS[selectedTemplate] || {}
+
+
+  // Réinitialise toute la personnalisation du template actif à ses valeurs par défaut
+  const resetCustomization = () => {
+    setTemplateCustomization(prev => {
+      const next = { ...prev, [selectedTemplate]: { ...CUSTOMIZATION_DEFAULTS[selectedTemplate] } }
+      saveCustomization(next)
+      return next
+    })
+    toast.success('Personnalisation réinitialisée')
+  }
 
   // ── Sélection du template ──
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -941,6 +953,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
             <BlobProvider document={
               <PdfDocComp
                 {...(activeCustom)}
+                {...(selectedTemplate === 'minimal' ? { showQrCode: !isPremium, showBranding: !isPremium } : {})}
                 doc={doc}
                 profile={profile}
                 qrDataUrl={qrDataUrl}
@@ -1028,6 +1041,13 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
           >
             <span style={{ fontSize: 16 }}>◧</span>
             Template : {activeTemplate?.label}
+            {/* Pastille de couleur — signale que la personnalisation est disponible */}
+            <span style={{
+              width: 12, height: 12, borderRadius: '50%',
+              backgroundColor: activeCustom.noColor ? '#fff' : (activeCustom.accentColor || '#1E88E5'),
+              border: '1.5px solid rgba(255,255,255,0.6)',
+              flexShrink: 0,
+            }} />
             <span style={{
               display: 'inline-block',
               transform: sheetOpen ? 'rotate(180deg)' : 'rotate(0deg)',
@@ -1129,7 +1149,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
                   >
                     {defaultTemplate === tpl.id ? '★' : '☆'}
                   </div>
-                  {/* Miniature SVG plus grande */}
+                  {/* Miniature SVG — reflète la couleur choisie pour ce template */}
                   <div style={{
                     width: 72, height: 96,
                     borderRadius: 6,
@@ -1138,7 +1158,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
                       ? '0 4px 16px rgba(30,136,229,0.3)'
                       : '0 2px 8px rgba(0,0,0,0.12)',
                   }}>
-                    {TEMPLATE_THUMBS[tpl.id]}
+                    {renderTemplateThumb(tpl.id, templateCustomization[tpl.id] || CUSTOMIZATION_DEFAULTS[tpl.id])}
                   </div>
                   {/* Label + description */}
                   <div style={{ textAlign: 'center' }}>
@@ -1159,36 +1179,70 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
 
           {/* ── Panneau personnalisation ── */}
           <div style={{ marginTop: 18, borderTop: '1px solid #f0f0f0', paddingTop: 14 }}>
-            <button
-              onClick={() => setCustomPanelOpen(v => !v)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                background: 'none', border: 'none', cursor: 'pointer',
-                fontSize: 13, fontWeight: '600', color: '#333', padding: 0,
-              }}
-            >
-              <Sliders size={15} />
-              Personnaliser le template
-              {customPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <button
+                onClick={() => setCustomPanelOpen(v => !v)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 13, fontWeight: '600', color: '#333', padding: 0,
+                }}
+              >
+                <Sliders size={15} />
+                Personnaliser le template
+                {customPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+
+              {customPanelOpen && (
+                <button
+                  onClick={resetCustomization}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontSize: 12, fontWeight: '600', color: '#888', padding: 0,
+                  }}
+                >
+                  ↺ Réinitialiser
+                </button>
+              )}
+            </div>
 
             {customPanelOpen && (
               <div style={{
                 marginTop: 14,
-                display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                gap: 16,
+                display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start',
+                gap: '16px 40px',
               }}>
 
-                {/* ── Couleur principale — tous les templates ── */}
+                {/* ── Couleur — pilote fonds et labels sur tout le template ── */}
                 <div>
                   <label style={{ fontSize: 12, fontWeight: '600', color: '#444', display: 'block', marginBottom: 8 }}>
-                    Couleur principale
+                    Couleur
                   </label>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {/* Sans couleur — restaure le design d'origine noir/blanc, sans fond coloré */}
+                    <button
+                      onClick={() => updateCustomization('noColor', true)}
+                      title="Sans couleur (design d'origine)"
+                      style={{
+                        width: 32, height: 32, borderRadius: '50%',
+                        border: '1px solid #ccc', backgroundColor: '#fff', cursor: 'pointer', flexShrink: 0,
+                        position: 'relative', overflow: 'hidden',
+                        boxShadow: activeCustom.noColor ? '0 0 0 3px #fff, 0 0 0 5px #111' : '0 1px 4px rgba(0,0,0,0.2)',
+                        transform: activeCustom.noColor ? 'scale(1.15)' : 'scale(1)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <span style={{
+                        position: 'absolute', left: '50%', top: '50%',
+                        width: '135%', height: 1.5, backgroundColor: '#e53e3e',
+                        transform: 'translate(-50%, -50%) rotate(-45deg)',
+                      }} />
+                    </button>
                     {ACCENT_PRESETS.map(p => {
-                      const isActive = (activeCustom.accentColor || '#1E88E5') === p.color
+                      const isActive = !activeCustom.noColor && (activeCustom.accentColor || '#1E88E5') === p.color
                       return (
-                        <button key={p.color} onClick={() => updateCustomization('accentColor', p.color)}
+                        <button key={p.color} onClick={() => pickAccentColor(p.color)}
                           title={p.label}
                           style={{
                             width: 32, height: 32, borderRadius: '50%', border: 'none',
@@ -1200,99 +1254,33 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
                         />
                       )
                     })}
-                    <input
-                      type="color"
-                      value={activeCustom.accentColor || '#1E88E5'}
-                      onChange={e => updateCustomization('accentColor', e.target.value)}
-                      title="Couleur personnalisée"
-                      style={{ width: 32, height: 32, border: '1px solid #ddd', borderRadius: '50%', cursor: 'pointer', padding: 2, flexShrink: 0 }}
-                    />
-                    <button
-                      onClick={() => updateCustomization('accentColor', '#1E88E5')}
-                      title="Réinitialiser" style={{ fontSize: 14, color: '#aaa', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
-                    >↺</button>
                   </div>
                 </div>
 
-                {/* ── Couleur entête (référence + émetteur + destinataire) — tous les templates ── */}
+                {/* ── Police — s'applique à tout le contenu du PDF ── */}
                 <div>
                   <label style={{ fontSize: 12, fontWeight: '600', color: '#444', display: 'block', marginBottom: 8 }}>
-                    Couleur entête
-                    <span style={{ fontSize: 10, fontWeight: '400', color: '#888', marginLeft: 6 }}>réf. · émetteur · destinataire</span>
+                    Police
                   </label>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    {HEADER_COLOR_PRESETS.map(p => {
-                      const isActive = (activeCustom.headerColor || '#000000') === p.color
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'nowrap' }}>
+                    {FONT_CHOICES.map(f => {
+                      const isActive = (activeCustom.fontChoice || 'helvetica') === f.id
                       return (
-                        <button key={p.color} onClick={() => updateCustomization('headerColor', p.color)}
-                          title={p.label}
+                        <button key={f.id} onClick={() => updateCustomization('fontChoice', f.id)}
                           style={{
-                            width: 32, height: 32, borderRadius: '50%', border: '1px solid #e0e0e0',
-                            backgroundColor: p.color, cursor: 'pointer', flexShrink: 0,
-                            boxShadow: isActive ? `0 0 0 3px #fff, 0 0 0 5px ${p.color}` : '0 1px 4px rgba(0,0,0,0.2)',
-                            transform: isActive ? 'scale(1.15)' : 'scale(1)',
-                            transition: 'all 0.15s',
+                            padding: '5px 14px', fontSize: 12, fontWeight: '600',
+                            background: isActive ? '#E3F2FD' : '#fff',
+                            border: `1.5px solid ${isActive ? '#1E88E5' : '#ddd'}`,
+                            borderRadius: 20, cursor: 'pointer',
+                            color: isActive ? '#1E88E5' : '#555',
                           }}
-                        />
+                        >
+                          {f.label}
+                        </button>
                       )
                     })}
-                    <input
-                      type="color"
-                      value={activeCustom.headerColor || '#000000'}
-                      onChange={e => updateCustomization('headerColor', e.target.value)}
-                      title="Couleur personnalisée"
-                      style={{ width: 32, height: 32, border: '1px solid #ddd', borderRadius: '50%', cursor: 'pointer', padding: 2, flexShrink: 0 }}
-                    />
-                    <button
-                      onClick={() => updateCustomization('headerColor', '#000000')}
-                      title="Réinitialiser" style={{ fontSize: 14, color: '#aaa', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
-                    >↺</button>
                   </div>
                 </div>
-
-                {/* ── Options Minimal ── */}
-                {selectedTemplate === 'minimal' && (
-                  <>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: '600', color: '#444', display: 'block', marginBottom: 8 }}>
-                        QR Code dans le footer
-                      </label>
-                      <div
-                        onClick={() => updateCustomization('showQrCode', !(activeCustom.showQrCode ?? true))}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-                          background: (activeCustom.showQrCode ?? true) ? '#E3F2FD' : '#f5f5f5',
-                          border: `1.5px solid ${(activeCustom.showQrCode ?? true) ? '#1E88E5' : '#ddd'}`,
-                          borderRadius: 20, padding: '5px 14px', fontSize: 12, fontWeight: '600',
-                          color: (activeCustom.showQrCode ?? true) ? '#1E88E5' : '#888',
-                          userSelect: 'none',
-                        }}
-                      >
-                        <span style={{ width: 12, height: 12, borderRadius: '50%', background: (activeCustom.showQrCode ?? true) ? '#1E88E5' : '#ccc', flexShrink: 0 }} />
-                        {(activeCustom.showQrCode ?? true) ? 'Affiché' : 'Masqué'}
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: '600', color: '#444', display: 'block', marginBottom: 8 }}>
-                        Branding "Conçu par"
-                      </label>
-                      <div
-                        onClick={() => updateCustomization('showBranding', !(activeCustom.showBranding ?? true))}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-                          background: (activeCustom.showBranding ?? true) ? '#E3F2FD' : '#f5f5f5',
-                          border: `1.5px solid ${(activeCustom.showBranding ?? true) ? '#1E88E5' : '#ddd'}`,
-                          borderRadius: 20, padding: '5px 14px', fontSize: 12, fontWeight: '600',
-                          color: (activeCustom.showBranding ?? true) ? '#1E88E5' : '#888',
-                          userSelect: 'none',
-                        }}
-                      >
-                        <span style={{ width: 12, height: 12, borderRadius: '50%', background: (activeCustom.showBranding ?? true) ? '#1E88E5' : '#ccc', flexShrink: 0 }} />
-                        {(activeCustom.showBranding ?? true) ? 'Affiché' : 'Masqué'}
-                      </div>
-                    </div>
-                  </>
-                )}
 
                 {/* ── Options Classic ── */}
                 {selectedTemplate === 'classic' && (

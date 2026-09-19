@@ -13,6 +13,7 @@ import { MinimalPdfDocument, generateMinimalPdfBlob } from './MinimalPdfDocument
 import { CorporatePdfDocument, CorporateTemplate, generateCorporatePdfBlob } from './CorporatePdfDocument'
 import { ClassicPdfDocument, ClassicTemplate, generateClassicPdfBlob } from './ClassicPdfDocument'
 import { ModernPdfDocument, ModernTemplate, generateModernPdfBlob } from './ModernPdfDocument'
+import { AdministrativePdfDocument, generateAdministrativePdfBlob } from './AdministrativePdfDocument'
 
 // ─── Import du MinimalTemplate (aperçu HTML) depuis PdfPreviewModal ──────────
 // Le MinimalTemplate HTML est défini directement dans PdfPreviewModal.jsx.
@@ -54,6 +55,15 @@ export const PDF_TEMPLATES = [
     generateBlob: generateCorporatePdfBlob,
     PdfDocumentComponent: CorporatePdfDocument,
     PreviewComponent: CorporateTemplate,
+  },
+  {
+    id: 'administrative',
+    label: 'Administratif',
+    description: 'En-tête institutionnel · objet · tableau à totaux intégrés',
+    accentColor: '#1E88E5',
+    generateBlob: generateAdministrativePdfBlob,
+    PdfDocumentComponent: AdministrativePdfDocument,
+    PreviewComponent: null,
   },
 ]
 
