@@ -163,20 +163,82 @@ export default function SubscriptionPage() {
       : `${daysLeft} jour${daysLeft !== 1 ? 's' : ''} restant${daysLeft !== 1 ? 's' : ''}`
     : null
 
-  const handleSubscribe = async (plan, billing) => {
+  const handleSubscribe = (plan, billing) => {
+    // Montant en XOF (devise de référence KKiaPay — Franc CFA)
+    const amount = getSubscriptionPrice('XOF', plan, billing)
+    if (!amount) {
+      toast.error('Plan ou cycle invalide')
+      return
+    }
+
+    const isSandbox = import.meta.env.VITE_KKIAPAY_SANDBOX === 'true'
+    const apiKey    = import.meta.env.VITE_KKIAPAY_PUBLIC_KEY
+
+    if (!apiKey) {
+      toast.error('Clé KKiaPay manquante — vérifier .env')
+      return
+    }
+
+    if (typeof window.openKkiapayWidget !== 'function') {
+      toast.error('SDK KKiaPay non chargé — vérifier votre connexion')
+      return
+    }
+
     setPaying(true)
-    try {
-      const res = await subscriptionService.initiate({ plan, billing_cycle: billing })
-      if (res.data?.bill_url) {
-        window.open(res.data.bill_url, '_blank')
-      } else {
-        toast.success('Abonnement initié avec succès')
+
+    // Ouvrir le widget KKiaPay (popup in-page, pas de redirection)
+    window.openKkiapayWidget({
+      amount:    amount,
+      key:       apiKey,
+      sandbox:   isSandbox,
+      name:      user?.name ?? '',
+      email:     user?.email ?? '',
+      phone:     user?.phone ?? '',
+      reason:    `Abonnement BudgetPilot ${plan === 'pro' ? 'Pro' : 'Basic'} — ${billing}`,
+      data:      JSON.stringify({ plan, cycle: billing }),
+      theme:     '#1E88E5',
+    })
+
+    // Callback succès — KKiaPay retourne le transactionId
+    const handleSuccess = async (response) => {
+      cleanup()
+      const transactionId = response?.transactionId
+      if (!transactionId) {
+        toast.error('Transaction ID manquant')
+        setPaying(false)
+        return
       }
-    } catch {
-      toast.error("Impossible d'initier le paiement")
-    } finally {
+
+      try {
+        await subscriptionService.kkiapayVerify(transactionId, plan, billing)
+        // Rafraîchir le statut
+        const res = await subscriptionService.getStatus()
+        const data = res.data
+        setStatus(data)
+        if (user && data?.plan && data.plan !== user.plan) {
+          setUser({ ...user, plan: data.plan })
+        }
+        toast.success('🎉 Abonnement activé avec succès !')
+      } catch {
+        toast.error('Paiement reçu mais vérification échouée. Contactez le support.')
+      } finally {
+        setPaying(false)
+      }
+    }
+
+    // Callback échec / fermeture
+    const handleFailed = () => {
+      cleanup()
       setPaying(false)
     }
+
+    const cleanup = () => {
+      if (typeof window.removeSuccessListener === 'function') window.removeSuccessListener(handleSuccess)
+      if (typeof window.removeFailedListener  === 'function') window.removeFailedListener(handleFailed)
+    }
+
+    if (typeof window.addSuccessListener === 'function') window.addSuccessListener(handleSuccess)
+    if (typeof window.addFailedListener  === 'function') window.addFailedListener(handleFailed)
   }
 
   // ── Prix statiques par devise active (fallback USD) ──
