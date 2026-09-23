@@ -16,7 +16,7 @@ import { getTextColor, accentToBoxBg, accentToSubtotalBg } from './pdfColorUtils
 import { FONT_CHOICES } from './pdfFonts'
 
 // Templates réservés aux comptes premium (Basic / Pro)
-const PREMIUM_TEMPLATES = ['classic', 'modern', 'corporate']
+const PREMIUM_TEMPLATES = ['classic', 'modern', 'corporate', 'administrative']
 
 // ─── Defaults de personnalisation par template ────────────────────────────────
 const ACCENT_PRESETS = [
