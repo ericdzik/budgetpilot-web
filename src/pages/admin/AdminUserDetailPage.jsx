@@ -360,14 +360,23 @@ function NoteEntry({ note, onDelete }) {
           onClick={handleDeleteClick}
           title="Supprimer cette entrée"
           style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: '#ccc', fontSize: '18px', lineHeight: 1, padding: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: '32px', height: '32px',
+            backgroundColor: '#E3F2FD', border: 'none', borderRadius: '50%',
+            cursor: 'pointer', padding: 0,
             justifySelf: 'end',
+            transition: 'background-color 0.15s',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = '#1E88E5' }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = '#ccc' }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1E88E5'; e.currentTarget.querySelector('svg').style.stroke = '#fff' }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#E3F2FD'; e.currentTarget.querySelector('svg').style.stroke = '#1E88E5' }}
         >
-          🗑
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E88E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            <path d="M10 11v6" />
+            <path d="M14 11v6" />
+            <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+          </svg>
         </button>
       </div>
 
