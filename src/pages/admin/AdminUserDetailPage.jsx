@@ -191,6 +191,73 @@ function NoteReadModal({ note, onClose }) {
   )
 }
 
+function ConfirmDeleteModal({ onClose, onConfirm }) {
+  const [deleting, setDeleting] = useState(false)
+
+  const handleConfirm = async () => {
+    setDeleting(true)
+    try {
+      await onConfirm()
+      onClose()
+    } catch {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1200,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '20px',
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget && !deleting) onClose() }}
+    >
+      <div style={{
+        backgroundColor: '#fff', borderRadius: '20px',
+        padding: '32px 36px', width: '420px', maxWidth: '95vw',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.15)',
+        textAlign: 'center',
+      }}>
+        <h3 style={{ margin: '0 0 10px', fontSize: '18px', fontWeight: '700', color: '#111' }}>
+          Supprimer cette entrée ?
+        </h3>
+        <p style={{ margin: '0 0 28px', fontSize: '14px', color: '#888', lineHeight: '1.6' }}>
+          Cette action est définitive et ne peut pas être annulée.
+        </p>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+          <button
+            onClick={onClose}
+            disabled={deleting}
+            style={{
+              padding: '11px 28px', borderRadius: '50px',
+              border: '1.5px solid #e0e0e0', backgroundColor: '#fff',
+              fontSize: '14px', fontWeight: '600', color: '#333',
+              cursor: deleting ? 'not-allowed' : 'pointer',
+            }}
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={deleting}
+            style={{
+              padding: '11px 28px', borderRadius: '50px',
+              border: 'none', backgroundColor: '#FF1744',
+              fontSize: '14px', fontWeight: '600', color: '#fff',
+              cursor: deleting ? 'not-allowed' : 'pointer',
+              opacity: deleting ? 0.7 : 1,
+            }}
+          >
+            {deleting ? 'Suppression...' : 'Supprimer'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Titre d'une note (dérivé du contenu structuré)
 function noteTitle(note) {
   const c = note.content || ''
@@ -218,16 +285,15 @@ function noteBody(note) {
 
 function NoteEntry({ note, onDelete }) {
   const [open, setOpen] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const isSupport = note.type === 'support'
   const isLong = note.content?.length > 200
   const title = noteTitle(note)
   const body = noteBody(note)
 
-  const handleDelete = (e) => {
+  const handleDeleteClick = (e) => {
     e.stopPropagation()
-    if (window.confirm('Supprimer définitivement cette entrée ?')) {
-      onDelete(note.id)
-    }
+    setConfirmOpen(true)
   }
 
   return (
@@ -291,7 +357,7 @@ function NoteEntry({ note, onDelete }) {
 
         {/* Col 5 : supprimer */}
         <button
-          onClick={handleDelete}
+          onClick={handleDeleteClick}
           title="Supprimer cette entrée"
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
@@ -306,6 +372,12 @@ function NoteEntry({ note, onDelete }) {
       </div>
 
       {open && <NoteReadModal note={note} onClose={() => setOpen(false)} />}
+      {confirmOpen && (
+        <ConfirmDeleteModal
+          onClose={() => setConfirmOpen(false)}
+          onConfirm={() => onDelete(note.id)}
+        />
+      )}
     </>
   )
 }
@@ -709,6 +781,7 @@ export default function AdminUserDetailPage() {
       toast.success('Entrée supprimée')
     } catch {
       toast.error('Erreur lors de la suppression')
+      throw new Error('failed') // remonte au dialog pour ne pas le fermer
     }
   }
 
