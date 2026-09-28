@@ -244,7 +244,7 @@ function ConfirmDeleteModal({ onClose, onConfirm }) {
             disabled={deleting}
             style={{
               padding: '11px 28px', borderRadius: '50px',
-              border: 'none', backgroundColor: '#FF1744',
+              border: 'none', backgroundColor: '#1E88E5',
               fontSize: '14px', fontWeight: '600', color: '#fff',
               cursor: deleting ? 'not-allowed' : 'pointer',
               opacity: deleting ? 0.7 : 1,
@@ -364,7 +364,7 @@ function NoteEntry({ note, onDelete }) {
             color: '#ccc', fontSize: '18px', lineHeight: 1, padding: 0,
             justifySelf: 'end',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = '#FF1744' }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = '#1E88E5' }}
           onMouseLeave={(e) => { e.currentTarget.style.color = '#ccc' }}
         >
           🗑
