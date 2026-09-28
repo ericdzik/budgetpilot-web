@@ -22,9 +22,11 @@ export const adminService = {
 
   // ── Utilisateurs ──────────────────────────────────────────────────────────
   getUsers: (params = {}) => api.get('/admin/users', { ...adminHeaders(), params }),
+  exportUsers: (params = {}) => api.get('/admin/users/export', { ...adminHeaders(), params, responseType: 'blob' }),
   getUserDetail: (id)     => api.get(`/admin/users/${id}`, adminHeaders()),
   updateUser: (id, data)  => api.patch(`/admin/users/${id}`, data, adminHeaders()),
   addSupportNote: (id, data) => api.post(`/admin/users/${id}/notes`, data, adminHeaders()),
+  deleteSupportNote: (id, noteId) => api.delete(`/admin/users/${id}/notes/${noteId}`, adminHeaders()),
 
   // ── Parrainage ────────────────────────────────────────────────────────────
   getReferrals:      (params = {}) => api.get('/admin/referrals', { ...adminHeaders(), params }),

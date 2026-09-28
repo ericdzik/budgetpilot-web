@@ -216,12 +216,19 @@ function noteBody(note) {
   return lines.join('\n').trim()
 }
 
-function NoteEntry({ note }) {
+function NoteEntry({ note, onDelete }) {
   const [open, setOpen] = useState(false)
   const isSupport = note.type === 'support'
   const isLong = note.content?.length > 200
   const title = noteTitle(note)
   const body = noteBody(note)
+
+  const handleDelete = (e) => {
+    e.stopPropagation()
+    if (window.confirm('Supprimer définitivement cette entrée ?')) {
+      onDelete(note.id)
+    }
+  }
 
   return (
     <>
@@ -229,7 +236,7 @@ function NoteEntry({ note }) {
         onClick={() => setOpen(true)}
         style={{
           display: 'grid',
-          gridTemplateColumns: '150px 220px 120px 1fr',
+          gridTemplateColumns: '150px 220px 120px 1fr 32px',
           gap: '32px',
           alignItems: 'start',
           padding: '24px 0',
@@ -281,6 +288,21 @@ function NoteEntry({ note }) {
             </span>
           )}
         </div>
+
+        {/* Col 5 : supprimer */}
+        <button
+          onClick={handleDelete}
+          title="Supprimer cette entrée"
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: '#ccc', fontSize: '18px', lineHeight: 1, padding: 0,
+            justifySelf: 'end',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = '#FF1744' }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = '#ccc' }}
+        >
+          🗑
+        </button>
       </div>
 
       {open && <NoteReadModal note={note} onClose={() => setOpen(false)} />}
@@ -639,6 +661,7 @@ export default function AdminUserDetailPage() {
   const [loading, setLoading]       = useState(true)
   const [showNoteModal, setShowNoteModal]           = useState(false)
   const [showActionModal, setShowActionModal]       = useState(false)
+  const [noteFilter, setNoteFilter] = useState('') // '' = tous | 'note' | 'support'
 
   const reload = () => {
     setLoading(true)
@@ -674,6 +697,18 @@ export default function AdminUserDetailPage() {
     } catch {
       toast.error('Erreur lors de la sauvegarde')
       throw new Error('failed')
+    }
+  }
+
+  const handleDeleteNote = async (noteId) => {
+    try {
+      const r = await adminService.deleteSupportNote(id, noteId)
+      if (Array.isArray(r.data.notes)) {
+        setUser((u) => ({ ...u, support_notes: r.data.notes }))
+      }
+      toast.success('Entrée supprimée')
+    } catch {
+      toast.error('Erreur lors de la suppression')
     }
   }
 
@@ -926,17 +961,49 @@ export default function AdminUserDetailPage() {
           </div>
         </div>
 
+        {/* Filtre par type */}
+        <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
+          {[
+            { v: '',        l: 'Tous' },
+            { v: 'note',    l: 'Notes' },
+            { v: 'support', l: 'Actions support' },
+          ].map((o) => (
+            <button
+              key={'notefilter-' + o.v}
+              onClick={() => setNoteFilter(o.v)}
+              style={{
+                padding: '6px 16px', borderRadius: '50px',
+                border: noteFilter === o.v ? '1.5px solid #1E88E5' : '1.5px solid #e0e0e0',
+                background: noteFilter === o.v ? '#E3F2FD' : '#fff',
+                fontSize: '12px', fontWeight: '600',
+                color: noteFilter === o.v ? '#1E88E5' : '#888',
+                cursor: 'pointer',
+              }}
+            >
+              {o.l}
+            </button>
+          ))}
+        </div>
+
         {/* Liste chronologique — grille sans cartes ni ombres */}
         <div style={{ marginTop: '8px' }}>
-          {supportNotes.length === 0 ? (
-            <p style={{ color: '#ccc', fontSize: '13px', textAlign: 'center', padding: '32px 0' }}>
-              Aucune note pour l'instant.
-            </p>
-          ) : (
-            [...supportNotes].reverse().map((note, idx) => (
-              <NoteEntry key={note.id ?? idx} note={note} />
+          {(() => {
+            const filteredNotes = noteFilter
+              ? supportNotes.filter((n) => n.type === noteFilter)
+              : supportNotes
+
+            if (filteredNotes.length === 0) {
+              return (
+                <p style={{ color: '#ccc', fontSize: '13px', textAlign: 'center', padding: '32px 0' }}>
+                  {supportNotes.length === 0 ? "Aucune note pour l'instant." : 'Aucune entrée pour ce filtre.'}
+                </p>
+              )
+            }
+
+            return [...filteredNotes].reverse().map((note, idx) => (
+              <NoteEntry key={note.id ?? idx} note={note} onDelete={handleDeleteNote} />
             ))
-          )}
+          })()}
         </div>
       </div>
 
