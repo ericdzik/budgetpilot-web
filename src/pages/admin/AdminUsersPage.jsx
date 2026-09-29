@@ -72,6 +72,7 @@ export default function AdminUsersPage() {
   const [users, setUsers]     = useState([])
   const [meta, setMeta]       = useState({})
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
   const [sortCriteria, setSortCriteria] = useState([{ key: 'created_at', dir: 'desc' }])
   const [search, setSearch]   = useState(
     searchParams.get('search') || sessionStorage.getItem('admin_users_search') || ''
@@ -149,6 +150,30 @@ export default function AdminUsersPage() {
 
   useEffect(() => { fetchUsers() }, [fetchUsers])
 
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const r = await adminService.exportUsers({
+        search: search || undefined,
+        plan:   planFilter || undefined,
+        churn:  churnFilter || undefined,
+      })
+      const blob = new Blob([r.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href     = url
+      a.download = `utilisateurs_${new Date().toISOString().slice(0, 10)}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      toast.error('Erreur lors de l\'export')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const isInitialSearchMount = useRef(true)
 
   // Debounce search
@@ -221,6 +246,19 @@ export default function AdminUsersPage() {
             {meta.total != null ? `${meta.total} utilisateurs au total` : ''}
           </p>
         </div>
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          style={{
+            padding: '10px 20px', borderRadius: '10px',
+            border: 'none', backgroundColor: '#1E88E5', color: '#fff',
+            fontSize: '14px', fontWeight: '600',
+            cursor: exporting ? 'not-allowed' : 'pointer',
+            opacity: exporting ? 0.6 : 1,
+          }}
+        >
+          {exporting ? 'Export...' : 'Exporter Excel'}
+        </button>
       </div>
 
       {/* Filtres */}
@@ -378,7 +416,7 @@ export default function AdminUsersPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '12px', color: '#888' }}>Tri actif :</span>
           {sortCriteria.map((c, i) => {
-            const labels = { created_at: 'Inscription', clients_count: 'Clients', docs_count: 'Docs', last_activity_at: 'Dernière activité' }
+            const labels = { created_at: 'Inscription', clients_count: 'Clients', docs_count: 'Docs', last_activity_at: 'Dernière activité', phone: 'Indicatif' }
             return (
               <span key={c.key} style={{
                 display: 'inline-flex', alignItems: 'center', gap: '4px',
@@ -424,6 +462,7 @@ export default function AdminUsersPage() {
             <tr style={{ backgroundColor: '#f8f9fb' }}>
               {[
                 { label: 'Utilisateur', key: null },
+                { label: 'Téléphone', key: 'phone' },
                 { label: 'Plan', key: null },
                 { label: 'Inscription', key: 'created_at' },
                 { label: 'Clients', key: 'clients_count' },
@@ -449,13 +488,13 @@ export default function AdminUsersPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#aaa' }}>
+                <td colSpan={9} style={{ padding: '48px', textAlign: 'center', color: '#aaa' }}>
                   Chargement...
                 </td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#aaa' }}>
+                <td colSpan={9} style={{ padding: '48px', textAlign: 'center', color: '#aaa' }}>
                   Aucun utilisateur trouvé
                 </td>
               </tr>
@@ -486,6 +525,7 @@ export default function AdminUsersPage() {
                       </div>
                     </div>
                   </td>
+                  <td style={{ padding: '14px 16px', color: '#555', whiteSpace: 'nowrap' }}>{u.phone || '—'}</td>
                   <td style={{ padding: '14px 16px' }}><PlanBadge plan={u.display_plan || u.plan} /></td>
                   <td style={{ padding: '14px 16px', color: '#555' }}>{formatDate(u.created_at)}</td>
                   <td style={{ padding: '14px 16px', color: '#555', textAlign: 'center' }}>{u.clients_count ?? 0}</td>

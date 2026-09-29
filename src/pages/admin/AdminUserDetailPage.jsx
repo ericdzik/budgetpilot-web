@@ -191,6 +191,73 @@ function NoteReadModal({ note, onClose }) {
   )
 }
 
+function ConfirmDeleteModal({ onClose, onConfirm }) {
+  const [deleting, setDeleting] = useState(false)
+
+  const handleConfirm = async () => {
+    setDeleting(true)
+    try {
+      await onConfirm()
+      onClose()
+    } catch {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1200,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '20px',
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget && !deleting) onClose() }}
+    >
+      <div style={{
+        backgroundColor: '#fff', borderRadius: '20px',
+        padding: '32px 36px', width: '420px', maxWidth: '95vw',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.15)',
+        textAlign: 'center',
+      }}>
+        <h3 style={{ margin: '0 0 10px', fontSize: '18px', fontWeight: '700', color: '#111' }}>
+          Supprimer cette entrée ?
+        </h3>
+        <p style={{ margin: '0 0 28px', fontSize: '14px', color: '#888', lineHeight: '1.6' }}>
+          Cette action est définitive et ne peut pas être annulée.
+        </p>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+          <button
+            onClick={onClose}
+            disabled={deleting}
+            style={{
+              padding: '11px 28px', borderRadius: '50px',
+              border: '1.5px solid #e0e0e0', backgroundColor: '#fff',
+              fontSize: '14px', fontWeight: '600', color: '#333',
+              cursor: deleting ? 'not-allowed' : 'pointer',
+            }}
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={deleting}
+            style={{
+              padding: '11px 28px', borderRadius: '50px',
+              border: 'none', backgroundColor: '#1E88E5',
+              fontSize: '14px', fontWeight: '600', color: '#fff',
+              cursor: deleting ? 'not-allowed' : 'pointer',
+              opacity: deleting ? 0.7 : 1,
+            }}
+          >
+            {deleting ? 'Suppression...' : 'Supprimer'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Titre d'une note (dérivé du contenu structuré)
 function noteTitle(note) {
   const c = note.content || ''
@@ -216,12 +283,18 @@ function noteBody(note) {
   return lines.join('\n').trim()
 }
 
-function NoteEntry({ note }) {
+function NoteEntry({ note, onDelete }) {
   const [open, setOpen] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const isSupport = note.type === 'support'
   const isLong = note.content?.length > 200
   const title = noteTitle(note)
   const body = noteBody(note)
+
+  const handleDeleteClick = (e) => {
+    e.stopPropagation()
+    setConfirmOpen(true)
+  }
 
   return (
     <>
@@ -229,7 +302,7 @@ function NoteEntry({ note }) {
         onClick={() => setOpen(true)}
         style={{
           display: 'grid',
-          gridTemplateColumns: '150px 220px 120px 1fr',
+          gridTemplateColumns: '150px 220px 120px 1fr 32px',
           gap: '32px',
           alignItems: 'start',
           padding: '24px 0',
@@ -281,9 +354,39 @@ function NoteEntry({ note }) {
             </span>
           )}
         </div>
+
+        {/* Col 5 : supprimer */}
+        <button
+          onClick={handleDeleteClick}
+          title="Supprimer cette entrée"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: '32px', height: '32px',
+            backgroundColor: '#E3F2FD', border: 'none', borderRadius: '50%',
+            cursor: 'pointer', padding: 0,
+            justifySelf: 'end',
+            transition: 'background-color 0.15s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1E88E5'; e.currentTarget.querySelector('svg').style.stroke = '#fff' }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#E3F2FD'; e.currentTarget.querySelector('svg').style.stroke = '#1E88E5' }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E88E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            <path d="M10 11v6" />
+            <path d="M14 11v6" />
+            <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+          </svg>
+        </button>
       </div>
 
       {open && <NoteReadModal note={note} onClose={() => setOpen(false)} />}
+      {confirmOpen && (
+        <ConfirmDeleteModal
+          onClose={() => setConfirmOpen(false)}
+          onConfirm={() => onDelete(note.id)}
+        />
+      )}
     </>
   )
 }
@@ -639,6 +742,7 @@ export default function AdminUserDetailPage() {
   const [loading, setLoading]       = useState(true)
   const [showNoteModal, setShowNoteModal]           = useState(false)
   const [showActionModal, setShowActionModal]       = useState(false)
+  const [noteFilter, setNoteFilter] = useState('') // '' = tous | 'note' | 'support'
 
   const reload = () => {
     setLoading(true)
@@ -674,6 +778,19 @@ export default function AdminUserDetailPage() {
     } catch {
       toast.error('Erreur lors de la sauvegarde')
       throw new Error('failed')
+    }
+  }
+
+  const handleDeleteNote = async (noteId) => {
+    try {
+      const r = await adminService.deleteSupportNote(id, noteId)
+      if (Array.isArray(r.data.notes)) {
+        setUser((u) => ({ ...u, support_notes: r.data.notes }))
+      }
+      toast.success('Entrée supprimée')
+    } catch {
+      toast.error('Erreur lors de la suppression')
+      throw new Error('failed') // remonte au dialog pour ne pas le fermer
     }
   }
 
@@ -926,17 +1043,49 @@ export default function AdminUserDetailPage() {
           </div>
         </div>
 
+        {/* Filtre par type */}
+        <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
+          {[
+            { v: '',        l: 'Tous' },
+            { v: 'note',    l: 'Notes' },
+            { v: 'support', l: 'Actions support' },
+          ].map((o) => (
+            <button
+              key={'notefilter-' + o.v}
+              onClick={() => setNoteFilter(o.v)}
+              style={{
+                padding: '6px 16px', borderRadius: '50px',
+                border: noteFilter === o.v ? '1.5px solid #1E88E5' : '1.5px solid #e0e0e0',
+                background: noteFilter === o.v ? '#E3F2FD' : '#fff',
+                fontSize: '12px', fontWeight: '600',
+                color: noteFilter === o.v ? '#1E88E5' : '#888',
+                cursor: 'pointer',
+              }}
+            >
+              {o.l}
+            </button>
+          ))}
+        </div>
+
         {/* Liste chronologique — grille sans cartes ni ombres */}
         <div style={{ marginTop: '8px' }}>
-          {supportNotes.length === 0 ? (
-            <p style={{ color: '#ccc', fontSize: '13px', textAlign: 'center', padding: '32px 0' }}>
-              Aucune note pour l'instant.
-            </p>
-          ) : (
-            [...supportNotes].reverse().map((note, idx) => (
-              <NoteEntry key={note.id ?? idx} note={note} />
+          {(() => {
+            const filteredNotes = noteFilter
+              ? supportNotes.filter((n) => n.type === noteFilter)
+              : supportNotes
+
+            if (filteredNotes.length === 0) {
+              return (
+                <p style={{ color: '#ccc', fontSize: '13px', textAlign: 'center', padding: '32px 0' }}>
+                  {supportNotes.length === 0 ? "Aucune note pour l'instant." : 'Aucune entrée pour ce filtre.'}
+                </p>
+              )
+            }
+
+            return [...filteredNotes].reverse().map((note, idx) => (
+              <NoteEntry key={note.id ?? idx} note={note} onDelete={handleDeleteNote} />
             ))
-          )}
+          })()}
         </div>
       </div>
 
