@@ -13,6 +13,8 @@ import RenewalReminderModal from '../components/ui/RenewalReminderModal'
 import FreemiumLimitModal from '../components/ui/FreemiumLimitModal'
 import WelcomeProfileModal from '../components/ui/WelcomeProfileModal'
 import PeriodDropdown from '../components/ui/PeriodDropdown'
+import StartChecklistCard from '../components/gamification/StartChecklistCard'
+import FinancialHealthCard from '../components/gamification/FinancialHealthCard'
 
 // ─── Flags de session (hors React, persistants pendant la session) ────────────
 const _session = {
@@ -232,6 +234,12 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
+            {/* ── Gamification : checklist de démarrage + santé financière ── */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+              <StartChecklistCard />
+              <FinancialHealthCard />
+            </div>
+
             {/* ── Ligne 1 : Caisse + Recettes + Dépenses ── */}
             <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '16px' }}>
 

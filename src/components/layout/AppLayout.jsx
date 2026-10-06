@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
+import CelebrationHost from '../gamification/CelebrationHost'
 
 export default function AppLayout() {
   return (
@@ -12,6 +13,7 @@ export default function AppLayout() {
       }}>
         <Outlet />
       </main>
+      <CelebrationHost />
     </div>
   )
 }

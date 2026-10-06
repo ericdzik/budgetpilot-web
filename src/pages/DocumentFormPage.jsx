@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast'
 import { Plus, Trash2 } from 'lucide-react'
 import api from '../config/api'
 import useAuthStore from '../store/authStore'
+import useCelebrationStore from '../store/celebrationStore'
 import useCurrencyStore, { ALL_CURRENCIES, formatAmount } from '../store/currencyStore'
 import UserBadge from '../components/ui/UserBadge'
 import FloatInput from '../components/ui/FloatInput'
@@ -46,6 +47,7 @@ function newItem() {
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export default function DocumentFormPage() {
+  const showMilestones = useCelebrationStore((s) => s.showMilestones)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { id } = useParams()
@@ -479,13 +481,14 @@ export default function DocumentFormPage() {
         })),
       }
 
-      if (isEditing) {
-        await api.put(`/documents/${id}`, payload)
-        toast.success(isInvoice ? 'Facture modifiée' : 'Devis modifié')
-      } else {
-        await api.post('/documents', payload)
-        toast.success(isInvoice ? 'Facture créée avec succès' : 'Devis créé avec succès')
-      }
+      // Jalons gamification renvoyés par l'API (première facture, paliers...)
+      const { data } = isEditing
+        ? await api.put(`/documents/${id}`, payload)
+        : await api.post('/documents', payload)
+      toast.success(isEditing
+        ? (isInvoice ? 'Facture modifiée' : 'Devis modifié')
+        : (isInvoice ? 'Facture créée avec succès' : 'Devis créé avec succès'))
+      showMilestones(data?.milestones)
       navigate('/history?tab=' + (isInvoice ? 'invoices' : 'quotes'))
     } catch (err) {
       const msg = err.response?.data?.message ?? 'Une erreur est survenue'

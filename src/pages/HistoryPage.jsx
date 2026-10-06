@@ -6,6 +6,7 @@ import {
   Trash2, ChevronDown, ChevronUp, X, Check, FileText, CircleDollarSign, MoreVertical, Calendar,
 } from 'lucide-react'
 import api from '../config/api'
+import useCelebrationStore from '../store/celebrationStore'
 import PdfPreviewModal from '../components/ui/PdfPreviewModal'
 import UserBadge from '../components/ui/UserBadge'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
@@ -98,6 +99,7 @@ function CtxItem({ icon, label, onClick, color, danger }) {
 // ─── Composant carte item ─────────────────────────────────────────────────────
 
 function HistoryCard({ item, type, onRefresh }) {
+  const showMilestones = useCelebrationStore((s) => s.showMilestones)
   const navigate = useNavigate()
   const { activeCurrency } = useCurrencyStore()
   const [expanded, setExpanded] = useState(false)
@@ -299,9 +301,10 @@ function HistoryCard({ item, type, onRefresh }) {
               payment_method: 'cash', payment_date: today, notes: 'Paiement automatique',
             })
           } else {
-            await api.post(`/documents/${item.id}/mark-as-paid`, {
+            const { data } = await api.post(`/documents/${item.id}/mark-as-paid`, {
               payment_method: 'cash', payment_date: today, notes: 'Paiement automatique',
             })
+            showMilestones(data?.data?.milestones)
           }
           toast.success('Marquée comme payée ✓')
           setDetail(null)

@@ -4,6 +4,7 @@ import { ChevronRight } from 'lucide-react'
 import useAuthStore from '../store/authStore'
 import UserBadge from '../components/ui/UserBadge'
 import { authService } from '../services/authService'
+import ProfileCompletionCard from '../components/gamification/ProfileCompletionCard'
 
 const STORAGE_BASE = (import.meta.env.VITE_API_URL || 'http://172.20.10.12:8000/api').replace('/api', '/storage')
 function storageUrl(path) {
@@ -60,6 +61,8 @@ export default function ProfilePage() {
 
       {/* ── Corps ── */}
       <div style={{ flex: 1, padding: '0 28px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+        <ProfileCompletionCard />
 
         {/* ── Ligne 1 : Profil perso + Entreprise ── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '16px' }}>
