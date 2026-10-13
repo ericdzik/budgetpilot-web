@@ -47,6 +47,7 @@ import RevenuePage from './pages/RevenuePage'
 import HistoryPage from './pages/HistoryPage'
 import StatsPage from './pages/StatsPage'
 import SubscriptionPage from './pages/SubscriptionPage'
+import CheckoutPage from './pages/CheckoutPage'
 import SettingsPage from './pages/SettingsPage'
 import ProfilePage from './pages/ProfilePage'
 import PersonalProfilePage from './pages/PersonalProfilePage'
@@ -138,6 +139,7 @@ export const router = createBrowserRouter([
       { path: 'history', element: <HistoryPage /> },
       { path: 'stats', element: <StatsPage /> },
       { path: 'subscription', element: <SubscriptionPage /> },
+      { path: 'subscription/checkout', element: <CheckoutPage /> },
       { path: 'referral', element: <ReferralPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'profile', element: <ProfilePage /> },

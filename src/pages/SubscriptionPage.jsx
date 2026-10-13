@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Zap, Check, Circle, X } from 'lucide-react'
-import { toast } from 'react-hot-toast'
 import { subscriptionService } from '../services/subscriptionService'
 import UserBadge from '../components/ui/UserBadge'
 import useAuthStore from '../store/authStore'
@@ -105,7 +104,6 @@ export default function SubscriptionPage() {
   const [loading, setLoading] = useState(true)
   const [selectedPro, setSelectedPro]     = useState('yearly')
   const [selectedBasic, setSelectedBasic] = useState('yearly')
-  const [paying, setPaying] = useState(false)
   const [showRenewalBanner, setShowRenewalBanner] = useState(false)
 
   useEffect(() => {
@@ -163,82 +161,9 @@ export default function SubscriptionPage() {
       : `${daysLeft} jour${daysLeft !== 1 ? 's' : ''} restant${daysLeft !== 1 ? 's' : ''}`
     : null
 
+  // Parcours de paiement KKiaPay (récapitulatif, méthode, résultat)
   const handleSubscribe = (plan, billing) => {
-    // Montant en XOF (devise de référence KKiaPay — Franc CFA)
-    const amount = getSubscriptionPrice('XOF', plan, billing)
-    if (!amount) {
-      toast.error('Plan ou cycle invalide')
-      return
-    }
-
-    const isSandbox = import.meta.env.VITE_KKIAPAY_SANDBOX === 'true'
-    const apiKey    = import.meta.env.VITE_KKIAPAY_PUBLIC_KEY
-
-    if (!apiKey) {
-      toast.error('Clé KKiaPay manquante — vérifier .env')
-      return
-    }
-
-    if (typeof window.openKkiapayWidget !== 'function') {
-      toast.error('SDK KKiaPay non chargé — vérifier votre connexion')
-      return
-    }
-
-    setPaying(true)
-
-    // Ouvrir le widget KKiaPay (popup in-page, pas de redirection)
-    window.openKkiapayWidget({
-      amount:    amount,
-      key:       apiKey,
-      sandbox:   isSandbox,
-      name:      user?.name ?? '',
-      email:     user?.email ?? '',
-      phone:     user?.phone ?? '',
-      reason:    `Abonnement BudgetPilot ${plan === 'pro' ? 'Pro' : 'Basic'} — ${billing}`,
-      data:      JSON.stringify({ plan, cycle: billing }),
-      theme:     '#1E88E5',
-    })
-
-    // Callback succès — KKiaPay retourne le transactionId
-    const handleSuccess = async (response) => {
-      cleanup()
-      const transactionId = response?.transactionId
-      if (!transactionId) {
-        toast.error('Transaction ID manquant')
-        setPaying(false)
-        return
-      }
-
-      try {
-        await subscriptionService.kkiapayVerify(transactionId, plan, billing)
-        // Rafraîchir le statut
-        const res = await subscriptionService.getStatus()
-        const data = res.data
-        setStatus(data)
-        if (user && data?.plan && data.plan !== user.plan) {
-          setUser({ ...user, plan: data.plan })
-        }
-        toast.success('🎉 Abonnement activé avec succès !')
-      } catch {
-        toast.error('Paiement reçu mais vérification échouée. Contactez le support.')
-      } finally {
-        setPaying(false)
-      }
-    }
-
-    // Callback échec / fermeture
-    const handleFailed = () => {
-      cleanup()
-      setPaying(false)
-    }
-
-    const cleanup = () => {
-      if (typeof window.removeSuccessListener === 'function') window.removeSuccessListener(handleSuccess)
-      if (typeof window.removeFailedListener  === 'function') window.removeFailedListener(handleFailed)
-    }
-
-    if (typeof window.addSuccessListener === 'function') window.addSuccessListener(handleSuccess)
-    if (typeof window.addFailedListener  === 'function') window.addFailedListener(handleFailed)
+    navigate(`/subscription/checkout?plan=${plan}&cycle=${billing}`)
   }
 
   // ── Prix statiques par devise active (fallback USD) ──
@@ -536,7 +461,6 @@ export default function SubscriptionPage() {
                 {/* Bouton */}
                 <button
                   onClick={() => handleSubscribe('pro', selectedPro)}
-                  disabled={paying}
                   style={{
                     width: '100%', padding: '14px',
                     backgroundColor: '#fff', color: '#1E88E5',
@@ -544,7 +468,7 @@ export default function SubscriptionPage() {
                     fontSize: '16px', fontWeight: '700', cursor: 'pointer',
                   }}
                 >
-                  {paying ? 'Chargement...' : 'Continuer'}
+                  Continuer
                 </button>
               </div>
             </div>
@@ -605,7 +529,6 @@ export default function SubscriptionPage() {
               {/* Bouton */}
               <button
                 onClick={() => handleSubscribe('basic', selectedBasic)}
-                disabled={paying}
                 style={{
                   width: '100%', padding: '14px',
                   backgroundColor: '#1E88E5', color: '#fff',
@@ -613,7 +536,7 @@ export default function SubscriptionPage() {
                   fontSize: '16px', fontWeight: '700', cursor: 'pointer',
                 }}
               >
-                {paying ? 'Chargement...' : 'Continuer'}
+                Continuer
               </button>
             </div>
 

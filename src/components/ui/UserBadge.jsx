@@ -104,7 +104,8 @@ export default function UserBadge({ size = 48 }) {
       .catch(() => {
         setPlan(user?.plan ?? 'freemium')
       })
-  }, [])
+    // Recharger quand le plan change (abonnement payé dans le site)
+  }, [user?.plan])
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '40px' }}>
