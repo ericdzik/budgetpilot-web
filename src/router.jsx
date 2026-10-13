@@ -55,6 +55,7 @@ import FaqPage from './pages/FaqPage'
 import TermsPage from './pages/TermsPage'
 import ContactPage from './pages/ContactPage'
 import ReferralPage from './pages/ReferralPage'
+import ProgressPage from './pages/ProgressPage'
 
 // Route protégée app Budget Pilot
 function ProtectedRoute({ children }) {
@@ -139,6 +140,7 @@ export const router = createBrowserRouter([
       { path: 'stats', element: <StatsPage /> },
       { path: 'subscription', element: <SubscriptionPage /> },
       { path: 'referral', element: <ReferralPage /> },
+      { path: 'progress', element: <ProgressPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'profile/personal', element: <PersonalProfilePage /> },

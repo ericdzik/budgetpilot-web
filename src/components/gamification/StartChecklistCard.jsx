@@ -40,6 +40,7 @@ export default function StartChecklistCard() {
           show({
             color: BLUE, light: BLUE_LIGHT, Icon: BadgeCheck, title: 'Vous êtes prêt !',
             message: 'Votre espace BudgetPilot est configuré. Place à la croissance de votre activité.',
+            stampText: 'PRÊT', kind: 'certificate', docTitle: 'Bien démarrer', docSubtitle: '4 étapes sur 4',
           })
         }
         setData(checklist)

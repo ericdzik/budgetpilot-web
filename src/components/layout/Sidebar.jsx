@@ -1,4 +1,5 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Award } from 'lucide-react'
 
 function SvgIcon({ src, size = 20, active = false, colored = false }) {
   return (
@@ -21,7 +22,7 @@ function SvgIcon({ src, size = 20, active = false, colored = false }) {
 }
 
 // NavItem standard — utilise NavLink (pathname uniquement)
-function NavItem({ to, svgSrc, label, end = false, colored = false }) {
+function NavItem({ to, svgSrc, Icon, label, end = false, colored = false }) {
   return (
     <NavLink
       to={to}
@@ -43,7 +44,9 @@ function NavItem({ to, svgSrc, label, end = false, colored = false }) {
     >
       {({ isActive }) => (
         <>
-          <SvgIcon src={svgSrc} size={20} active={isActive} colored={colored} />
+          {Icon
+            ? <Icon size={20} color={isActive ? '#fff' : '#808080'} style={{ flexShrink: 0 }} />
+            : <SvgIcon src={svgSrc} size={20} active={isActive} colored={colored} />}
           {label}
         </>
       )}
@@ -138,6 +141,8 @@ export default function Sidebar() {
         <NavItem to="/referral"     svgSrc="/navbar_icon4.svg"  label="Parrainage" />
         {/* ICONE_clients = Mes clients */}
         <NavItem to="/clients"      svgSrc="/ICONE_clients.svg"  label="Mes clients" />
+        {/* Badges et notifications reçues */}
+        <NavItem to="/progress"     Icon={Award}                 label="Mes progrès" />
 
         {/* Séparateur */}
         <div style={{ height: '1px', backgroundColor: '#e0e0e0', margin: '14px 8px' }} />

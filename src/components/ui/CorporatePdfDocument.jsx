@@ -87,15 +87,18 @@ const BASE_STYLES = StyleSheet.create({
     marginBottom: 18,
   },
   headerLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
+    marginRight: 16,
   },
+  companyBlock: { flex: 1 },
   logoBox: { width: 44, height: 44, backgroundColor: '#e0e0e0', borderRadius: 3, border: '1px solid #ccc' },
   logoImg:  { width: 44, height: 44, objectFit: 'cover', borderRadius: 3, border: '1px solid #ccc' },
   companyName: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: '#111', marginBottom: 2 },
   companyLine: { fontSize: 8.5, color: '#000', marginTop: 1.5 },
-  headerRight: { alignItems: 'flex-end', maxWidth: 250 },
+  headerRight: { alignItems: 'flex-end', maxWidth: 250, flexShrink: 0 },
   refNum:   { fontSize: 22, fontFamily: 'Helvetica-Bold', color: '#111' },
   docTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#111', marginTop: 3, textAlign: 'right' },
   docDate:  { fontSize: 9,  color: '#555', marginTop: 3, textAlign: 'right' },
@@ -415,8 +418,9 @@ export function CorporatePdfDocument({ doc, profile, qrDataUrl, logoDataUrl, sig
           ? <Image src={logoDataUrl} style={S.logoImg} />
           : <View style={S.logoBox} />
         }
-        <View>
-          <Text style={S.companyName}>{company.name}</Text>
+        {/* Bloc extensible : un nom long passe à la ligne au lieu de chevaucher la référence */}
+        <View style={S.companyBlock}>
+          <Text style={S.companyName} maxLines={2} textOverflow="ellipsis">{company.name}</Text>
           {!!company.phone && <Text style={S.companyLine}>{company.phone}</Text>}
           {(!!company.city || !!company.address) && (
             <Text style={S.companyLine}>{[company.city, company.address].filter(Boolean).join(', ')}</Text>
@@ -562,12 +566,12 @@ export function CorporateTemplate({ doc, profile, currency = 'XOF', conversionRa
       {/* ── HEADER ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
         {/* Gauche */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: 1, minWidth: 0, marginRight: 16 }}>
           {logoUrl
             ? <img src={logoUrl} alt="Logo" style={{ width: 44, height: 44, objectFit: 'cover', border: '1px solid #ccc', borderRadius: 3 }} />
             : <div style={{ width: 44, height: 44, background: '#e0e0e0', borderRadius: 3, border: '1px solid #ccc' }} />
           }
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 'bold', marginBottom: 2, color: labelColor }}>{company.name}</div>
             {company.phone   && <div style={{ fontSize: 8.5, color: labelColor, marginTop: 1.5 }}>{company.phone}</div>}
             {(company.city || company.address) && (
@@ -579,7 +583,7 @@ export function CorporateTemplate({ doc, profile, currency = 'XOF', conversionRa
           </div>
         </div>
         {/* Droite */}
-        <div style={{ textAlign: 'right', maxWidth: 250 }}>
+        <div style={{ textAlign: 'right', maxWidth: 250, flexShrink: 0 }}>
           <div style={{ fontSize: 22, fontWeight: 'bold', color: labelColor }}>{doc.reference_number}</div>
           {doc.title && <div style={{ fontSize: 10, fontWeight: 'bold', color: labelColor, marginTop: 3 }}>{doc.title.toUpperCase()}</div>}
           <div style={{ fontSize: 9, color: '#555', marginTop: 3 }}>{fmtD(doc.issue_date || doc.created_at)}</div>

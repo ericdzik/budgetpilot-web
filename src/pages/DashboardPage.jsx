@@ -15,6 +15,7 @@ import WelcomeProfileModal from '../components/ui/WelcomeProfileModal'
 import PeriodDropdown from '../components/ui/PeriodDropdown'
 import StartChecklistCard from '../components/gamification/StartChecklistCard'
 import FinancialHealthCard from '../components/gamification/FinancialHealthCard'
+import NotificationBell from '../components/gamification/NotificationBell'
 
 // ─── Flags de session (hors React, persistants pendant la session) ────────────
 const _session = {
@@ -221,6 +222,7 @@ export default function DashboardPage() {
 
         {/* Droite : badge Pro + avatar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <NotificationBell />
           <UserBadge size={48} />
         </div>
       </div>

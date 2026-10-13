@@ -44,6 +44,22 @@ function statusLabel(s) {
 
 function toNum(v) { return isNaN(parseFloat(v)) ? 0 : parseFloat(v) }
 
+/**
+ * Taille du nom d'entreprise en tête, selon sa longueur : les noms courts
+ * gardent le grand titre, les longs rétrécissent pour tenir sur deux lignes
+ * dans la largeur laissée par les coordonnées (même logique que le mobile).
+ */
+function companyNameSize(name) {
+  const length = (name || '').trim().length
+  if (length <= 14) return 32
+  if (length <= 20) return 27
+  if (length <= 28) return 23
+  if (length <= 38) return 18
+  if (length <= 50) return 16
+  if (length <= 65) return 14
+  return 11
+}
+
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const BASE_STYLES = StyleSheet.create({
@@ -70,8 +86,11 @@ const BASE_STYLES = StyleSheet.create({
     fontFamily: 'Helvetica-Bold',
     color: '#111',
     letterSpacing: 0.3,
+    lineHeight: 1.1,
   },
+  companyNameBlock: { flex: 1, marginRight: 16 },
   companyAddressBlock: {
+    width: 140,
     alignItems: 'flex-end',
     marginTop: 4,
   },
@@ -369,11 +388,13 @@ export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signat
 
             {/* ── HEADER : affiché sur toutes les pages ── */}
             <View style={S.headerRow}>
-              <View>
-                <Text style={S.companyNameBig}>{company.name.toUpperCase()}</Text>
+              <View style={S.companyNameBlock}>
+                <Text style={[S.companyNameBig, { fontSize: companyNameSize(company.name) }]} maxLines={2} textOverflow="ellipsis">
+                  {company.name.toUpperCase()}
+                </Text>
               </View>
+              {/* Le nom est déjà en titre : le bloc ne garde que les coordonnées */}
               <View style={S.companyAddressBlock}>
-                <Text style={S.companyAddrLine}>{company.name}</Text>
                 {!!company.address && <Text style={S.companyAddrLine}>{company.address}</Text>}
                 {!!company.phone   && <Text style={S.companyAddrLine}>{company.phone}</Text>}
                 {!!company.nif     && <Text style={S.companyAddrLine}>NIF : {company.nif}</Text>}
@@ -579,11 +600,15 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
     }}>
       {/* HEADER : nom société grand */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-        <div>
-          <div style={{ fontSize: 32, fontWeight: 'bold', letterSpacing: '0.3px', color: labelColor }}>{company.name.toUpperCase()}</div>
+        <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
+          <div style={{
+            fontSize: companyNameSize(company.name), fontWeight: 'bold', letterSpacing: '0.3px', lineHeight: 1.1, color: labelColor,
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere',
+          }}>
+            {company.name.toUpperCase()}
+          </div>
         </div>
-        <div style={{ textAlign: 'right', marginTop: 4 }}>
-          <div style={{ fontSize: 8, color: labelColor }}>{company.name}</div>
+        <div style={{ width: 140, flexShrink: 0, textAlign: 'right', marginTop: 4 }}>
           {company.address && <div style={{ fontSize: 8, color: labelColor }}>{company.address}</div>}
           {company.phone   && <div style={{ fontSize: 8, color: labelColor }}>{company.phone}</div>}
           {company.nif     && <div style={{ fontSize: 8, color: labelColor }}>NIF : {company.nif}</div>}
