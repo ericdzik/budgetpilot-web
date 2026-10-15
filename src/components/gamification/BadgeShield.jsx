@@ -5,13 +5,14 @@ const FILLS = {
   silver: '#A9B4C2',
   gold: '#E0A800',
   diamond: '#3FB6E3',
+  platinum: '#8E7CC3',
 }
 
 const CORNER = { pending: Hourglass, paused: Pause, locked: Lock }
 
 /**
  * Blason en forme de bouclier, en deux tons (même dessin que le mobile) :
- * cercle (Silver), étoile (Gold), losange (Diamond). Gris s'il n'est pas
+ * cercle (Silver), étoile (Gold), losange (Diamond), couronne (Platinum). Gris s'il n'est pas
  * obtenu, avec sablier (en attente d'abonnement), pause ou cadenas.
  */
 export default function BadgeShield({ tier = 'silver', status = 'earned', size = 40 }) {
@@ -30,6 +31,7 @@ export default function BadgeShield({ tier = 'silver', status = 'earned', size =
         {tier === 'gold' && (
           <polygon points="20,11 22.2,16.2 27.5,16.5 23.4,19.9 24.8,25.2 20,22.2 15.2,25.2 16.6,19.9 12.5,16.5 17.8,16.2" fill={mark} />
         )}
+        {tier === 'platinum' && <polygon points="13,24 13.5,15 17,19 20,13 23,19 26.5,15 27,24" fill={mark} />}
         {tier === 'silver' && <circle cx="20" cy="19" r="5.5" fill="none" stroke={mark} strokeWidth="2.2" />}
       </svg>
       {Corner && size >= 24 && (

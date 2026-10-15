@@ -6,12 +6,13 @@ const SAMPLES = [
   { first_invoice: true, stats: { amount: 350000, currency: 'XOF', client_name: 'Boutique Akwaba' } },
   { first_quote: true, stats: { amount: 125000, currency: 'XOF', client_name: 'Pharmacie du Port' } },
   { first_paid_invoice: true, stats: { amount: 350000, currency: 'XOF', client_name: 'Boutique Akwaba' } },
-  { badges: [{ category: 'invoices', name: 'Facturation', tier: 'silver' }] },
+  { badges: [{ category: 'invoices', category_name: 'Facturation', level: 1, name: 'Facturier' }] },
+  { badges: [{ category: 'akpe', category_name: 'Akpé', level: 1, name: 'Akpé' }] },
   { badges: [
-    { category: 'invoices', name: 'Facturation', tier: 'gold' },
-    { category: 'paid_invoices', name: 'Encaissement', tier: 'silver' },
-    { category: 'seniority', name: 'Ancienneté', tier: 'diamond' },
-  ] },
+    { category: 'invoices', category_name: 'Facturation', level: 2, name: 'Pro de la facture' },
+    { category: 'paid_invoices', category_name: 'Encaissement', level: 1, name: 'Encaisseur' },
+    { category: 'seniority', category_name: 'Ancienneté', level: 3, name: 'Vétéran' },
+  ], grade: { grade: 'gold', discount: 10 } },
   { loyal_client: { client_id: 1, client_name: 'Boutique Akwaba', threshold: 5 } },
   { usage_milestone: { days: 28, operations_count: 12 } },
 ]

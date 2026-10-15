@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
 import useCelebrationStore from '../../store/celebrationStore'
+import LevelMedal from './LevelMedal'
+import BadgeShield from './BadgeShield'
 
 // Moment de l'impact du tampon après l'ouverture (ms), comme sur le mobile
 const IMPACT_MS = 570
@@ -18,6 +20,7 @@ const KEYFRAMES = `
   50% { transform: translate(4px, -2px) }
   75% { transform: translate(-1px, 1px) }
 }
+@keyframes bp-medal { 0% { transform: scale(.4) rotate(-70deg); opacity: 0 } 100% { transform: none; opacity: 1 } }
 @keyframes bp-up { 0% { opacity: 0; transform: translateY(12px) } 100% { opacity: 1; transform: none } }
 `
 
@@ -72,7 +75,7 @@ const line = (width) => (
 )
 
 function StampedDocument({ data, paperRef }) {
-  const { Icon, color, kind = 'certificate', stampText = 'BRAVO', docTitle, docSubtitle, docAmount, title } = data
+  const { Icon, color, kind = 'certificate', stampText = 'BRAVO', docTitle, docSubtitle, docAmount, title, medal, shield } = data
 
   return (
     <div ref={paperRef} style={{
@@ -82,7 +85,14 @@ function StampedDocument({ data, paperRef }) {
       {kind === 'certificate' ? (
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 11, letterSpacing: 2, color: '#888780' }}>CERTIFICAT</div>
-          <div style={{ marginTop: 8, opacity: 0.35 }}><Icon size={22} color={color} /></div>
+          {medal || shield ? (
+            // Médaillon du badge ou blason du grade, qui arrive en tournant
+            <div style={{ marginTop: 8, display: 'inline-block', animation: 'bp-medal .9s cubic-bezier(.34,1.56,.64,1) both' }}>
+              {medal ? <LevelMedal category={medal.category} level={medal.level} size={80} /> : <BadgeShield tier={shield} size={72} />}
+            </div>
+          ) : (
+            <div style={{ marginTop: 8, opacity: 0.35 }}><Icon size={22} color={color} /></div>
+          )}
           <div style={{ fontSize: 15, fontWeight: 600, color: '#2C3E50', marginTop: 4 }}>{docTitle || title}</div>
           {docSubtitle && <div style={{ fontSize: 12, color: '#888780' }}>{docSubtitle}</div>}
           <div style={{ width: 180, margin: '6px auto 0' }}>{line('100%')}{line('70%')}</div>
@@ -102,7 +112,13 @@ function StampedDocument({ data, paperRef }) {
       )}
 
       {/* Le tampon arrive de haut, penché, et s'écrase en légère rotation */}
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+      {/* Avec un médaillon ou un blason, le tampon se pose en bas à droite pour ne pas le cacher */}
+      <div style={{
+        position: 'absolute', inset: 0, display: 'flex', pointerEvents: 'none',
+        ...(medal || shield
+          ? { alignItems: 'flex-end', justifyContent: 'flex-end', padding: '0 4px 6px 0', transform: 'scale(.72)', transformOrigin: 'bottom right' }
+          : { alignItems: 'center', justifyContent: 'center' }),
+      }}>
         <div style={{
           padding: '8px 18px', borderRadius: 10, border: `4px solid ${color}`,
           backgroundColor: 'rgba(255,255,255,0.75)', color, fontSize: 30, fontWeight: 900, letterSpacing: 3,

@@ -7,5 +7,6 @@ export const gamificationService = {
   getBadges:            () => api.get('/gamification/badges'),
   getNotifications:     () => api.get('/notifications'),
   markNotificationsRead: () => api.post('/notifications/read'),
+  dismissNotification:  (id) => api.delete(`/notifications/${id}`),
   recordVisit:          () => api.post('/activity/visit', { platform: 'web' }),
 }
