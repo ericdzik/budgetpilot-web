@@ -14,6 +14,8 @@ import { clientService } from '../services/clientService'
 import api from '../config/api'
 import PeriodDropdown from '../components/ui/PeriodDropdown'
 import usePremiumGate from '../hooks/usePremiumGate'
+import LoyalClientBadge from '../components/gamification/LoyalClientBadge'
+import { isLoyalClient } from '../components/gamification/loyalClient'
 
 const PERIOD_OPTIONS = [
   { value: 'year', label: 'Cette année' },
@@ -284,7 +286,10 @@ function ClientPanel({ clientId, onEdit, onDelete }) {
 
         {/* Nom + boutons modifier/supprimer */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24 }}>
-          <h2 style={{ margin:0, fontSize:'32px', fontWeight:'800', color:'#111' }}>{client.name}</h2>
+          <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
+            <h2 style={{ margin:0, fontSize:'32px', fontWeight:'800', color:'#111' }}>{client.name}</h2>
+            {isLoyalClient(client.paid_invoices_count) && <LoyalClientBadge />}
+          </div>
           <div style={{ display:'flex', gap:10 }}>
             <button onClick={() => onEdit(client)} style={{ width:44, height:44, borderRadius:'50%', background:PRIMARY, border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
               <Pencil size={18} color="#fff" />
@@ -559,7 +564,10 @@ export default function ClientsPage() {
                         <span style={{ color:'#fff', fontWeight:'700', fontSize:'13px' }}>{getInitials(client.name)}</span>
                       </div>
                       <div style={{ minWidth:0 }}>
-                        <p style={{ margin:0, fontSize:'14px', fontWeight:'600', color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{client.name}</p>
+                        <div style={{ display:'flex', alignItems:'center', gap:6, minWidth:0 }}>
+                          <p style={{ margin:0, fontSize:'14px', fontWeight:'600', color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{client.name}</p>
+                          {isLoyalClient(client.paid_invoices_count) && <LoyalClientBadge compact />}
+                        </div>
                         {client.sector && <p style={{ margin:'2px 0 0', fontSize:'11px', color:'#999', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{client.sector}</p>}
                       </div>
                     </div>

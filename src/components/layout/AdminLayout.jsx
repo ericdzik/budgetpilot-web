@@ -5,6 +5,12 @@ import useAdminAuthStore from '../../store/adminAuthStore'
 // ── Icônes SVG inline ────────────────────────────────────────────────────────
 
 const Icons = {
+  push: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  ),
   dashboard: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="7" height="7" rx="1" />
@@ -46,6 +52,11 @@ const NAV_ITEMS = [
   { to: '/admin/referrals', label: 'Parrainages',  icon: Icons.referrals  },
   { to: '/admin/users',     label: 'Utilisateurs', icon: Icons.users      },
   { to: '/admin/banners',   label: 'Publicités',   icon: Icons.banners    },
+]
+
+// Menu réservé au compte dev : invisible pour l'admin (et refusé par l'API)
+const DEV_NAV_ITEMS = [
+  { to: '/admin/push', label: 'Notifications push', icon: Icons.push },
 ]
 
 function SidebarLink({ to, label, icon }) {
@@ -137,6 +148,9 @@ export default function AdminLayout() {
           {NAV_ITEMS.map((item) => (
             <SidebarLink key={item.to} {...item} />
           ))}
+          {adminUser?.role === 'dev' && DEV_NAV_ITEMS.map((item) => (
+            <SidebarLink key={item.to} {...item} />
+          ))}
         </nav>
 
         {/* Paramètres en bas */}
@@ -166,7 +180,7 @@ export default function AdminLayout() {
             fontSize: '13px',
             fontWeight: '500',
           }}>
-            Admin
+            {adminUser?.role === 'dev' ? 'Dev' : 'Admin'}
           </div>
           <div style={{
             width: 36, height: 36, borderRadius: '50%',

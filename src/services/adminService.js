@@ -40,4 +40,10 @@ export const adminService = {
     headers: { ...adminHeaders().headers, 'Content-Type': 'multipart/form-data' },
   }),
   deleteBannerImage: (slot)        => api.delete(`/admin/banners/${slot}/image`, adminHeaders()),
+
+  // ── Notifications push (compte dev uniquement) ────────────────────────────
+  getPushCampaigns:  ()       => api.get('/admin/push', adminHeaders()),
+  previewPush:       (target) => api.post('/admin/push/preview', target, adminHeaders()),
+  sendPush:          (data)   => api.post('/admin/push', data, adminHeaders()),
+  cancelPush:        (id)     => api.post(`/admin/push/${id}/cancel`, {}, adminHeaders()),
 }

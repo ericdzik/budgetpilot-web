@@ -4,6 +4,7 @@ import useAuthStore from '../store/authStore'
 import UserBadge from '../components/ui/UserBadge'
 import { authService } from '../services/authService'
 import PhoneInputField from '../components/ui/PhoneInputField'
+import { celebrateFirstPdfCustomization } from '../components/gamification/pdfCustomization'
 
 // URL de base du stockage — même logique que le mobile
 const STORAGE_BASE = (import.meta.env.VITE_API_URL || 'http://172.20.10.12:8000/api').replace('/api', '/storage')
@@ -336,6 +337,7 @@ export default function CompanyProfilePage() {
       }
 
       toast.success('Profil entreprise mis à jour avec succès')
+      if (logoFile || sigFile) celebrateFirstPdfCustomization()
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Erreur lors de la mise à jour')
     } finally {

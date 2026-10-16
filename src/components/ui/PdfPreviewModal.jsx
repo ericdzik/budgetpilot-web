@@ -14,6 +14,7 @@ import { PDF_TEMPLATES, generatePdfBlob } from './pdfTemplates'
 import usePremiumGate from '../../hooks/usePremiumGate'
 import { getTextColor, accentToBoxBg, accentToSubtotalBg } from './pdfColorUtils'
 import { FONT_CHOICES } from './pdfFonts'
+import { celebrateFirstPdfCustomization } from '../gamification/pdfCustomization'
 
 // Templates réservés aux comptes premium (Basic / Pro)
 const PREMIUM_TEMPLATES = ['classic', 'modern', 'corporate', 'administrative']
@@ -864,6 +865,7 @@ export default function PdfPreviewModal({ docId, clientName, onClose }) {
     localStorage.setItem('budgetpilot_default_template', templateId)
     setDefaultTemplate(templateId)
     toast.success(`Template "${TEMPLATES_WITH_PREVIEW.find(t => t.id === templateId)?.label}" défini par défaut`)
+    celebrateFirstPdfCustomization()
   }
 
   // Aperçu : vrai PDF via BlobProvider → iframe

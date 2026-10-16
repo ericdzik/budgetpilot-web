@@ -14,6 +14,10 @@ Font.register({ family: 'Inter-Bold', src: InterBold })
 Font.register({ family: 'RobotoSerif', src: RobotoSerifRegular })
 Font.register({ family: 'RobotoSerif-Bold', src: RobotoSerifBold })
 
+// Par défaut react-pdf coupe les mots avec un tiret (« ALI-MENTAIRE ») selon des
+// règles anglaises : on passe à la ligne entre les mots, comme le mobile.
+Font.registerHyphenationCallback((word) => [word])
+
 export const FONT_CHOICES = [
   { id: 'helvetica', label: 'Helvetica' },
   { id: 'inter', label: 'Inter' },

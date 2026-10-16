@@ -9,6 +9,8 @@ import PhoneInputField from '../components/ui/PhoneInputField'
 import CustomSelect from '../components/ui/CustomSelect'
 import PeriodDropdown from '../components/ui/PeriodDropdown'
 import usePremiumGate from '../hooks/usePremiumGate'
+import LoyalClientBadge from '../components/gamification/LoyalClientBadge'
+import { isLoyalClient } from '../components/gamification/loyalClient'
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const PRIMARY = '#1E88E5'
@@ -325,7 +327,10 @@ export default function ClientDetailPage() {
                 <div style={{ width:56, height:56, borderRadius:'50%', background:avatarColor, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                   <span style={{ color:'#fff', fontWeight:'800', fontSize:'20px' }}>{initials}</span>
                 </div>
-                <h2 style={{ margin:0, fontSize:'26px', fontWeight:'800', color:'#111' }}>{client.name}</h2>
+                <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+                  <h2 style={{ margin:0, fontSize:'26px', fontWeight:'800', color:'#111' }}>{client.name}</h2>
+                  {isLoyalClient(stats?.paid_invoices_count) && <LoyalClientBadge />}
+                </div>
               </div>
 
               {/* Infos */}

@@ -33,6 +33,7 @@ import AdminReferralsPage from './pages/admin/AdminReferralsPage'
 import AdminReferrerDetailPage from './pages/admin/AdminReferrerDetailPage'
 import AdminBannersPage from './pages/admin/AdminBannersPage'
 import AdminSettingsPage from './pages/admin/AdminSettingsPage'
+import AdminPushPage from './pages/admin/AdminPushPage'
 
 // Pages App
 import DashboardPage from './pages/DashboardPage'
@@ -55,6 +56,7 @@ import FaqPage from './pages/FaqPage'
 import TermsPage from './pages/TermsPage'
 import ContactPage from './pages/ContactPage'
 import ReferralPage from './pages/ReferralPage'
+import ProgressPage from './pages/ProgressPage'
 
 // Route protégée app Budget Pilot
 function ProtectedRoute({ children }) {
@@ -84,6 +86,12 @@ function ProtectedTrackingRoute({ children }) {
 function AdminPublicRoute({ children }) {
   const { isAdminAuthenticated } = useAdminAuthStore()
   return isAdminAuthenticated ? <Navigate to="/admin/dashboard" replace /> : children
+}
+
+// Page réservée au compte dev (l'admin est renvoyé au dashboard)
+function DevOnlyRoute({ children }) {
+  const role = useAdminAuthStore((s) => s.adminUser?.role)
+  return role === 'dev' ? children : <Navigate to="/admin/dashboard" replace />
 }
 
 // Route protégée admin
@@ -139,6 +147,7 @@ export const router = createBrowserRouter([
       { path: 'stats', element: <StatsPage /> },
       { path: 'subscription', element: <SubscriptionPage /> },
       { path: 'referral', element: <ReferralPage /> },
+      { path: 'progress', element: <ProgressPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'profile/personal', element: <PersonalProfilePage /> },
@@ -230,6 +239,7 @@ export const router = createBrowserRouter([
       { path: 'referrals/:id',     element: <AdminReferrerDetailPage /> },
       { path: 'banners',      element: <AdminBannersPage /> },
       { path: 'settings',     element: <AdminSettingsPage /> },
+      { path: 'push',         element: <DevOnlyRoute><AdminPushPage /></DevOnlyRoute> },
     ],
   },
 ])
