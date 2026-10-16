@@ -245,8 +245,10 @@ function HistoryCard({ item, type, onRefresh }) {
       onConfirm: async () => {
         setConfirmDialog(null)
         try {
-          await api.post(`/documents/${item.id}/convert-to-invoice`)
+          const { data } = await api.post(`/documents/${item.id}/convert-to-invoice`)
           toast.success('Devis converti en facture')
+          // Célébration « Devis accepté » (et badges gagnés)
+          showMilestones(data?.milestones)
           onRefresh()
         } catch { toast.error('Erreur lors de la conversion') }
       }

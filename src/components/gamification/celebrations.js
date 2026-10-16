@@ -1,4 +1,4 @@
-import { Receipt, FileText, Banknote, Star, Rocket, Shield, Award } from 'lucide-react'
+import { Receipt, FileText, Banknote, Star, Rocket, Shield, Award, Handshake } from 'lucide-react'
 import { formatAmount } from '../../store/currencyStore'
 
 // Mêmes couleurs et mêmes tampons que le mobile (milestone_messages.dart)
@@ -75,7 +75,15 @@ export function milestonesToCelebrations(milestones) {
   const client = stats.client_name || null
   const list = []
 
-  if (milestones.first_invoice) {
+  // Devis converti en facture : une vente gagnée, fêtée à chaque fois. Si
+  // c'est aussi la première facture, cette célébration suffit.
+  if (milestones.quote_converted) {
+    list.push({ ...GREEN, Icon: Handshake, title: 'Devis accepté !',
+      message: 'Une vente de gagnée : votre devis est devenu une facture.',
+      stampText: 'ACCEPTÉ', kind: 'quote', docTitle: client, docAmount: amount })
+  }
+
+  if (milestones.first_invoice && !milestones.quote_converted) {
     list.push({ ...BLUE, Icon: Receipt, title: 'Première facture !',
       message: 'Votre activité décolle sur BudgetPilot.',
       stampText: 'ÉMISE', kind: 'invoice', docTitle: client, docAmount: amount })

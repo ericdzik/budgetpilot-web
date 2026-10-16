@@ -3,6 +3,7 @@ import { Zap, Check, Circle, X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { subscriptionService } from '../services/subscriptionService'
 import UserBadge from '../components/ui/UserBadge'
+import { BADGE_TIERS } from '../components/gamification/celebrations'
 import useAuthStore from '../store/authStore'
 import useCurrencyStore from '../store/currencyStore'
 import { useNavigate } from 'react-router-dom'
@@ -38,7 +39,7 @@ function CheckItemBlue({ text }) {
 
 // ─── Bouton cycle ─────────────────────────────────────────────────────────────
 
-function CycleButton({ label, price, perMonth, selected, onSelect }) {
+function CycleButton({ label, price, oldPrice, perMonth, selected, onSelect }) {
   const headerBg = selected ? '#FFC107' : '#1E88E5'
   const headerText = selected ? '#111' : '#fff'
   const borderColor = selected ? '#FFC107' : '#90CAF9'
@@ -79,6 +80,9 @@ function CycleButton({ label, price, perMonth, selected, onSelect }) {
         position: 'relative',
         textAlign: 'left',
       }}>
+        {oldPrice && (
+          <div style={{ fontSize: '11px', color: 'rgba(0,0,0,0.45)', textDecoration: 'line-through' }}>{oldPrice}</div>
+        )}
         <div style={{ fontSize: '15px', fontWeight: '700', color: '#111', marginBottom: '12px' }}>
           {price}
         </div>
@@ -183,17 +187,26 @@ export default function SubscriptionPage() {
   const { activeCurrency } = useCurrencyStore()
   const priceFor = (plan, cycle) => getSubscriptionPrice(activeCurrency, plan, cycle)
 
+  // Réduction du grade sur le prochain paiement (montant réel calculé par le serveur)
+  const discountPercent = status?.grade_discount?.percent || 0
+  const discountTier = BADGE_TIERS[status?.grade_discount?.grade]
+  const discountedFor = (plan, cycle) => priceFor(plan, cycle) * (100 - discountPercent) / 100
+  const priceCell = (plan, cycle) => ({
+    price: formatSubscriptionPrice(priceFor(plan, cycle) * (100 - discountPercent) / 100, activeCurrency),
+    oldPrice: discountPercent > 0 ? formatSubscriptionPrice(priceFor(plan, cycle), activeCurrency) : null,
+  })
+
   const proPrices = [
-    { key: 'monthly',  label: 'Mensuel',     price: formatSubscriptionPrice(priceFor('pro', 'monthly'), activeCurrency),  sub: null },
-    { key: 'yearly',   label: 'Annuel',      price: formatSubscriptionPrice(priceFor('pro', 'yearly'), activeCurrency),   sub: formatSubscriptionPerMonth(priceFor('pro', 'yearly'), 12, activeCurrency) },
-    { key: '3months',  label: 'Trimestriel', price: formatSubscriptionPrice(priceFor('pro', '3months'), activeCurrency),  sub: formatSubscriptionPerMonth(priceFor('pro', '3months'), 3, activeCurrency) },
+    { key: 'monthly',  label: 'Mensuel',     ...priceCell('pro', 'monthly'),  sub: null },
+    { key: 'yearly',   label: 'Annuel',      ...priceCell('pro', 'yearly'),   sub: formatSubscriptionPerMonth(discountedFor('pro', 'yearly'), 12, activeCurrency) },
+    { key: '3months',  label: 'Trimestriel', ...priceCell('pro', '3months'),  sub: formatSubscriptionPerMonth(discountedFor('pro', '3months'), 3, activeCurrency) },
   ]
 
   // Plans Basic
   const basicPrices = [
-    { key: 'monthly',  label: 'Mensuel',     price: formatSubscriptionPrice(priceFor('basic', 'monthly'), activeCurrency),  sub: null },
-    { key: 'yearly',   label: 'Annuel',      price: formatSubscriptionPrice(priceFor('basic', 'yearly'), activeCurrency),   sub: formatSubscriptionPerMonth(priceFor('basic', 'yearly'), 12, activeCurrency) },
-    { key: '3months',  label: 'Trimestriel', price: formatSubscriptionPrice(priceFor('basic', '3months'), activeCurrency),  sub: formatSubscriptionPerMonth(priceFor('basic', '3months'), 3, activeCurrency) },
+    { key: 'monthly',  label: 'Mensuel',     ...priceCell('basic', 'monthly'),  sub: null },
+    { key: 'yearly',   label: 'Annuel',      ...priceCell('basic', 'yearly'),   sub: formatSubscriptionPerMonth(discountedFor('basic', 'yearly'), 12, activeCurrency) },
+    { key: '3months',  label: 'Trimestriel', ...priceCell('basic', '3months'),  sub: formatSubscriptionPerMonth(discountedFor('basic', '3months'), 3, activeCurrency) },
   ]
 
   const savingsMessage = {
@@ -454,11 +467,12 @@ export default function SubscriptionPage() {
 
                 {/* Sélecteur de prix */}
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                  {proPrices.map(({ key, label, price, sub }) => (
+                  {proPrices.map(({ key, label, price, oldPrice, sub }) => (
                     <CycleButton
                       key={key}
                       label={label}
                       price={price}
+                      oldPrice={oldPrice}
                       perMonth={sub}
                       selected={selectedPro === key}
                       onSelect={() => setSelectedPro(key)}
@@ -466,6 +480,13 @@ export default function SubscriptionPage() {
                   ))}
                 </div>
 
+                {discountPercent > 0 && discountTier && (
+                  <p style={{ textAlign: 'center', margin: '0 0 10px' }}>
+                    <span style={{ backgroundColor: discountTier.light, color: discountTier.color, borderRadius: 20, padding: '5px 12px', fontSize: 12.5, fontWeight: 600 }}>
+                      Grade {discountTier.label} : -{discountPercent} % sur votre paiement
+                    </span>
+                  </p>
+                )}
                 {/* Économie */}
                 <p style={{ textAlign: 'center', fontSize: '13px', opacity: 0.85, margin: '0 0 16px', whiteSpace: 'pre-line' }}>
                   {savingsMessage.pro[selectedPro]}
@@ -523,11 +544,12 @@ export default function SubscriptionPage() {
 
               {/* Sélecteur de prix */}
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                {basicPrices.map(({ key, label, price, sub }) => (
+                {basicPrices.map(({ key, label, price, oldPrice, sub }) => (
                   <CycleButton
                     key={key}
                     label={label}
                     price={price}
+                    oldPrice={oldPrice}
                     perMonth={sub}
                     selected={selectedBasic === key}
                     onSelect={() => setSelectedBasic(key)}
@@ -535,6 +557,13 @@ export default function SubscriptionPage() {
                 ))}
               </div>
 
+              {discountPercent > 0 && discountTier && (
+                <p style={{ textAlign: 'center', margin: '0 0 10px' }}>
+                  <span style={{ backgroundColor: discountTier.light, color: discountTier.color, borderRadius: 20, padding: '5px 12px', fontSize: 12.5, fontWeight: 600 }}>
+                    Grade {discountTier.label} : -{discountPercent} % sur votre paiement
+                  </span>
+                </p>
+              )}
               {/* Économie */}
               <p style={{ textAlign: 'center', fontSize: '13px', color: '#555', margin: '0 0 16px', whiteSpace: 'pre-line' }}>
                 {savingsMessage.basic[selectedBasic]}

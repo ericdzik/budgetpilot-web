@@ -5,6 +5,7 @@ import useCelebrationStore from '../../store/celebrationStore'
 const SAMPLES = [
   { first_invoice: true, stats: { amount: 350000, currency: 'XOF', client_name: 'Boutique Akwaba' } },
   { first_quote: true, stats: { amount: 125000, currency: 'XOF', client_name: 'Pharmacie du Port' } },
+  { quote_converted: true, stats: { amount: 240000, currency: 'XOF', client_name: 'Quincaillerie Kodjo' } },
   { first_paid_invoice: true, stats: { amount: 350000, currency: 'XOF', client_name: 'Boutique Akwaba' } },
   { badges: [{ category: 'invoices', category_name: 'Facturation', level: 1, name: 'Facturier' }] },
   { badges: [{ category: 'akpe', category_name: 'Akpé', level: 1, name: 'Akpé' }] },
