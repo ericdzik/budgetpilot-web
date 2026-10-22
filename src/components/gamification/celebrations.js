@@ -64,6 +64,33 @@ export function gradeCelebration(grade, discount = 0) {
 }
 
 /**
+ * Célébrations à afficher pour la page des badges : badges obtenus depuis le
+ * dernier calcul, badge Akpé une fois par navigateur (un utilisateur qui l'a
+ * reçu sur le mobile le découvre aussi sur le web), puis nouveau grade.
+ */
+export function badgePageCelebrations(page, accountKey) {
+  const akpeKey = `akpe_celebrated_${accountKey}`
+  const read = () => { try { return localStorage.getItem(akpeKey) === '1' } catch { return false } }
+  const badges = [...(page?.newly_earned || [])]
+
+  if (page?.akpe && !read() && !badges.some((b) => b.category === 'akpe')) {
+    badges.unshift({ category: 'akpe', category_name: 'Akpé', level: 1, name: page.akpe.name || 'Akpé' })
+  }
+  if (badges.some((b) => b.category === 'akpe')) {
+    try { localStorage.setItem(akpeKey, '1') } catch { /* stockage indisponible */ }
+  }
+
+  // Akpé a sa propre célébration, avant les autres badges éventuels
+  const akpe = badges.filter((b) => b.category === 'akpe')
+  const others = badges.filter((b) => b.category !== 'akpe')
+  const items = []
+  if (akpe.length) items.push(badgesCelebration(akpe))
+  if (others.length) items.push(badgesCelebration(others))
+  if (page?.grade?.new) items.push(gradeCelebration(page.grade.new, page.grade.discount))
+  return items
+}
+
+/**
  * Convertit la clé `milestones` d'une réponse API en liste de célébrations
  * « tampon », dans le même ordre que le mobile.
  */

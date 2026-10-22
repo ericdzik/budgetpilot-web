@@ -4,9 +4,27 @@ import { gamificationService } from '../../services/gamificationService'
 import Sidebar from './Sidebar'
 import CelebrationHost from '../gamification/CelebrationHost'
 import useCelebrationDemo from '../gamification/useCelebrationDemo'
+import { badgePageCelebrations } from '../gamification/celebrations'
+import useCelebrationStore from '../../store/celebrationStore'
+import useAuthStore from '../../store/authStore'
+
+// Compte dont les badges ont déjà été vérifiés depuis l'ouverture de l'onglet
+let badgesCheckedFor = null
 
 export default function AppLayout() {
   useCelebrationDemo()
+  const show = useCelebrationStore((s) => s.show)
+  const accountKey = useAuthStore((s) => s.user?.id) ?? null
+
+  // Fête dès l'ouverture les badges et le grade obtenus depuis la dernière
+  // visite (dont Akpé, déjà fêté sur le mobile mais pas sur ce navigateur)
+  useEffect(() => {
+    if (!accountKey || badgesCheckedFor === accountKey) return
+    badgesCheckedFor = accountKey
+    gamificationService.getBadges()
+      .then(({ data }) => badgePageCelebrations(data, accountKey).forEach(show))
+      .catch(() => {})
+  }, [accountKey, show])
 
   // Visites pour les badges « Visites de la semaine » et « Semaines assidues »
   useEffect(() => {
