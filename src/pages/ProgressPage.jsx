@@ -4,9 +4,10 @@ import { Bell, Shield, Trash2, X } from 'lucide-react'
 import UserBadge from '../components/ui/UserBadge'
 import BadgeShield from '../components/gamification/BadgeShield'
 import LevelMedal from '../components/gamification/LevelMedal'
-import { BADGE_TIERS, badgesCelebration, gradeCelebration } from '../components/gamification/celebrations'
+import { BADGE_TIERS, badgePageCelebrations } from '../components/gamification/celebrations'
 import { gamificationService } from '../services/gamificationService'
 import useCelebrationStore from '../store/celebrationStore'
+import useAuthStore from '../store/authStore'
 
 const TEXT_DARK = '#2C3E50'
 const TEXT_MUTED = '#7F8C8D'
@@ -418,6 +419,7 @@ export default function ProgressPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = searchParams.get('tab') === 'notifications' ? 'notifications' : 'badges'
   const show = useCelebrationStore((s) => s.show)
+  const accountKey = useAuthStore((s) => s.user?.id) ?? 'anon'
 
   const [page, setPage] = useState(null)
   const [notifications, setNotifications] = useState(null)
@@ -431,13 +433,12 @@ export default function ProgressPage() {
         if (cancelled) return
         setPage(data)
         // Badges et grade obtenus depuis la dernière visite (ex. après un abonnement)
-        if (data.newly_earned?.length) show(badgesCelebration(data.newly_earned))
-        if (data.grade?.new) show(gradeCelebration(data.grade.new, data.grade.discount))
+        badgePageCelebrations(data, accountKey).forEach(show)
       })
       .catch(() => { if (!cancelled) setPage({ categories: [] }) })
 
     return () => { cancelled = true }
-  }, [show])
+  }, [show, accountKey])
 
   // Recharge la liste à chaque ouverture de l'onglet et à chaque retour sur la
   // fenêtre : une notification arrivée entre-temps apparaît sans recharger la page.
