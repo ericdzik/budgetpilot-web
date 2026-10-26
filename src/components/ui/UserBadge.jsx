@@ -84,9 +84,7 @@ export default function UserBadge({ size = 48 }) {
   const label = plan === 'pro' ? 'pro' : plan === 'basic' ? 'basic' : 'gratuit'
 
   const daysDisplay = daysLeft !== null
-    ? daysLeft > 30
-      ? `${Math.floor(daysLeft / 30)} mois restants`
-      : `${daysLeft} jour${daysLeft !== 1 ? 's' : ''} restant${daysLeft !== 1 ? 's' : ''}`
+    ? `${daysLeft} jour${daysLeft > 1 ? 's' : ''} restant${daysLeft > 1 ? 's' : ''}`
     : null
 
   useEffect(() => {

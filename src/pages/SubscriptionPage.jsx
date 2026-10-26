@@ -160,11 +160,9 @@ export default function SubscriptionPage() {
 
   const planLabel = currentPlan === 'pro' ? 'pro' : currentPlan === 'basic' ? 'basic' : 'gratuit'
 
-  // Conversion jours → mois si > 30 (comme mobile)
+  // Temps restant toujours en jours (ex. 89 jours pour un abonnement de 3 mois)
   const daysDisplay = daysLeft !== null
-    ? daysLeft > 30
-      ? `${Math.floor(daysLeft / 30)} mois restants`
-      : `${daysLeft} jour${daysLeft !== 1 ? 's' : ''} restant${daysLeft !== 1 ? 's' : ''}`
+    ? `${daysLeft} jour${daysLeft > 1 ? 's' : ''} restant${daysLeft > 1 ? 's' : ''}`
     : null
 
   const handleSubscribe = async (plan, billing) => {
@@ -308,14 +306,14 @@ export default function SubscriptionPage() {
               <Zap size={18} fill={badgeTextColor} color={badgeTextColor} /> {planLabel}
             </div>
 
-            {/* Jours/mois restants — seulement en mode premium actif */}
+            {/* Jours restants — seulement en mode premium actif */}
             {isPremium && daysDisplay !== null && (
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexShrink: 0 }}>
                 <span style={{ fontSize: '40px', fontWeight: '800', color: '#1E88E5', lineHeight: 1 }}>
-                  {daysLeft > 30 ? Math.floor(daysLeft / 30) : daysLeft}
+                  {daysLeft}
                 </span>
                 <span style={{ fontSize: '14px', color: '#888', lineHeight: 1.3 }}>
-                  {daysLeft > 30 ? 'mois' : 'jours'}<br />restants
+                  {daysLeft > 1 ? 'jours' : 'jour'}<br />{daysLeft > 1 ? 'restants' : 'restant'}
                 </span>
               </div>
             )}
