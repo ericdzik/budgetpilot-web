@@ -52,6 +52,8 @@ import SettingsPage from './pages/SettingsPage'
 import ProfilePage from './pages/ProfilePage'
 import PersonalProfilePage from './pages/PersonalProfilePage'
 import CompanyProfilePage from './pages/CompanyProfilePage'
+import CompaniesPage from './pages/CompaniesPage'
+import ConsolidatedPage from './pages/ConsolidatedPage'
 import FaqPage from './pages/FaqPage'
 import TermsPage from './pages/TermsPage'
 import ContactPage from './pages/ContactPage'
@@ -152,6 +154,8 @@ export const router = createBrowserRouter([
       { path: 'profile', element: <ProfilePage /> },
       { path: 'profile/personal', element: <PersonalProfilePage /> },
       { path: 'profile/company', element: <CompanyProfilePage /> },
+      { path: 'companies', element: <CompaniesPage /> },
+      { path: 'consolidated', element: <ConsolidatedPage /> },
       { path: 'faq', element: <FaqPage /> },
       { path: 'terms', element: <TermsPage /> },
       { path: 'contact', element: <ContactPage /> },

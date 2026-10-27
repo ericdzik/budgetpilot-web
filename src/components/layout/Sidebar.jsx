@@ -1,5 +1,7 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Award } from 'lucide-react'
+import { Award, Store } from 'lucide-react'
+import CompanySwitcher from '../company/CompanySwitcher'
+import useCompanyStore from '../../store/companyStore'
 
 function SvgIcon({ src, size = 20, active = false, colored = false }) {
   return (
@@ -90,7 +92,22 @@ function NavItemExact({ to, svgSrc, label, colored = false }) {
   )
 }
 
-export default function Sidebar() {
+/**
+ * Menu latéral. Sur petit écran (`drawer`), il devient un tiroir qui glisse depuis
+ * la gauche et se ferme à la navigation.
+ */
+export default function Sidebar({ drawer = false, open = false }) {
+  // Le menu « Mes entreprises » n'apparaît que si le serveur gère le multi-compte
+  const multiCompany = useCompanyStore((s) => s.available)
+
+  const placement = drawer
+    ? {
+        position: 'fixed', left: 0, top: 0, zIndex: 60,
+        transform: open ? 'translateX(0)' : 'translateX(-105%)',
+        transition: 'transform 0.2s ease',
+        boxShadow: open ? '0 0 40px rgba(0,0,0,0.25)' : 'none',
+      }
+    : { position: 'sticky', top: 0 }
 
   return (
     <aside style={{
@@ -100,9 +117,9 @@ export default function Sidebar() {
       borderRight: 'none',
       display: 'flex',
       flexDirection: 'column',
+      // Le site est affiché à 70 % : la hauteur est compensée
       height: '142.86vh',
-      position: 'sticky',
-      top: 0,
+      ...placement,
     }}>
 
       {/* Logo */}
@@ -117,6 +134,9 @@ export default function Sidebar() {
           Pilot
         </span>
       </div>
+
+      {/* Entreprises du compte (si plusieurs) */}
+      <CompanySwitcher />
 
       {/* Contenu scrollable */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 12px' }}>
@@ -173,6 +193,8 @@ export default function Sidebar() {
       }}>
         {/* navbar_icon4 = Profil */}
         <NavItem to="/profile"  svgSrc="/navbar_icon4.svg"   label="Profil" />
+        {/* Entreprises du compte */}
+        {multiCompany && <NavItem to="/companies" Icon={Store} label="Mes entreprises" />}
         {/* SERVICESICONE10 = Paramètres */}
         <NavItem to="/settings" svgSrc="/SERVICESICONE10.svg" label="Paramètres" />
       </div>
