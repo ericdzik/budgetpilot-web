@@ -946,6 +946,57 @@ export default function AdminUserDetailPage() {
         </div>
       </Card>
 
+      {/* ── Entreprises du compte ─────────────────────────────────────────── */}
+      {user.companies_detail?.length > 0 && (
+        <>
+          <SectionTitle title={`Entreprises du compte (${user.companies_count ?? user.companies_detail.length} sur ${user.companies_limit ?? 1} avec l'offre)`} />
+          <Card style={{ padding: 0, overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f8f9fb' }}>
+                  {['Entreprise', 'Devise', 'Clients', 'Documents', 'Dépenses', 'Recettes', 'Statut'].map((label) => (
+                    <th key={label} style={{
+                      padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600',
+                      color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', borderBottom: '1px solid #f0f0f0',
+                    }}>
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {user.companies_detail.map((c) => (
+                  <tr key={c.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                    <td style={{ padding: '14px 16px' }}>
+                      <span style={{ fontWeight: '600', color: '#111' }}>{c.name}</span>
+                      {c.is_primary && (
+                        <span style={{ marginLeft: 8, padding: '2px 8px', borderRadius: '50px', fontSize: '11px', backgroundColor: '#f5f5f5', color: '#616161' }}>
+                          Principale
+                        </span>
+                      )}
+                      {c.activity && <div style={{ fontSize: '12px', color: '#888' }}>{c.activity}</div>}
+                    </td>
+                    <td style={{ padding: '14px 16px', color: '#555' }}>{c.currency || '—'}</td>
+                    <td style={{ padding: '14px 16px', color: '#555' }}>{c.clients_count}</td>
+                    <td style={{ padding: '14px 16px', color: '#555' }}>{c.documents_count}</td>
+                    <td style={{ padding: '14px 16px', color: '#555' }}>{c.expenses_count}</td>
+                    <td style={{ padding: '14px 16px', color: '#555' }}>{c.revenues_count}</td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <span style={{
+                        padding: '3px 10px', borderRadius: '50px', fontSize: '12px', fontWeight: '500',
+                        backgroundColor: c.editable ? '#E8F5E9' : '#FFF3E0', color: c.editable ? '#2E7D32' : '#E65100',
+                      }}>
+                        {c.editable ? 'Modifiable' : 'Lecture seule'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </>
+      )}
+
       {/* ── Abonnement actuel ─────────────────────────────────────────────── */}
       <SectionTitle title="Abonnement actuel" />
       <Card>
