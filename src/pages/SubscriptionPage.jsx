@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Zap, Check, Circle, X } from 'lucide-react'
-import { toast } from 'react-hot-toast'
 import { subscriptionService } from '../services/subscriptionService'
 import UserBadge from '../components/ui/UserBadge'
 import { BADGE_TIERS } from '../components/gamification/celebrations'
@@ -109,7 +108,6 @@ export default function SubscriptionPage() {
   const [loading, setLoading] = useState(true)
   const [selectedPro, setSelectedPro]     = useState('yearly')
   const [selectedBasic, setSelectedBasic] = useState('yearly')
-  const [paying, setPaying] = useState(false)
   const [showRenewalBanner, setShowRenewalBanner] = useState(false)
 
   useEffect(() => {
@@ -167,20 +165,9 @@ export default function SubscriptionPage() {
       : `${daysLeft} jour${daysLeft !== 1 ? 's' : ''} restant${daysLeft !== 1 ? 's' : ''}`
     : null
 
-  const handleSubscribe = async (plan, billing) => {
-    setPaying(true)
-    try {
-      const res = await subscriptionService.initiate({ plan, billing_cycle: billing })
-      if (res.data?.bill_url) {
-        window.open(res.data.bill_url, '_blank')
-      } else {
-        toast.success('Abonnement initié avec succès')
-      }
-    } catch {
-      toast.error("Impossible d'initier le paiement")
-    } finally {
-      setPaying(false)
-    }
+  // Parcours de paiement KKiaPay (récapitulatif, méthode, résultat)
+  const handleSubscribe = (plan, billing) => {
+    navigate(`/subscription/checkout?plan=${plan}&cycle=${billing}`)
   }
 
   // ── Prix statiques par devise active (fallback USD) ──
@@ -495,7 +482,6 @@ export default function SubscriptionPage() {
                 {/* Bouton */}
                 <button
                   onClick={() => handleSubscribe('pro', selectedPro)}
-                  disabled={paying}
                   style={{
                     width: '100%', padding: '14px',
                     backgroundColor: '#fff', color: '#1E88E5',
@@ -503,7 +489,7 @@ export default function SubscriptionPage() {
                     fontSize: '16px', fontWeight: '700', cursor: 'pointer',
                   }}
                 >
-                  {paying ? 'Chargement...' : 'Continuer'}
+                  Continuer
                 </button>
               </div>
             </div>
@@ -572,7 +558,6 @@ export default function SubscriptionPage() {
               {/* Bouton */}
               <button
                 onClick={() => handleSubscribe('basic', selectedBasic)}
-                disabled={paying}
                 style={{
                   width: '100%', padding: '14px',
                   backgroundColor: '#1E88E5', color: '#fff',
@@ -580,7 +565,7 @@ export default function SubscriptionPage() {
                   fontSize: '16px', fontWeight: '700', cursor: 'pointer',
                 }}
               >
-                {paying ? 'Chargement...' : 'Continuer'}
+                Continuer
               </button>
             </div>
 
