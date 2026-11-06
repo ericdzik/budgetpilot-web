@@ -6,7 +6,18 @@ export const subscriptionService = {
   initiate: (data) => api.post('/subscription/initiate', {
     plan: data.plan,
     cycle: data.billing_cycle,
+    platform: 'web',
   }),
+
+  /**
+   * Passerelles à essayer dans l'ordre (KKiaPay d'abord, SEMOA en relais)
+   * et montant à payer, remise de grade comprise.
+   */
+  gateways: (plan, cycle) => api.get('/subscription/gateways', { params: { plan, cycle } }),
+
+  /** La passerelle n'a pas pu être utilisée avant tout débit : le serveur la saute pour cet utilisateur. */
+  reportGatewayFailure: (gateway, plan, cycle) =>
+    api.post('/subscription/gateways/failure', { gateway, plan, cycle }),
 
   cancel: () => api.post('/subscription/cancel'),
 

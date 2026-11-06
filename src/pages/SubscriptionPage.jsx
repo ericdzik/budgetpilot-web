@@ -5,7 +5,8 @@ import UserBadge from '../components/ui/UserBadge'
 import { BADGE_TIERS } from '../components/gamification/celebrations'
 import useAuthStore from '../store/authStore'
 import useCurrencyStore from '../store/currencyStore'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import {
   getSubscriptionPrice,
   formatSubscriptionPrice,
@@ -104,11 +105,26 @@ function CycleButton({ label, price, oldPrice, perMonth, selected, onSelect }) {
 export default function SubscriptionPage() {
   const { user, setUser } = useAuthStore()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedPro, setSelectedPro]     = useState('yearly')
   const [selectedBasic, setSelectedBasic] = useState('yearly')
   const [showRenewalBanner, setShowRenewalBanner] = useState(false)
+
+  // Retour de la page de paiement SEMOA : la confirmation arrive du serveur
+  // quelques secondes plus tard, on recharge le statut une fois
+  useEffect(() => {
+    if (searchParams.get('payment') !== 'return') return undefined
+    toast('Paiement en cours de validation…')
+    const timer = setTimeout(() => {
+      subscriptionService.getStatus().then(({ data }) => {
+        setStatus(data)
+        if (data?.status === 'active') toast.success('Abonnement activé')
+      }).catch(() => {})
+    }, 4000)
+    return () => clearTimeout(timer)
+  }, [searchParams])
 
   useEffect(() => {
     subscriptionService.getStatus()

@@ -140,7 +140,9 @@ export default function CheckoutPage() {
 
   const plan = params.get('plan') === 'pro' ? 'pro' : 'basic'
   const cycle = CYCLES[params.get('cycle')] ? params.get('cycle') : 'monthly'
-  const amount = getSubscriptionPrice('XOF', plan, cycle)
+  const [gateways, setGateways] = useState({ order: ['kkiapay', 'semoa'], amount: null })
+  // Montant annoncé par le serveur (remise de grade comprise), prix de la grille à défaut
+  const amount = gateways.amount ?? getSubscriptionPrice('XOF', plan, cycle)
   const offerTitle = `Offre ${plan === 'pro' ? 'Pro' : 'Basic'} - ${CYCLES[cycle]}`
 
   const [step, setStep] = useState('info') // info | method | processing | success | failed
@@ -163,6 +165,19 @@ export default function CheckoutPage() {
 
   const [reference, setReference] = useState(null)
   const [failure, setFailure] = useState('')
+  // Le relais n'est proposé que si rien n'a pu être débité (pas de transaction)
+  const [relayAllowed, setRelayAllowed] = useState(true)
+  const [relaying, setRelaying] = useState(false)
+  const hasRelay = gateways.order.length > 1
+
+  // Ordre des passerelles : si le réseau échoue, on garde KKiaPay puis SEMOA
+  useEffect(() => {
+    let alive = true
+    subscriptionService.gateways(plan, cycle)
+      .then(({ data }) => alive && setGateways({ order: data.gateways, amount: data.amount }))
+      .catch(() => {})
+    return () => { alive = false }
+  }, [plan, cycle])
 
   // Profil incomplet dans le store (ex. session ancienne) : le recharger
   useEffect(() => {
@@ -176,7 +191,9 @@ export default function CheckoutPage() {
       toast.error('Renseignez votre nom et votre numéro de téléphone')
       return
     }
-    setStep('method')
+    // KKiaPay indisponible pour ce client (panne, pays non couvert) : SEMOA directement
+    if (gateways.order[0] === 'semoa') paySemoa()
+    else setStep('method')
   }
 
   const fail = (message) => {
@@ -189,6 +206,7 @@ export default function CheckoutPage() {
   const verify = async (transactionId) => {
     setStep('processing')
     setReference(transactionId)
+    setRelayAllowed(false)
     try {
       await subscriptionService.kkiapayVerify(transactionId, plan, cycle)
       const { data } = await subscriptionService.getStatus()
@@ -199,6 +217,25 @@ export default function CheckoutPage() {
       fail("Votre paiement n'a pas pu être vérifié. Si vous avez été débité, "
         + `contactez le support avec la référence ${transactionId}.`)
     }
+  }
+
+  // SEMOA : page de paiement hébergée ; au retour, le site recharge le statut
+  const paySemoa = async () => {
+    setRelaying(true)
+    try {
+      const { data } = await subscriptionService.initiate({ plan, billing_cycle: cycle })
+      if (!data?.bill_url) throw new Error('bill_url')
+      window.location.assign(data.bill_url)
+    } catch {
+      toast.error('Paiement SEMOA indisponible pour le moment, réessayez dans un instant')
+      setRelaying(false)
+    }
+  }
+
+  const relay = async () => {
+    setRelaying(true)
+    await subscriptionService.reportGatewayFailure('kkiapay', plan, cycle).catch(() => {})
+    await paySemoa()
   }
 
   const pay = () => {
@@ -412,6 +449,14 @@ export default function CheckoutPage() {
       footer={(
         <>
           <PrimaryButton onClick={pay} disabled={paying}>Réessayer <RefreshCw size={18} /></PrimaryButton>
+          {hasRelay && relayAllowed && (
+            <button onClick={relay} disabled={relaying} style={{
+              display: 'block', margin: '12px auto 0', background: 'none', border: 'none', color: BLUE,
+              fontSize: 14, fontWeight: 600, cursor: relaying ? 'default' : 'pointer',
+            }}>
+              {relaying ? 'Ouverture de SEMOA…' : 'Payer avec SEMOA'}
+            </button>
+          )}
           <button onClick={() => setStep('method')} style={{
             display: 'block', margin: '12px auto 0', background: 'none', border: 'none', color: BLUE,
             textDecoration: 'underline', fontSize: 14, fontWeight: 500, cursor: 'pointer',
