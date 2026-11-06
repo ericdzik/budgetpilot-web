@@ -31,7 +31,7 @@ export const subscriptionService = {
    */
   kkiapayVerify: (transactionId, plan, cycle) =>
     api.post('/subscription/kkiapay/verify', {
-      transaction_id: transactionId,
+      transaction_id: String(transactionId),
       plan,
       cycle,
     }),

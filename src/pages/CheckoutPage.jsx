@@ -258,10 +258,14 @@ export default function CheckoutPage() {
       if (response?.transactionId) verify(response.transactionId)
       else fail()
     })
-    window.addFailedListener?.(() => {
+    window.addFailedListener?.((response) => {
       setPaying(false)
       window.closeKkiapayWidget?.()
-      fail()
+      // Raison donnée par KKiaPay : utile pour comprendre un refus (carte, opérateur…)
+      console.warn('[KKiaPay] paiement refusé', JSON.stringify(response))
+      // Un échec côté widget n'exclut pas un débit : si une transaction existe, on la vérifie
+      if (response?.transactionId) verify(String(response.transactionId))
+      else fail()
     })
     window.addKkiapayCloseListener?.(() => setPaying(false))
 
@@ -271,13 +275,15 @@ export default function CheckoutPage() {
       sandbox: import.meta.env.VITE_KKIAPAY_SANDBOX === 'true',
       name,
       email,
-      phone: momo ? `${country.dial}${digits}` : undefined,
+      // Le paiement par carte exige aussi un numéro : celui renseigné à l'étape « Paiement »
+      phone: momo ? `${country.dial}${digits}` : (phone.replace(/\D/g, '') || undefined),
       reason: `Abonnement BudgetPilot ${offerTitle}`,
       data: JSON.stringify({ plan, cycle }),
       theme: BLUE,
       // Widget pré-réglé sur le choix fait dans notre écran
       paymentmethod: momo ? 'momo' : 'card',
-      countries: momo ? [country.code] : undefined,
+      // Carte : on liste les pays couverts, comme sur l'app mobile
+      countries: momo ? [country.code] : COUNTRIES.map((c) => c.code),
       providers: momo ? { accept: [operator.provider] } : undefined,
     })
   }
