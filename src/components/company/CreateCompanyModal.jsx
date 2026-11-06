@@ -6,9 +6,9 @@ import useCompanyStore from '../../store/companyStore'
 import useCurrencyStore, { ALL_CURRENCIES } from '../../store/currencyStore'
 
 const field = {
-  width: '100%', boxSizing: 'border-box', padding: '13px 16px',
-  border: '1.5px solid #e0e0e0', borderRadius: '14px',
-  fontSize: '15px', outline: 'none', backgroundColor: '#fff',
+  width: '100%', boxSizing: 'border-box', padding: '17px 20px',
+  border: '1.5px solid #e0e0e0', borderRadius: '16px',
+  fontSize: '20px', outline: 'none', backgroundColor: '#fff',
 }
 
 /**
@@ -53,41 +53,41 @@ export default function CreateCompanyModal({ open, onClose }) {
     }}>
       <form onSubmit={submit} style={{
         position: 'relative', backgroundColor: '#fff', borderRadius: '20px',
-        padding: '32px 28px', maxWidth: '440px', width: '90%',
+        padding: '44px 40px', maxWidth: '600px', width: '90%',
         boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
       }}>
         <button type="button" onClick={close} aria-label="Fermer" style={{
-          position: 'absolute', top: 16, right: 16, border: 'none', background: 'none',
+          position: 'absolute', top: 20, right: 20, border: 'none', background: 'none',
           cursor: 'pointer', color: '#9e9e9e', padding: 4,
         }}>
-          <X size={20} />
+          <X size={26} />
         </button>
 
-        <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#111', margin: '0 0 6px' }}>
+        <h3 style={{ fontSize: '28px', fontWeight: '700', color: '#111', margin: '0 0 10px' }}>
           Ajouter une entreprise
         </h3>
-        <p style={{ fontSize: '14px', color: '#666', margin: '0 0 22px', lineHeight: 1.5 }}>
+        <p style={{ fontSize: '19px', color: '#666', margin: '0 0 30px', lineHeight: 1.5 }}>
           Ses clients, documents et chiffres resteront séparés de vos autres entreprises.
         </p>
 
-        <label style={{ display: 'block', fontSize: '13px', color: '#555', margin: '0 0 6px' }}>Nom de l'entreprise</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} autoFocus style={{ ...field, marginBottom: 14 }} />
+        <label style={{ display: 'block', fontSize: '17px', color: '#555', margin: '0 0 8px' }}>Nom de l'entreprise</label>
+        <input value={name} onChange={(e) => setName(e.target.value)} autoFocus style={{ ...field, marginBottom: 20 }} />
 
-        <label style={{ display: 'block', fontSize: '13px', color: '#555', margin: '0 0 6px' }}>Activité (facultatif)</label>
-        <input value={activity} onChange={(e) => setActivity(e.target.value)} style={{ ...field, marginBottom: 14 }} />
+        <label style={{ display: 'block', fontSize: '17px', color: '#555', margin: '0 0 8px' }}>Activité (facultatif)</label>
+        <input value={activity} onChange={(e) => setActivity(e.target.value)} style={{ ...field, marginBottom: 20 }} />
 
-        <label style={{ display: 'block', fontSize: '13px', color: '#555', margin: '0 0 6px' }}>Devise de l'entreprise</label>
+        <label style={{ display: 'block', fontSize: '17px', color: '#555', margin: '0 0 8px' }}>Devise de l'entreprise</label>
         <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={field}>
           {ALL_CURRENCIES.map((c) => (
             <option key={c.code} value={c.code}>{c.name} ({c.code})</option>
           ))}
         </select>
 
-        {error && <p style={{ fontSize: '13px', color: '#c62828', margin: '12px 0 0' }}>{error}</p>}
+        {error && <p style={{ fontSize: '17px', color: '#c62828', margin: '16px 0 0' }}>{error}</p>}
 
         <button type="submit" disabled={saving} style={{
-          width: '100%', marginTop: 22, padding: '14px', border: 'none', borderRadius: '50px',
-          backgroundColor: '#1E88E5', color: '#fff', fontSize: '15px', fontWeight: '600',
+          width: '100%', marginTop: 30, padding: '19px', border: 'none', borderRadius: '50px',
+          backgroundColor: '#1E88E5', color: '#fff', fontSize: '21px', fontWeight: '600',
           cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1,
         }}>
           {saving ? 'Création…' : "Créer l'entreprise"}

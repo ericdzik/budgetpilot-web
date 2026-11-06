@@ -52,6 +52,10 @@ import SettingsPage from './pages/SettingsPage'
 import ProfilePage from './pages/ProfilePage'
 import PersonalProfilePage from './pages/PersonalProfilePage'
 import CompanyProfilePage from './pages/CompanyProfilePage'
+import TeamPage from './pages/TeamPage'
+import InviteTeamPage from './pages/InviteTeamPage'
+import JoinCompanyPage from './pages/JoinCompanyPage'
+import ActivityPage from './pages/ActivityPage'
 import CompaniesPage from './pages/CompaniesPage'
 import ConsolidatedPage from './pages/ConsolidatedPage'
 import FaqPage from './pages/FaqPage'
@@ -155,6 +159,10 @@ export const router = createBrowserRouter([
       { path: 'profile/personal', element: <PersonalProfilePage /> },
       { path: 'profile/company', element: <CompanyProfilePage /> },
       { path: 'companies', element: <CompaniesPage /> },
+      { path: 'join-company', element: <JoinCompanyPage /> },
+      { path: 'team/:id', element: <TeamPage /> },
+      { path: 'team/:id/invite', element: <InviteTeamPage /> },
+      { path: 'team/:id/activity', element: <ActivityPage /> },
       { path: 'consolidated', element: <ConsolidatedPage /> },
       { path: 'faq', element: <FaqPage /> },
       { path: 'terms', element: <TermsPage /> },

@@ -7,7 +7,8 @@ import ConfirmDialog from '../components/ui/ConfirmDialog'
 import CompanyAvatar from '../components/company/CompanyAvatar'
 import CreateCompanyModal from '../components/company/CreateCompanyModal'
 import { CompanyLimitDialog } from '../components/company/CompanySwitcher'
-import useCompanyStore, { useActiveCompany } from '../store/companyStore'
+import useCompanyStore, { isOwned, useActiveCompany } from '../store/companyStore'
+import { ROLE_LABELS } from '../components/team/teamConstants'
 import { companyService } from '../services/companyService'
 
 const GUTTER = 'clamp(14px, 3vw, 28px)'
@@ -16,7 +17,7 @@ function Tag({ children, background, color, icon }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px',
-      borderRadius: '50px', fontSize: '12px', fontWeight: '500', backgroundColor: background, color,
+      borderRadius: '50px', fontSize: '16px', fontWeight: '500', backgroundColor: background, color,
     }}>
       {icon}{children}
     </span>
@@ -32,16 +33,16 @@ function Quota({ used, limit, plan }) {
   return (
     <div style={{ backgroundColor: over ? '#FFF3E0' : '#e3f2fd', borderRadius: '20px', padding: '20px 24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-        <span style={{ fontSize: '16px', fontWeight: '700', color: '#111' }}>
+        <span style={{ fontSize: '24px', fontWeight: '700', color: '#111' }}>
           {over ? `${limit} modifiable${limit > 1 ? 's' : ''} sur ${used}` : `${used} entreprise${used > 1 ? 's' : ''} sur ${limit}`}
         </span>
-        <span style={{ fontSize: '13px', color: over ? '#E65100' : '#1565C0' }}>Offre {planLabel}</span>
+        <span style={{ fontSize: '18px', color: over ? '#E65100' : '#1565C0' }}>Offre {planLabel}</span>
       </div>
       <div style={{ height: 8, borderRadius: 4, backgroundColor: '#fff', marginTop: 12, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${ratio * 100}%`, backgroundColor: over ? '#FB8C00' : '#1E88E5', borderRadius: 4 }} />
       </div>
       {over && (
-        <p style={{ margin: '10px 0 0', fontSize: '13px', color: '#E65100' }}>
+        <p style={{ margin: '12px 0 0', fontSize: '18px', color: '#E65100' }}>
           Les autres sont en consultation et export seulement.
         </p>
       )}
@@ -124,7 +125,7 @@ export default function CompaniesPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <style>{`.co-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 16px; }
+      <style>{`.co-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 44px 28px; }
         @media (max-width: 640px) { .co-grid { grid-template-columns: 1fr; } }`}</style>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap',
@@ -134,7 +135,7 @@ export default function CompaniesPage() {
         <UserBadge size={48} />
       </div>
 
-      <div style={{ flex: 1, padding: `8px ${GUTTER} 32px`, display: 'flex', flexDirection: 'column', gap: 16, width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ flex: 1, padding: `8px ${GUTTER} 32px`, display: 'flex', flexDirection: 'column', gap: 44, width: '100%', boxSizing: 'border-box' }}>
         {!available && (
           <Notice title="Pas encore disponible sur ce serveur">
             La gestion de plusieurs entreprises n'est pas encore activée sur le serveur auquel cette application est connectée.
@@ -148,53 +149,54 @@ export default function CompaniesPage() {
         )}
 
         {available && (loaded || companies.length > 0) && !(loadError && companies.length === 0) && (
-          <Quota used={companies.length} limit={limit} plan={plan} />
+          <Quota used={companies.filter(isOwned).length} limit={limit} plan={plan} />
         )}
 
         <div className="co-grid">
         {companies.map((company) => {
           const isActive = company.id === active?.id
-          const subtitle = [company.activity, company.currency].filter(Boolean).join(' · ')
+          const subtitle = [!isOwned(company) && company.owner_name ? `Dirigeant : ${company.owner_name}` : null, company.activity, company.currency].filter(Boolean).join(' · ')
           return (
             <div key={company.id} style={{
-              backgroundColor: '#fff', borderRadius: '20px', padding: '18px 20px',
+              backgroundColor: '#fff', borderRadius: '20px', padding: '32px 30px',
               border: isActive ? '2px solid #1E88E5' : '1px solid #e8eaed',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                <CompanyAvatar company={company} size={52} />
+                <CompanyAvatar company={company} size={72} />
                 <div style={{ flex: 1, minWidth: 160 }}>
-                  <p style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#111' }}>{company.name}</p>
-                  {subtitle && <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#808080' }}>{subtitle}</p>}
+                  <p style={{ margin: 0, fontSize: '26px', fontWeight: '700', color: '#111' }}>{company.name}</p>
+                  {subtitle && <p style={{ margin: '6px 0 0', fontSize: '18px', color: '#808080' }}>{subtitle}</p>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   {!isActive && (
                     <button onClick={() => activate(company)} style={{
                       border: 'none', borderRadius: '50px', padding: '8px 16px', cursor: 'pointer',
-                      backgroundColor: '#e3f2fd', color: '#1E88E5', fontSize: '14px', fontWeight: '600',
+                      backgroundColor: '#e3f2fd', color: '#1E88E5', fontSize: '19px', fontWeight: '600',
                     }}>
                       Activer
                     </button>
                   )}
-                  {company.editable && (
+                  {isOwned(company) && company.editable && (
                     <button onClick={() => edit(company)} title="Modifier" aria-label="Modifier" style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 8 }}>
-                      <Pencil size={18} color="#1E88E5" />
+                      <Pencil size={26} color="#1E88E5" />
                     </button>
                   )}
-                  {companies.length > 1 && (
+                  {isOwned(company) && companies.filter(isOwned).length > 1 && (
                     <button onClick={() => setToDelete(company)} title="Supprimer" aria-label="Supprimer" style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 8 }}>
-                      <Trash2 size={18} color="#ef5350" />
+                      <Trash2 size={26} color="#1E88E5" />
                     </button>
                   )}
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 26 }}>
                 {isActive && <Tag background="#E8F5E9" color="#2E7D32">Active</Tag>}
                 {company.is_primary && <Tag background="#f5f5f5" color="#616161">Principale</Tag>}
+                {!isOwned(company) && <Tag background="#EAF2FF" color="#1E6FE0">{ROLE_LABELS[company.role]} · invité</Tag>}
                 {!company.editable && <Tag background="#FFF3E0" color="#E65100" icon={<Lock size={11} />}>Lecture seule</Tag>}
               </div>
               {!company.editable && (
-                <p style={{ margin: '10px 0 0', fontSize: '13px', color: '#808080' }}>
+                <p style={{ margin: '14px 0 0', fontSize: '18px', color: '#808080' }}>
                   Consultation et export seulement. Passez à une offre supérieure pour la modifier.
                 </p>
               )}
@@ -209,12 +211,18 @@ export default function CompaniesPage() {
           style={{
             alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 8,
             border: 'none', borderRadius: '50px', padding: '14px 28px', cursor: 'pointer',
-            backgroundColor: '#1E88E5', color: '#fff', fontSize: '15px', fontWeight: '600',
+            backgroundColor: '#1E88E5', color: '#fff', fontSize: '20px', fontWeight: '600',
           }}
         >
-          <Plus size={18} /> Ajouter une entreprise
+          <Plus size={24} /> Ajouter une entreprise
         </button>
         )}
+        <button onClick={() => navigate('/join-company')} style={{
+          alignSelf: 'flex-start', border: 'none', background: 'none', cursor: 'pointer', color: '#1E88E5',
+          fontSize: 19, fontWeight: '600', padding: '4px 8px',
+        }}>
+          Rejoindre une entreprise avec un code
+        </button>
       </div>
 
       <CreateCompanyModal open={creating} onClose={() => setCreating(false)} />
@@ -225,7 +233,7 @@ export default function CompaniesPage() {
         title={toDelete ? `Supprimer ${toDelete.name} ?` : ''}
         message="Ses clients, documents, paiements, dépenses et recettes seront supprimés définitivement."
         confirmLabel="Supprimer"
-        confirmColor="#e53935"
+        confirmColor="#1E88E5"
         requiredText={toDelete?.name}
         extraAction={{ label: "Exporter mes données d'abord", onClick: downloadExport, busy: exporting }}
         onConfirm={confirmDelete}

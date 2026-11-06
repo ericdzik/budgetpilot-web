@@ -37,8 +37,10 @@ const useCompanyStore = create((set, get) => {
       restoreActiveCompany(useAuthStore.getState().user?.id)
       try {
         const { data } = await companyService.list()
+        // Entreprises du compte, puis celles où l'on a été invité (avec profil et droits)
         set({
-          companies: data.companies, limit: data.limit, canCreate: data.can_create, plan: data.plan,
+          companies: [...data.companies, ...(data.joined_companies ?? [])],
+          limit: data.limit, canCreate: data.can_create, plan: data.plan,
           available: true, loadError: false,
         })
       } catch (error) {
@@ -89,6 +91,11 @@ const useCompanyStore = create((set, get) => {
 useAuthStore.subscribe((state, previous) => {
   if (previous.isAuthenticated && !state.isAuthenticated) useCompanyStore.getState().reset()
 })
+
+/** Entreprises du compte, sans celles où l'on a été invité (elles ne comptent pas dans le quota). */
+export function isOwned(company) {
+  return !company.role || company.role === 'owner'
+}
 
 /** Entreprise active (la principale à défaut). */
 export function useActiveCompany() {

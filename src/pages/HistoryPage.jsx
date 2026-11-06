@@ -12,6 +12,7 @@ import UserBadge from '../components/ui/UserBadge'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import { RangeDatePicker } from '../components/ui/PeriodDropdown'
 import useCurrencyStore, { formatAmount } from '../store/currencyStore'
+import useCan from '../hooks/useCan'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,7 @@ function CtxItem({ icon, label, onClick, color, danger }) {
 // ─── Composant carte item ─────────────────────────────────────────────────────
 
 function HistoryCard({ item, type, onRefresh }) {
+  const can = useCan()
   const showMilestones = useCelebrationStore((s) => s.showMilestones)
   const navigate = useNavigate()
   const { activeCurrency } = useCurrencyStore()
@@ -171,7 +173,7 @@ function HistoryCard({ item, type, onRefresh }) {
       message: 'Cette action est irréversible.',
       icon: 'delete',
       confirmLabel: 'Supprimer',
-      confirmColor: '#e53935',
+      confirmColor: '#1E88E5',
       onConfirm: async () => {
         setConfirmDialog(null)
         try {
@@ -453,7 +455,7 @@ function HistoryCard({ item, type, onRefresh }) {
                 </div>
                 <button onClick={() => setPdfPreview({ docId: item.id, clientName: item.client_name || item.client?.name })}
                   style={iconBtn}><Eye size={20} color="#888" /></button>
-                <button onClick={handleDelete} style={iconBtn}><Trash2 size={20} color="#888" /></button>
+                {can('documents.delete') && <button onClick={handleDelete} style={iconBtn}><Trash2 size={20} color="#888" /></button>}
               </>
             )}
             {(type === 'expenses') && (
@@ -466,7 +468,7 @@ function HistoryCard({ item, type, onRefresh }) {
                     style={iconBtn}><CircleDollarSign size={20} color="#4CAF50" /></button>
                 )}
                 <button onClick={handleDownloadCsv} style={iconBtn}><Download size={20} color="#888" /></button>
-                <button onClick={handleDelete} style={iconBtn}><Trash2 size={20} color="#888" /></button>
+                {can('ledger.delete') && <button onClick={handleDelete} style={iconBtn}><Trash2 size={20} color="#888" /></button>}
               </>
             )}
             {type === 'receipts' && (
@@ -474,7 +476,7 @@ function HistoryCard({ item, type, onRefresh }) {
                 <button onClick={() => navigate(`/revenues/${item.id}/edit`)}
                   style={iconBtn}><Pencil size={20} color="#888" /></button>
                 <button onClick={handleDownloadCsv} style={iconBtn}><Download size={20} color="#888" /></button>
-                <button onClick={handleDelete} style={iconBtn}><Trash2 size={20} color="#888" /></button>
+                {can('ledger.delete') && <button onClick={handleDelete} style={iconBtn}><Trash2 size={20} color="#888" /></button>}
               </>
             )}
 
@@ -600,10 +602,12 @@ function HistoryCard({ item, type, onRefresh }) {
                         <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
                           <span style={{ fontSize: '17px', color: '#666', minWidth: '110px' }}>{fmtDate(p.payment_date)}</span>
                           <span style={{ fontSize: '18px', fontWeight: '700', minWidth: '100px' }}>{formatAmount(parseFloat(p.amount || 0), docCurrency)}</span>
-                          <button onClick={() => handleDeletePayment(p.id)} disabled={deletingPay === p.id}
+                          {can('payments.delete') && (
+<button onClick={() => handleDeletePayment(p.id)} disabled={deletingPay === p.id}
                             style={{ background: 'none', border: '1px solid #e0e0e0', borderRadius: '4px', width: 24, height: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
                             <Trash2 size={14} color="#aaa" />
                           </button>
+)}
                         </div>
                       )) : (
                         <div style={{ fontSize: '17px', color: '#bbb' }}>Aucun paiement</div>

@@ -10,6 +10,7 @@ import EmptyState from '../components/ui/EmptyState'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import { documentService } from '../services/documentService'
 import { formatCurrency, formatDate } from '../utils/formatters'
+import useCan from '../hooks/useCan'
 
 const STATUS_BADGE = {
   paid:           { variant: 'green',  label: 'Payée' },
@@ -20,6 +21,7 @@ const STATUS_BADGE = {
 }
 
 export default function DocumentsPage() {
+  const can = useCan()
   const navigate = useNavigate()
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -222,13 +224,15 @@ export default function DocumentsPage() {
                           >
                             <Copy className="w-4 h-4" />
                           </button>
-                          <button
+                          {can('documents.delete') && (
+<button
                             onClick={(e) => { e.stopPropagation(); setDeleteId(doc.id) }}
                             className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"
                             title="Supprimer"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
+)}
                         </div>
                       </td>
                     </tr>

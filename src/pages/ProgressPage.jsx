@@ -64,10 +64,10 @@ function GradeCard({ page }) {
     }}>
       <BadgeShield tier={tierKey} status={current && active ? 'earned' : 'locked'} size={84} />
       <div>
-        <div style={{ fontSize: 12, letterSpacing: 1, color: TEXT_MUTED }}>VOTRE GRADE</div>
+        <div style={{ fontSize: 15, letterSpacing: 1, color: TEXT_MUTED }}>VOTRE GRADE</div>
         <div style={{ fontSize: 'clamp(24px, 4vw, 30px)', fontWeight: 700, color: TEXT_DARK }}>{current ? tier.label : 'Aucun grade'}</div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: current && active ? tier.color : TEXT_MUTED, marginTop: 2 }}>{subtitle}</div>
-        <div style={{ fontSize: 14, color: TEXT_MUTED, marginTop: 2 }}>{current ? `${badges} · ${nextText}` : badges}</div>
+        <div style={{ fontSize: 19, fontWeight: 600, color: current && active ? tier.color : TEXT_MUTED, marginTop: 2 }}>{subtitle}</div>
+        <div style={{ fontSize: 18, color: TEXT_MUTED, marginTop: 2 }}>{current ? `${badges} · ${nextText}` : badges}</div>
       </div>
     </div>
   )
@@ -82,8 +82,8 @@ function AkpeCard({ akpe }) {
     }}>
       <LevelMedal category="akpe" size={46} />
       <div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: TEXT_DARK }}>{akpe.name}</div>
-        <div style={{ fontSize: 13, color: TEXT_MUTED }}>Vous faites partie des 5 000 premiers utilisateurs</div>
+        <div style={{ fontSize: 19, fontWeight: 600, color: TEXT_DARK }}>{akpe.name}</div>
+        <div style={{ fontSize: 16, color: TEXT_MUTED }}>Vous faites partie des 5 000 premiers utilisateurs</div>
       </div>
     </div>
   )
@@ -99,12 +99,12 @@ function UpgradeBanner({ page, onUpgrade }) {
     }}>
       <BadgeShield tier={page.grade.current} size={36} />
       <div style={{ flex: '1 1 220px' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: TEXT_DARK }}>Passez Basic ou Pro pour obtenir votre grade</div>
-        <div style={{ fontSize: 13, color: tier.color }}>Grade {tier.label} : -{page.grade.rate} % sur votre abonnement</div>
+        <div style={{ fontSize: 18, fontWeight: 600, color: TEXT_DARK }}>Passez Basic ou Pro pour obtenir votre grade</div>
+        <div style={{ fontSize: 16, color: tier.color }}>Grade {tier.label} : -{page.grade.rate} % sur votre abonnement</div>
       </div>
       <button onClick={onUpgrade} style={{
         backgroundColor: BLUE, color: '#fff', border: 'none', borderRadius: 12,
-        padding: '10px 18px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+        padding: '10px 18px', fontSize: 18, fontWeight: 600, cursor: 'pointer',
       }}>
         Voir les offres
       </button>
@@ -128,8 +128,8 @@ function CategoryRow({ category, onOpen }) {
       background: 'none', border: 'none', borderTop: '1px solid #F2F2F2', cursor: 'pointer', textAlign: 'left',
     }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: TEXT_DARK, ...ELLIPSIS }}>{category.name}</div>
-        <div style={{ fontSize: 13, color: TEXT_MUTED, ...ELLIPSIS }}>{formatValue(category)}</div>
+        <div style={{ fontSize: 19, fontWeight: 600, color: TEXT_DARK, ...ELLIPSIS }}>{category.name}</div>
+        <div style={{ fontSize: 16, color: TEXT_MUTED, ...ELLIPSIS }}>{formatValue(category)}</div>
       </div>
       {/* Les 3 niveaux, reliés par un trait de progression */}
       <div style={{ display: 'flex', alignItems: 'flex-start', width: 'clamp(200px, 36vw, 240px)', flexShrink: 0 }}>
@@ -142,7 +142,7 @@ function CategoryRow({ category, onOpen }) {
             )}
             <div style={{ width: 56, flexShrink: 0, textAlign: 'center' }}>
               <LevelMedal category={category.key} level={level.level} earned={level.status === 'earned'} size={54} />
-              <div style={{ fontSize: 11, fontWeight: 600, marginTop: 2, color: level.status === 'earned' ? LEVEL_DARK : '#B0B0B0' }}>
+              <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2, color: level.status === 'earned' ? LEVEL_DARK : '#B0B0B0' }}>
                 {compact(level.threshold)}
               </div>
             </div>
@@ -156,7 +156,7 @@ function CategoryRow({ category, onOpen }) {
 function Section({ title, categories, onOpen }) {
   return (
     <div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: TEXT_DARK, margin: '0 4px 8px' }}>{title}</div>
+      <div style={{ fontSize: 19, fontWeight: 600, color: TEXT_DARK, margin: '0 4px 8px' }}>{title}</div>
       <div style={{ backgroundColor: '#fff', border: '1px solid #EFEFEF', borderRadius: 16, overflow: 'hidden' }}>
         {categories.map((category) => (
           <CategoryRow key={category.key} category={category} onOpen={onOpen} />
@@ -182,8 +182,8 @@ function CategoryDetail({ category, onClose }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-start' }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: TEXT_DARK }}>{category.name}</div>
-            <div style={{ fontSize: 14, color: TEXT_MUTED }}>Actuellement : {formatValue(category)}</div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: TEXT_DARK }}>{category.name}</div>
+            <div style={{ fontSize: 18, color: TEXT_MUTED }}>Actuellement : {formatValue(category)}</div>
           </div>
           <button onClick={onClose} aria-label="Fermer" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
             <X size={20} color={TEXT_MUTED} />
@@ -194,10 +194,10 @@ function CategoryDetail({ category, onClose }) {
             <div key={level.level} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <LevelMedal category={category.key} level={level.level} earned={level.status === 'earned'} size={48} />
               <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: TEXT_DARK }}>
+                <div style={{ fontSize: 19, fontWeight: 600, color: TEXT_DARK }}>
                   {level.name} · {compact(level.threshold)} {category.unit}
                 </div>
-                <div style={{ fontSize: 13, color: TEXT_MUTED }}>{statusText(level)}</div>
+                <div style={{ fontSize: 16, color: TEXT_MUTED }}>{statusText(level)}</div>
               </div>
             </div>
           ))}
@@ -264,7 +264,7 @@ function SwipeToDismiss({ onDismiss, children }) {
   return (
     <div style={{ position: 'relative', marginBottom: 10, borderRadius: 14, overflow: 'hidden' }}>
       <div style={{
-        position: 'absolute', inset: 0, backgroundColor: BLUE, color: '#fff', fontWeight: 700, fontSize: 14,
+        position: 'absolute', inset: 0, backgroundColor: BLUE, color: '#fff', fontWeight: 700, fontSize: 18,
         display: dx < 0 ? 'flex' : 'none', alignItems: 'center', justifyContent: 'flex-end', gap: 6, paddingRight: 20,
       }}>
         <Trash2 size={20} strokeWidth={2.6} /> Supprimer
@@ -301,11 +301,11 @@ function NotificationsTab({ notifications, onOpen, onDismiss, onMarkAllRead }) {
   return (
     <div style={{ maxWidth: 760, width: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', margin: '0 4px 4px' }}>
-        <span style={{ flex: 1, fontSize: 13.5, color: TEXT_MUTED }}>
+        <span style={{ flex: 1, fontSize: 17, color: TEXT_MUTED }}>
           {notifications.length} notification{notifications.length > 1 ? 's' : ''}
         </span>
         {hasUnread && (
-          <button onClick={onMarkAllRead} style={{ background: 'none', border: 'none', color: BLUE, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+          <button onClick={onMarkAllRead} style={{ background: 'none', border: 'none', color: BLUE, fontWeight: 600, fontSize: 18, cursor: 'pointer' }}>
             Tout marquer comme lu
           </button>
         )}
@@ -320,7 +320,7 @@ function NotificationsTab({ notifications, onOpen, onDismiss, onMarkAllRead }) {
         return (
           <div key={notification.id}>
             {header && (
-              <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: 0.6, color: TEXT_MUTED, margin: '16px 4px 8px' }}>{day}</div>
+              <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: 0.6, color: TEXT_MUTED, margin: '16px 4px 8px' }}>{day}</div>
             )}
             <SwipeToDismiss onDismiss={() => onDismiss(notification)}>
             <div style={{
@@ -332,16 +332,16 @@ function NotificationsTab({ notifications, onOpen, onDismiss, onMarkAllRead }) {
                 <div style={{ display: 'flex', gap: 12 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <span style={{ flex: 1, fontSize: 15, fontWeight: unread ? 700 : 500, color: TEXT_DARK }}>{notification.title}</span>
-                      <span style={{ fontSize: 12, color: '#A0A4A8', whiteSpace: 'nowrap' }}>{relativeTime(sent)}</span>
+                      <span style={{ flex: 1, fontSize: 19, fontWeight: unread ? 700 : 500, color: TEXT_DARK }}>{notification.title}</span>
+                      <span style={{ fontSize: 15, color: '#A0A4A8', whiteSpace: 'nowrap' }}>{relativeTime(sent)}</span>
                     </div>
-                    <div style={{ fontSize: 13.5, lineHeight: 1.4, color: TEXT_MUTED, marginTop: 3 }}>{notification.body}</div>
+                    <div style={{ fontSize: 17, lineHeight: 1.4, color: TEXT_MUTED, marginTop: 3 }}>{notification.body}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', marginTop: 6 }}>
                   {notification.route && (
                     <button onClick={() => onOpen(notification.route)} style={{
-                      background: 'none', border: 'none', padding: '6px 0', color: BLUE, fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                      background: 'none', border: 'none', padding: '6px 0', color: BLUE, fontWeight: 600, fontSize: 18, cursor: 'pointer',
                     }}>
                       {notificationAction(notification.type)} →
                     </button>
@@ -390,7 +390,7 @@ function SegmentedControl({ value, onChange, unread }) {
         return (
           <button key={key} role="tab" aria-selected={active} onClick={() => onChange(key)} style={{
             position: 'relative', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            background: 'none', border: 'none', cursor: 'pointer', fontSize: 15,
+            background: 'none', border: 'none', cursor: 'pointer', fontSize: 19,
             fontWeight: active ? 600 : 500, color: active ? BLUE : TEXT_MUTED,
           }}>
             <Icon size={18} />
@@ -398,7 +398,7 @@ function SegmentedControl({ value, onChange, unread }) {
             {count > 0 && (
               <span style={{
                 minWidth: 20, padding: '1px 6px', borderRadius: 10, backgroundColor: '#D64545',
-                color: '#fff', fontSize: 11, fontWeight: 700, boxSizing: 'border-box',
+                color: '#fff', fontSize: 14, fontWeight: 700, boxSizing: 'border-box',
               }}>
                 {count > 9 ? '9+' : count}
               </span>
@@ -513,7 +513,7 @@ export default function ProgressPage() {
                     <Section title="Utilisation de l'app" categories={categories.filter((c) => c.type === 'usage')} onOpen={setDetail} />
                   </div>
                   {/* Licence CC BY 3.0 des icônes : citer les auteurs */}
-                  <div style={{ fontSize: 12, color: '#A0A4A8', textAlign: 'center' }}>
+                  <div style={{ fontSize: 15, color: '#A0A4A8', textAlign: 'center' }}>
                     Icônes des badges : Lorc, Delapouite, Skoll et Carl Olsen,{' '}
                     <a href="https://game-icons.net" target="_blank" rel="noreferrer" style={{ color: '#A0A4A8' }}>game-icons.net</a> (CC BY 3.0)
                   </div>

@@ -631,6 +631,73 @@ function ActionSupportModal({ userId, churnManual, onClose, onSave }) {
   )
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// OFFRE « GRANDS COMPTES » — limites réglées à la main
+// Vide = limites de l'offre du compte (Gratuit, Basic, Pro).
+// ─────────────────────────────────────────────────────────────────────────────
+function CustomLimits({ user, onSaved }) {
+  const [companies, setCompanies] = useState(user.companies_limit_override ?? '')
+  const [seats, setSeats]         = useState(user.seats_limit_override ?? '')
+  const [saving, setSaving]       = useState(false)
+
+  const toNumber = (value) => (value === '' ? null : Number(value))
+
+  const save = async (data) => {
+    setSaving(true)
+    try {
+      await adminService.updateUser(user.id, data)
+      toast.success('Limites enregistrées')
+      onSaved()
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Erreur lors de la sauvegarde')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const input = { width: 120, padding: '10px 14px', borderRadius: 12, border: '1px solid #e0e0e0', fontSize: 15, outline: 'none' }
+  const label = { display: 'block', fontSize: 12, color: '#888', marginBottom: 6, fontWeight: '600' }
+  const custom = user.companies_limit_override != null || user.seats_limit_override != null
+
+  return (
+    <Card style={{ padding: '20px 24px' }}>
+      <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: '700', color: '#111' }}>
+        {custom ? 'Offre sur mesure active' : 'Limites de l\'offre du compte'}
+      </p>
+      <p style={{ margin: '0 0 16px', fontSize: 13, color: '#888' }}>
+        Actuellement : {user.companies_limit ?? 1} entreprise(s), {user.seats_limit ?? 1} personne(s) par entreprise (dirigeant compris).
+        Laissez vide pour reprendre les limites de l'offre.
+      </p>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div>
+          <label style={label}>Entreprises</label>
+          <input type="number" min="1" value={companies} onChange={(e) => setCompanies(e.target.value)} style={input} />
+        </div>
+        <div>
+          <label style={label}>Personnes par entreprise</label>
+          <input type="number" min="1" value={seats} onChange={(e) => setSeats(e.target.value)} style={input} />
+        </div>
+        <button
+          onClick={() => save({ companies_limit_override: toNumber(companies), seats_limit_override: toNumber(seats) })}
+          disabled={saving}
+          style={{ border: 'none', borderRadius: 50, padding: '11px 24px', backgroundColor: '#1E88E5', color: '#fff', fontSize: 14, fontWeight: '600', cursor: 'pointer' }}
+        >
+          Enregistrer
+        </button>
+        {custom && (
+          <button
+            onClick={() => { setCompanies(''); setSeats(''); save({ companies_limit_override: null, seats_limit_override: null }) }}
+            disabled={saving}
+            style={{ border: '1px solid #e0e0e0', borderRadius: 50, padding: '11px 20px', backgroundColor: '#fff', color: '#555', fontSize: 14, cursor: 'pointer' }}
+          >
+            Revenir à l'offre
+          </button>
+        )}
+      </div>
+    </Card>
+  )
+}
+
 // ── Score Bpilot ─────────────────────────────────────────────────────────────
 // scoreAuto  : calculé par le système (churn → %)  — lecture seule, vert
 // scoreManual: saisi par l'admin (0-100)           — cliquable, orange
@@ -945,6 +1012,10 @@ export default function AdminUserDetailPage() {
           </div>
         </div>
       </Card>
+
+      {/* ── Offre sur mesure (Grands comptes) ─────────────────────────────── */}
+      <SectionTitle title="Offre sur mesure" />
+      <CustomLimits key={`${user.companies_limit_override}-${user.seats_limit_override}`} user={user} onSaved={reload} />
 
       {/* ── Entreprises du compte ─────────────────────────────────────────── */}
       {user.companies_detail?.length > 0 && (
