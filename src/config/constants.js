@@ -40,6 +40,12 @@ export const EXPENSE_CATEGORIES = [
   'Autres',
 ]
 
+// Secteurs proposés pour une entreprise (création et profil entreprise)
+export const COMPANY_SECTORS = [
+  'Agriculture', 'Artisanat', 'Commerce', 'Construction', 'Éducation', 'Finance', 'Immobilier',
+  'Industrie', 'Informatique', 'Restauration', 'Santé', 'Services', 'Transport', 'Autre',
+]
+
 export const BUSINESS_SECTORS = [
   'Commerce général',
   'Alimentation / Restaurant',

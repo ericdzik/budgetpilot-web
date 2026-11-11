@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Lock, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Lock, Pencil, Plus, Trash2, UserPlus } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import UserBadge from '../components/ui/UserBadge'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
@@ -174,6 +174,11 @@ export default function CompaniesPage() {
                       backgroundColor: '#e3f2fd', color: '#1E88E5', fontSize: '19px', fontWeight: '600',
                     }}>
                       Activer
+                    </button>
+                  )}
+                  {company.editable && (isOwned(company) || (company.permissions || []).includes('members.invite')) && (
+                    <button onClick={() => navigate(`/team/${company.id}/invite`)} title="Inviter du personnel" aria-label="Inviter du personnel" style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 8 }}>
+                      <UserPlus size={26} color="#1E88E5" />
                     </button>
                   )}
                   {isOwned(company) && company.editable && (

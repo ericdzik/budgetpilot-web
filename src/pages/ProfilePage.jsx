@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight } from 'lucide-react'
+import { ArrowLeftRight, ChevronRight, KeyRound } from 'lucide-react'
 import useAuthStore from '../store/authStore'
 import UserBadge from '../components/ui/UserBadge'
 import { authService } from '../services/authService'
 import ProfileCompletionCard from '../components/gamification/ProfileCompletionCard'
+import CompanyPickerDialog from '../components/company/CompanyPickerDialog'
 
 const STORAGE_BASE = (import.meta.env.VITE_API_URL || 'http://172.20.10.12:8000/api').replace('/api', '/storage')
 function storageUrl(path) {
@@ -44,6 +45,7 @@ export default function ProfilePage() {
   const logoPath = storageUrl(displayUser?.logo_path)
   const companyInitial = displayUser?.company_name?.charAt(0)?.toUpperCase() || 'B'
   const username = displayUser?.email ? '@' + displayUser.email.split('@')[0] : ''
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
@@ -141,14 +143,27 @@ export default function ProfilePage() {
             onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
             onMouseLeave={e => e.currentTarget.style.opacity = '1'}
           >
-            <div style={{
-              alignSelf: 'flex-start',
-              border: '1.5px solid #fff',
-              borderRadius: '20px',
-              padding: '8px 24px',
-              fontSize: '18px', fontWeight: '600', color: '#fff',
-            }}>
-              Entreprise
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{
+                border: '1.5px solid #fff',
+                borderRadius: '20px',
+                padding: '8px 24px',
+                fontSize: '18px', fontWeight: '600', color: '#fff',
+              }}>
+                Entreprise
+              </div>
+              {/* Changer d'entreprise (le reste de la carte ouvre son profil) */}
+              <span
+                role="button" tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); setPickerOpen(true) }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setPickerOpen(true) } }}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: '20px', padding: '8px 18px',
+                  backgroundColor: 'rgba(255,255,255,0.22)', color: '#fff', fontSize: '18px', fontWeight: '600', cursor: 'pointer',
+                }}
+              >
+                <ArrowLeftRight size={20} color="#fff" /> Changer
+              </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               <div style={{
@@ -200,15 +215,24 @@ export default function ProfilePage() {
             label={'Mes\nStatistiques'}
             onClick={() => navigate('/stats')}
           />
+
+          {/* Rejoindre une entreprise avec un code d'invitation */}
+          <MenuTile
+            icon={<KeyRound size={32} color="#fff" />}
+            label={'Rejoindre une\nentreprise'}
+            onClick={() => navigate('/join-company')}
+          />
         </div>
       </div>
+
+      <CompanyPickerDialog open={pickerOpen} onClose={() => setPickerOpen(false)} />
     </div>
   )
 }
 
 // ─── Tuile menu ───────────────────────────────────────────────────────────────
 
-function MenuTile({ iconSrc, label, onClick }) {
+function MenuTile({ iconSrc, icon, label, onClick }) {
   return (
     <button
       onClick={onClick}
@@ -234,8 +258,10 @@ function MenuTile({ iconSrc, label, onClick }) {
         backgroundColor: '#1E88E5',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <img src={iconSrc} alt=""
-          style={{ width: 34, height: 34, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+        {icon || (
+          <img src={iconSrc} alt=""
+            style={{ width: 34, height: 34, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+        )}
       </div>
       <span style={{
         fontSize: '22px', fontWeight: '700', color: '#111',

@@ -4,6 +4,7 @@ import { X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import useCompanyStore from '../../store/companyStore'
 import useCurrencyStore, { ALL_CURRENCIES } from '../../store/currencyStore'
+import { COMPANY_SECTORS } from '../../config/constants'
 
 const field = {
   width: '100%', boxSizing: 'border-box', padding: '17px 20px',
@@ -73,8 +74,11 @@ export default function CreateCompanyModal({ open, onClose }) {
         <label style={{ display: 'block', fontSize: '17px', color: '#555', margin: '0 0 8px' }}>Nom de l'entreprise</label>
         <input value={name} onChange={(e) => setName(e.target.value)} autoFocus style={{ ...field, marginBottom: 20 }} />
 
-        <label style={{ display: 'block', fontSize: '17px', color: '#555', margin: '0 0 8px' }}>Activité (facultatif)</label>
-        <input value={activity} onChange={(e) => setActivity(e.target.value)} style={{ ...field, marginBottom: 20 }} />
+        <label style={{ display: 'block', fontSize: '17px', color: '#555', margin: '0 0 8px' }}>Secteur d'activité (facultatif)</label>
+        <select value={activity} onChange={(e) => setActivity(e.target.value)} style={{ ...field, marginBottom: 20 }}>
+          <option value="">Choisir un secteur</option>
+          {COMPANY_SECTORS.map((sector) => <option key={sector} value={sector}>{sector}</option>)}
+        </select>
 
         <label style={{ display: 'block', fontSize: '17px', color: '#555', margin: '0 0 8px' }}>Devise de l'entreprise</label>
         <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={field}>

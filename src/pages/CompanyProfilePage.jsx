@@ -5,6 +5,7 @@ import UserBadge from '../components/ui/UserBadge'
 import { authService } from '../services/authService'
 import PhoneInputField from '../components/ui/PhoneInputField'
 import { celebrateFirstPdfCustomization } from '../components/gamification/pdfCustomization'
+import { COMPANY_SECTORS } from '../config/constants'
 
 // URL de base du stockage — même logique que le mobile
 const STORAGE_BASE = (import.meta.env.VITE_API_URL || 'http://172.20.10.12:8000/api').replace('/api', '/storage')
@@ -238,7 +239,7 @@ function SelectField({ label, value, onChange, options, placeholder }) {
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 const LEGAL_STATUSES = ['SARL', 'SA', 'SAS', 'SASU', 'EURL', 'SNC', 'EI', 'Auto-entrepreneur', 'Association', 'Autre']
-const ACTIVITIES     = ['Agriculture', 'Artisanat', 'Commerce', 'Construction', 'Éducation', 'Finance', 'Immobilier', 'Industrie', 'Informatique', 'Restauration', 'Santé', 'Services', 'Transport', 'Autre']
+const ACTIVITIES     = COMPANY_SECTORS
 
 export default function CompanyProfilePage() {
   const { user, setUser } = useAuthStore()
