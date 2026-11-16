@@ -34,6 +34,7 @@ import AdminReferrerDetailPage from './pages/admin/AdminReferrerDetailPage'
 import AdminBannersPage from './pages/admin/AdminBannersPage'
 import AdminSettingsPage from './pages/admin/AdminSettingsPage'
 import AdminPushPage from './pages/admin/AdminPushPage'
+import AdminReportPage from './pages/admin/AdminReportPage'
 
 // Pages App
 import DashboardPage from './pages/DashboardPage'
@@ -254,6 +255,7 @@ export const router = createBrowserRouter([
       { path: 'banners',      element: <AdminBannersPage /> },
       { path: 'settings',     element: <AdminSettingsPage /> },
       { path: 'push',         element: <DevOnlyRoute><AdminPushPage /></DevOnlyRoute> },
+      { path: 'report',       element: <DevOnlyRoute><AdminReportPage /></DevOnlyRoute> },
     ],
   },
 ])

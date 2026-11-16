@@ -41,6 +41,9 @@ export const adminService = {
   }),
   deleteBannerImage: (slot)        => api.delete(`/admin/banners/${slot}/image`, adminHeaders()),
 
+  // ── Rapport d'activité Excel (compte dev uniquement) ──────────────────────
+  getMonthlyReport: (params) => api.get('/admin/reports/monthly', { ...adminHeaders(), params, responseType: 'blob' }),
+
   // ── Notifications push (compte dev uniquement) ────────────────────────────
   getPushCampaigns:  ()       => api.get('/admin/push', adminHeaders()),
   previewPush:       (target) => api.post('/admin/push/preview', target, adminHeaders()),
