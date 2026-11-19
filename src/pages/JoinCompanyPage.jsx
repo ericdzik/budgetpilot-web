@@ -8,7 +8,7 @@ import { teamService } from '../services/teamService'
 import { BackButton, PillButton } from '../components/team/teamUi'
 import { BLUE, GUTTER, ICON_BG, ICON_GREY, ROLE_LABELS } from '../components/team/teamConstants'
 
-/** Rejoindre une entreprise avec le code d'invitation reçu par e-mail. */
+/** Rejoindre une entreprise avec le code d'invitation (reçu par e-mail ou par message). */
 export default function JoinCompanyPage() {
   const navigate = useNavigate()
   const { load, switchTo } = useCompanyStore()
@@ -17,7 +17,7 @@ export default function JoinCompanyPage() {
   const [error, setError] = useState(null)
 
   const join = async () => {
-    if (code.trim().length < 6) return setError('Entrez le code reçu par e-mail')
+    if (code.trim().length < 6) return setError('Entrez le code d\'invitation')
     setBusy(true)
     setError(null)
     try {
@@ -52,11 +52,11 @@ export default function JoinCompanyPage() {
             </div>
             <div>
               <p style={{ margin: 0, fontSize: 26, fontWeight: '700', color: '#111' }}>Code d'invitation</p>
-              <p style={{ margin: '4px 0 0', fontSize: 18, color: '#757575' }}>Reçu par e-mail, valable 7 jours</p>
+              <p style={{ margin: '4px 0 0', fontSize: 18, color: '#757575' }}>Reçu par e-mail ou par message, valable 7 jours</p>
             </div>
           </div>
           <p style={{ margin: '0 0 22px', fontSize: 19, lineHeight: 1.5, color: '#757575' }}>
-            Il ne fonctionne qu'avec l'adresse e-mail de votre compte.
+            S'il a été envoyé à une adresse e-mail, il ne fonctionne qu'avec celle de votre compte.
           </p>
           <input
             value={code} autoFocus maxLength={8} placeholder="Code d'invitation"

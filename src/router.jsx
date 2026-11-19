@@ -65,6 +65,7 @@ import TermsPage from './pages/TermsPage'
 import ContactPage from './pages/ContactPage'
 import ReferralPage from './pages/ReferralPage'
 import ProgressPage from './pages/ProgressPage'
+import JoinInvitationPage from './pages/JoinInvitationPage'
 
 // Route protégée app Budget Pilot
 function ProtectedRoute({ children }) {
@@ -133,6 +134,8 @@ export const router = createBrowserRouter([
       </PublicRoute>
     ),
   },
+  // Lien d'invitation : publique, on voit l'invitation avant de se connecter
+  { path: '/join', element: <JoinInvitationPage /> },
   // Register gère ses propres étapes plein écran
   {
     path: '/register',

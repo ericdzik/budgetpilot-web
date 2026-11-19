@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Check, Hourglass, MoreHorizontal, X } from 'lucide-react'
+import { Check, Hourglass, MoreHorizontal, Share2, X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import UserBadge from '../components/ui/UserBadge'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
+import ShareInvitationDialog from '../components/team/ShareInvitationDialog'
 import { teamService } from '../services/teamService'
 import { Avatar, BackButton, PillButton, RoleTag } from '../components/team/teamUi'
 import { BLUE, GUTTER, ICON_BG, ICON_GREY, initials } from '../components/team/teamConstants'
@@ -21,6 +22,7 @@ export default function TeamPage() {
   const [menuFor, setMenuFor] = useState(null)
   const [toRemove, setToRemove] = useState(null)
   const [toCancel, setToCancel] = useState(null)
+  const [shared, setShared] = useState(null)
 
   const [reloadKey, setReloadKey] = useState(0)
   const [now] = useState(() => Date.now())
@@ -68,6 +70,17 @@ export default function TeamPage() {
       load()
     } catch (e) {
       toast.error(apiMessage(e, 'Impossible de retirer cette personne.'))
+    }
+  }
+
+  // Nouveau lien : le code n'est conservé que haché, on en génère un nouveau (l'ancien lien cesse de marcher)
+  const shareInvitation = async (invitation) => {
+    try {
+      const { data } = await teamService.share(companyId, invitation.id)
+      setShared(data)
+      load()
+    } catch (e) {
+      toast.error(apiMessage(e, "Impossible de préparer le lien d'invitation."))
     }
   }
 
@@ -200,11 +213,18 @@ export default function TeamPage() {
                 const days = daysLeft(invitation)
                 return card(`i${invitation.id}`, {
                   leading: <Avatar size={68} icon={<Hourglass size={28} color="#9E9E9E" />} background={ICON_BG} />,
-                  title: invitation.name || invitation.email,
+                  title: invitation.name || invitation.email || "Lien d'invitation",
                   subtitle: `En attente • ${days <= 1 ? "expire aujourd'hui" : `expire dans ${days} jours`}`,
                   trailing: (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <RoleTag role={invitation.role} />
+                      <button
+                        onClick={() => shareInvitation(invitation)}
+                        aria-label="Partager l'invitation" title="Partager le lien"
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6 }}
+                      >
+                        <Share2 size={18} color={BLUE} />
+                      </button>
                       <button
                         onClick={() => setToCancel(invitation)}
                         aria-label="Annuler l'invitation" title="Annuler l'invitation"
@@ -235,12 +255,13 @@ export default function TeamPage() {
         open={!!toCancel}
         icon="warning"
         title="Annuler l'invitation ?"
-        message={toCancel ? `Le code envoyé à ${toCancel.email} ne fonctionnera plus.` : ''}
+        message={toCancel ? (toCancel.email ? `Le lien et le code envoyés à ${toCancel.email} ne fonctionneront plus.` : "Le lien d'invitation ne fonctionnera plus.") : ''}
         confirmLabel="Annuler l'invitation"
         cancelLabel="Garder"
         onConfirm={cancelInvitation}
         onCancel={() => setToCancel(null)}
       />
+      <ShareInvitationDialog data={shared} title="Invitation prête à partager" onClose={() => setShared(null)} />
     </div>
   )
 }

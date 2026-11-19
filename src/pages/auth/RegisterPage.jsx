@@ -1,3 +1,4 @@
+import { pendingInvite } from '../../utils/pendingInvite'
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
@@ -839,7 +840,7 @@ export default function RegisterPage() {
       }
       await register(payload)
       toast.success('Compte créé ! 1 mois Pro offert 🎉')
-      navigate('/dashboard')
+      navigate(pendingInvite.nextPath())
     } catch (err) {
       const apiErrors = err.response?.data?.errors
       if (apiErrors) {

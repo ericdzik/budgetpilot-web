@@ -1,3 +1,4 @@
+import { pendingInvite } from '../../utils/pendingInvite'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
@@ -87,7 +88,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login(form.identifier, getIdentifierType(form.identifier), form.password)
-      navigate('/dashboard')
+      navigate(pendingInvite.nextPath())
     } catch (err) {
       const msg = err.response?.data?.errors?.identifier?.[0]
         || err.response?.data?.message

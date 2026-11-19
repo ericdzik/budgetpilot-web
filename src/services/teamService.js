@@ -6,6 +6,12 @@ export const teamService = {
 
   invite: (companyId, data) => api.post(`/companies/${companyId}/invitations`, data),
 
+  // Nouveau code et nouveau lien pour une invitation en attente (l'ancien lien cesse de fonctionner)
+  share: (companyId, invitationId) => api.post(`/companies/${companyId}/invitations/${invitationId}/share`),
+
+  // Aperçu public d'une invitation (entreprise, profil), sans connexion
+  preview: (code) => api.get(`/invitations/${encodeURIComponent(code)}`),
+
   cancelInvitation: (companyId, invitationId) => api.delete(`/companies/${companyId}/invitations/${invitationId}`),
 
   updateRole: (companyId, memberId, role) => api.put(`/companies/${companyId}/members/${memberId}`, { role }),

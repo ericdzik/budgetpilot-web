@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Check, Info, Mail, Send, ShieldCheck, User, Users } from 'lucide-react'
+import { Check, Info, Link2, Mail, Send, ShieldCheck, User, Users } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import UserBadge from '../components/ui/UserBadge'
 import useCompanyStore from '../store/companyStore'
 import { teamService } from '../services/teamService'
 import { BackButton, PillButton } from '../components/team/teamUi'
+import ShareInvitationDialog from '../components/team/ShareInvitationDialog'
 import { BLUE, GUTTER, ICON_BG, ICON_GREY, ROLE_LABELS, SOFT_BLUE } from '../components/team/teamConstants'
 
 const FIELD_BORDER = '#D6E4F7'
@@ -19,7 +20,9 @@ export default function InviteTeamPage() {
   const company = useCompanyStore((s) => s.companies.find((c) => c.id === companyId))
   const [roles, setRoles] = useState(null)
   const [step, setStep] = useState(0)
+  const [mode, setMode] = useState('email') // 'email' : lié à une adresse · 'link' : lien libre à partager
   const [email, setEmail] = useState('')
+  const [shared, setShared] = useState(null)
   const [role, setRole] = useState('employee')
   const [error, setError] = useState(null)
   const [sending, setSending] = useState(false)
@@ -39,7 +42,7 @@ export default function InviteTeamPage() {
   const emailValid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())
 
   const next = () => {
-    if (step === 0 && !emailValid) return setError('Entrez une adresse e-mail valide')
+    if (step === 0 && mode === 'email' && !emailValid) return setError('Entrez une adresse e-mail valide')
     setError(null)
     setStep(step + 1)
   }
@@ -54,9 +57,9 @@ export default function InviteTeamPage() {
     setSending(true)
     setError(null)
     try {
-      await teamService.invite(companyId, { email: email.trim(), role })
-      toast.success(`Invitation envoyée. Un code a été envoyé à ${email.trim()}.`)
-      navigate(`/team/${companyId}`)
+      const { data } = await teamService.invite(companyId, mode === 'email' ? { email: email.trim(), role } : { role })
+      if (mode === 'email') toast.success(`Invitation envoyée à ${email.trim()}.`)
+      setShared(data)
     } catch (e) {
       setError(e.response?.data?.message || "Impossible d'envoyer l'invitation. Vérifiez votre connexion.")
     } finally {
@@ -108,19 +111,44 @@ export default function InviteTeamPage() {
     </div>
   )
 
-  const stepEmail = box(<User size={26} color={ICON_GREY} />, 'Adresse e-mail', null, (
-    <label style={{
-      display: 'flex', alignItems: 'center', gap: 14, padding: '0 22px', height: 68, borderRadius: 36,
-      border: `1px solid ${FIELD_BORDER}`, backgroundColor: '#fff', marginBottom: 8,
-    }}>
-      <Mail size={22} color={ICON_GREY} />
-      <input
-        type="email" value={email} autoFocus placeholder="Adresse e-mail *"
-        onChange={(e) => setEmail(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && next()}
-        style={{ flex: 1, border: 'none', outline: 'none', fontSize: 20, backgroundColor: 'transparent' }}
-      />
-    </label>
+  const modeChip = (key, icon, label) => (
+    <button key={key} onClick={() => { setMode(key); setError(null) }} style={{
+      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 12px', cursor: 'pointer',
+      borderRadius: 30, fontSize: 18, fontWeight: '600', color: mode === key ? BLUE : '#757575',
+      backgroundColor: mode === key ? '#EAF2FF' : '#fff', border: mode === key ? `1.6px solid ${BLUE}` : `1px solid ${FIELD_BORDER}`,
+    }}>{icon}{label}</button>
+  )
+
+  const stepEmail = box(<User size={26} color={ICON_GREY} />, "Comment inviter ?", null, (
+    <>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 22 }}>
+        {modeChip('email', <Mail size={20} />, 'Par e-mail')}
+        {modeChip('link', <Link2 size={20} />, 'Par lien')}
+      </div>
+      {mode === 'email' ? (
+        <>
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: 14, padding: '0 22px', height: 68, borderRadius: 36,
+            border: `1px solid ${FIELD_BORDER}`, backgroundColor: '#fff', marginBottom: 12,
+          }}>
+            <Mail size={22} color={ICON_GREY} />
+            <input
+              type="email" value={email} autoFocus placeholder="Adresse e-mail *"
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && next()}
+              style={{ flex: 1, border: 'none', outline: 'none', fontSize: 20, backgroundColor: 'transparent' }}
+            />
+          </label>
+          <p style={{ margin: 0, fontSize: 16, color: '#757575', lineHeight: 1.4 }}>
+            Seule cette adresse pourra accepter l'invitation. Vous pourrez aussi partager le lien par WhatsApp.
+          </p>
+        </>
+      ) : (
+        <p style={{ margin: 0, fontSize: 17, color: '#757575', lineHeight: 1.5 }}>
+          Vous obtenez un lien à envoyer par WhatsApp, SMS ou tout autre moyen. La première personne qui l'ouvre et l'accepte rejoint l'entreprise : le lien ne sert qu'une fois, dure 7 jours, et vous pouvez l'annuler depuis l'équipe.
+        </p>
+      )}
+    </>
   ))
 
   const roleCard = (r) => {
@@ -202,11 +230,11 @@ export default function InviteTeamPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 22 }}>
           <img src={role === 'manager' ? '/avatars/female_1.jpg' : '/avatars/male_1.jpg'} alt="" style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', backgroundColor: '#D6E8FF', flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            {info('E-mail', email.trim())}
+            {mode === 'email' ? info('E-mail', email.trim()) : info('Invitation', 'Lien à partager')}
             <div style={{ marginBottom: 0 }}>{info('Profil', `${ROLE_LABELS[role]} · ${company?.name ?? ''}`)}</div>
           </div>
         </div>
-        {infoBanner('Un code valable 7 jours est envoyé par e-mail.')}
+        {infoBanner(mode === 'email' ? 'Un lien et un code valables 7 jours sont envoyés par e-mail.' : 'Le lien est valable 7 jours et ne sert qu\'une fois.')}
       </div>
     </div>
   )
@@ -234,11 +262,16 @@ export default function InviteTeamPage() {
           <div style={{ display: 'flex', gap: 14, marginTop: 28 }}>
             {step > 0 && <PillButton outline onClick={back} disabled={sending} style={{ flex: 1 }}>Retour</PillButton>}
             <PillButton onClick={last ? send : next} disabled={sending || roles === null} style={{ flex: step > 0 ? 2 : 1 }}>
-              {last ? <><Send size={18} /> {sending ? 'Envoi…' : "Envoyer l'invitation"}</> : 'Suivant'}
+              {last ? <><Send size={18} /> {sending ? 'Envoi…' : mode === 'email' ? "Envoyer l'invitation" : 'Créer le lien'}</> : 'Suivant'}
             </PillButton>
           </div>
         </div>
       </div>
+      <ShareInvitationDialog
+        data={shared}
+        title={mode === 'email' ? 'Invitation envoyée' : "Lien d'invitation prêt"}
+        onClose={() => navigate(`/team/${companyId}`)}
+      />
     </div>
   )
 }
