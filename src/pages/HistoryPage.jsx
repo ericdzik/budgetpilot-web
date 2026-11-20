@@ -99,7 +99,7 @@ function CtxItem({ icon, label, onClick, color, danger }) {
 
 // ─── Composant carte item ─────────────────────────────────────────────────────
 
-function HistoryCard({ item, type, onRefresh }) {
+function HistoryCard({ item, type, onRefresh, onSilentRefresh }) {
   const can = useCan()
   const showMilestones = useCelebrationStore((s) => s.showMilestones)
   const navigate = useNavigate()
@@ -218,7 +218,7 @@ function HistoryCard({ item, type, onRefresh }) {
       toast.success('Paiement ajouté')
       setPayAmount('')
       await reloadDetail() // Recharge sans fermer la carte
-      // Ne pas appeler onRefresh() pour éviter de fermer la carte
+      onSilentRefresh?.() // Met à jour la liste (statut, montants) sans fermer la carte
     } catch { toast.error('Erreur lors de l\'ajout du paiement') }
     finally { setAddingPay(false) }
   }
@@ -232,7 +232,7 @@ function HistoryCard({ item, type, onRefresh }) {
       await api.delete(endpoint)
       toast.success('Paiement supprimé')
       await reloadDetail() // Recharge sans fermer la carte
-      // Ne pas appeler onRefresh() pour éviter de fermer la carte
+      onSilentRefresh?.() // Met à jour la liste (statut, montants) sans fermer la carte
     } catch { toast.error('Erreur') }
     finally { setDeletingPay(null) }
   }
@@ -810,8 +810,9 @@ export default function HistoryPage() {
   const [localStart, setLocalStart]         = useState(null)   // Date | null
   const [localEnd, setLocalEnd]             = useState(null)
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  // silent = true : met la liste à jour sans l'écran de chargement (les cartes ouvertes restent ouvertes)
+  const load = useCallback(async (silent = false) => {
+    if (silent !== true) setLoading(true)
     try {
       let data = []
       if (activeTab === 'invoices') {
@@ -831,7 +832,7 @@ export default function HistoryPage() {
       data.sort((a, b) => new Date(b.issue_date || b.date || b.created_at) - new Date(a.issue_date || a.date || a.created_at))
       setItems(data)
     } catch { toast.error('Impossible de charger les données') }
-    finally { setLoading(false) }
+    finally { if (silent !== true) setLoading(false) }
   }, [activeTab])
 
   useEffect(() => { load() }, [load])
@@ -1150,7 +1151,7 @@ export default function HistoryPage() {
                   {month}
                 </div>
                 {monthItems.map(item => (
-                  <HistoryCard key={item.id} item={item} type={activeTab} onRefresh={load} />
+                  <HistoryCard key={item.id} item={item} type={activeTab} onRefresh={load} onSilentRefresh={() => load(true)} />
                 ))}
               </div>
             ))}
