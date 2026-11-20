@@ -14,6 +14,8 @@ import { PDF_TEMPLATES, generatePdfBlob } from './pdfTemplates'
 import usePremiumGate from '../../hooks/usePremiumGate'
 import { getTextColor, accentToBoxBg, accentToSubtotalBg } from './pdfColorUtils'
 import { FONT_CHOICES } from './pdfFonts'
+import { ExtrasHtml, PaymentRowsHtml } from './DocumentExtras'
+import { documentExtras, displayStatus } from '../../utils/documentExtras'
 import { celebrateFirstPdfCustomization } from '../gamification/pdfCustomization'
 
 // Templates réservés aux comptes premium (Basic / Pro)
@@ -120,7 +122,7 @@ function fmtDate(d) {
 }
 
 function statusLabel(s) {
-  const m = { paid: 'Payée', partially_paid: 'Part. payée', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }
+  const m = { paid: 'Payée', partially_paid: 'En-cours de paiement', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }
   return m[s] || s
 }
 
@@ -195,12 +197,15 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
     catItems.forEach(item => flatItems.push({ ...item, _cat: cat }))
     flatItems.push({ __subtotal: true, _cat: cat, _catItems: catItems })
   })
+  const extras = documentExtras(doc, profile)
+  const lastCap = extras.reserve ? Math.max(3, MINIMAL_ITEMS_ON_LAST_PAGE - extras.reserve) : MINIMAL_ITEMS_ON_LAST_PAGE
+  const singleCap = extras.reserve ? Math.max(lastCap, MINIMAL_ITEMS_PER_PAGE - 4 - extras.reserve) : MINIMAL_ITEMS_PER_PAGE
   const pageSlices = []
-  const lastPageItems = flatItems.length > MINIMAL_ITEMS_PER_PAGE
-    ? flatItems.slice(-MINIMAL_ITEMS_ON_LAST_PAGE)
+  const lastPageItems = flatItems.length > singleCap
+    ? flatItems.slice(-lastCap)
     : []
   const itemsBeforeLastPage = lastPageItems.length > 0
-    ? flatItems.slice(0, -MINIMAL_ITEMS_ON_LAST_PAGE)
+    ? flatItems.slice(0, -lastCap)
     : flatItems
   for (let i = 0; i < itemsBeforeLastPage.length; i += MINIMAL_ITEMS_PER_PAGE) {
     pageSlices.push(itemsBeforeLastPage.slice(i, i + MINIMAL_ITEMS_PER_PAGE))
@@ -351,7 +356,7 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
                       <div style={{ display: 'table-cell', verticalAlign: 'top', padding: '10px 12px', width: '50%' }}>
                         <div style={{ fontWeight: 'bold', fontSize: 10, marginBottom: 5 }}>Paiement</div>
                         <div style={{ fontSize: 9, color: '#444', lineHeight: 1.7 }}>
-                          <div>Statut : <strong>{statusLabel(doc.status)}</strong></div>
+                          <div>Statut : <strong>{statusLabel(displayStatus(doc))}</strong></div>
                           {doc.due_date && <div>Échéance : <strong>{fmtDate(doc.due_date)}</strong></div>}
                         </div>
                       </div>
@@ -380,6 +385,7 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
                               <span style={{ fontSize: 11, color: headerTextColor, fontWeight: 'bold' }}>Total :</span>
                               <span style={{ fontSize: 11, color: headerTextColor, fontWeight: 'bold' }}>{fmt(total)}</span>
                             </div>
+                            <div style={{ padding: "0 10px 6px" }}><PaymentRowsHtml payment={extras.payment} currency={currency} rate={conversionRate || 1} size={10} color={headerTextColor} /></div>
                           </div>
                         </div>
                       </div>
@@ -388,6 +394,8 @@ function MinimalTemplate({ doc, profile, qrDataUrl, currency = 'XOF', conversion
                 )}
               </div>
             </div>
+
+            {isLastPage && <ExtrasHtml note={extras.note} rib={extras.rib} color="#111" />}
 
             {/* Montant en lettres — collé sous le tableau à gauche */}
             {isLastPage && (

@@ -62,7 +62,7 @@ export function getStatusLabel(status) {
     sent: 'Envoyée',
     draft: 'Brouillon',
     overdue: 'En retard',
-    partially_paid: 'Part. payée',
+    partially_paid: 'En-cours de paiement',
   }
   return map[status] || status
 }

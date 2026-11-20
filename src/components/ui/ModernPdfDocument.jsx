@@ -18,6 +18,8 @@ import { amountToWords } from './MinimalPdfDocument'
 import { STORAGE_BASE_URL } from '../../config/constants'
 import { getTextColor, accentToBoxBg, getSecondaryColor, getSecondaryTextColor } from './pdfColorUtils'
 import { withFont, resolveFontFamily } from './pdfFonts'
+import { ExtrasPdf, ExtrasHtml, PaymentRowsPdf, PaymentRowsHtml } from './DocumentExtras'
+import { documentExtras, displayStatus } from '../../utils/documentExtras'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -39,7 +41,7 @@ function fmtDate(d) {
 }
 
 function statusLabel(s) {
-  return { paid: 'Payée', partially_paid: 'Part. payée', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }[s] || s || '—'
+  return { paid: 'Payée', partially_paid: 'En-cours de paiement', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }[s] || s || '—'
 }
 
 function toNum(v) { return isNaN(parseFloat(v)) ? 0 : parseFloat(v) }
@@ -333,7 +335,8 @@ export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signat
   // On recalcule jusqu'à stabilisation.
 
   const ITEMS_NORMAL = 17  // page sans zone totaux
-  const ITEMS_LAST   = 11  // page avec zone totaux + signatures
+  const extras = documentExtras(doc, profile)
+  const ITEMS_LAST   = Math.max(3, 11 - extras.reserve)  // page avec zone totaux + signatures (moins la place de la note / du RIB)
 
   // Aplatir toutes les lignes (items + sous-totaux par catégorie)
   const flatRows = []
@@ -489,6 +492,7 @@ export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signat
                       <Text style={S.totalTTCLabel}>TOTAL TTC :</Text>
                       <Text style={S.totalTTCValue}>{fmt(total)}</Text>
                     </View>
+                    <PaymentRowsPdf payment={extras.payment} currency={currency} rate={conversionRate || 1} fontChoice={fontChoice} size={10} color={labelColor} />
                     <View style={{ marginTop: 4 }}>
                       <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Oblique', color: '#444', textAlign: 'right' }}>
                         Arrêtée la présente facture à la somme de : {amountToWords(total, currency)}
@@ -496,6 +500,8 @@ export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signat
                     </View>
                   </View>
                 </View>
+
+                <ExtrasPdf note={extras.note} rib={extras.rib} color={labelColor} fontChoice={fontChoice} />
               </>
             )}
 
@@ -505,8 +511,7 @@ export function ModernPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signat
                 <View style={S.footerContent}>
                   <View style={S.footerLeft}>
                     <Text style={[S.footerPayTitle, { color: '#111' }]}>Paiement</Text>
-                    <Text style={S.footerPayDetail}>Statut : {statusLabel(doc.status)}</Text>
-                    {!!doc.payment_method && <Text style={S.footerPayDetail}>{doc.payment_method}</Text>}
+                    <Text style={S.footerPayDetail}>Statut : {statusLabel(displayStatus(doc))}</Text>
                     <Text style={S.footerUrl}>GETBUDGETPILOT.COM</Text>
                   </View>
                   {isLastPage && (
@@ -590,7 +595,7 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
   const showCatSubtotal = Object.keys(grouped).length > 1
 
   const fmtD = d => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' }) } catch { return d } }
-  const sL   = s => ({ paid: 'Payée', partially_paid: 'Part. payée', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }[s] || s || '—')
+  const sL   = s => ({ paid: 'Payée', partially_paid: 'En-cours de paiement', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }[s] || s || '—')
 
   return (
     <div style={{
@@ -710,11 +715,14 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
             <span style={{ fontSize: 12, fontWeight: 'bold', color: labelColor }}>TOTAL TTC :</span>
             <span style={{ fontSize: 12, fontWeight: 'bold', color: labelColor }}>{fmt(total)}</span>
           </div>
+          <PaymentRowsHtml payment={documentExtras(doc, profile).payment} currency={currency} rate={conversionRate || 1} size={10} color={labelColor} />
           <div style={{ marginTop: 4, fontSize: 9, color: '#444', fontStyle: 'italic', textAlign: 'right' }}>
             Arrêtée la présente facture à la somme de : {amountToWords(total, currency)}
           </div>
         </div>
       </div>
+
+      <ExtrasHtml {...documentExtras(doc, profile)} color={labelColor} />
 
       {/* FOOTER */}
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 36px 18px' }}>
@@ -723,8 +731,7 @@ export function ModernTemplate({ doc, profile, currency = 'XOF', conversionRate 
             {/* Gauche : Paiement */}
             <div style={{ flex: 1, paddingRight: 16 }}>
               <div style={{ fontWeight: 'bold', fontSize: 10, marginBottom: 4, color: '#111' }}>Paiement</div>
-              <div style={{ fontSize: 9, color: labelColor, marginTop: 2 }}>Statut : {sL(doc.status)}</div>
-              {doc.payment_method && <div style={{ fontSize: 9, color: labelColor, marginTop: 2 }}>{doc.payment_method}</div>}
+              <div style={{ fontSize: 9, color: labelColor, marginTop: 2 }}>Statut : {sL(displayStatus(doc))}</div>
               <div style={{ fontSize: 8, color: '#000', letterSpacing: 0.5, marginTop: 12 }}>GETBUDGETPILOT.COM</div>
             </div>
 

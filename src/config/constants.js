@@ -13,7 +13,7 @@ export const DOCUMENT_STATUSES = {
   draft: 'Brouillon',
   sent: 'Envoyée',
   paid: 'Payée',
-  partially_paid: 'Part. payée',
+  partially_paid: 'En-cours de paiement',
   overdue: 'En retard',
 }
 

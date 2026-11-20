@@ -17,7 +17,7 @@ const STATUS_BADGE = {
   sent:           { variant: 'yellow', label: 'Envoyée' },
   draft:          { variant: 'gray',   label: 'Brouillon' },
   overdue:        { variant: 'red',    label: 'En retard' },
-  partially_paid: { variant: 'yellow', label: 'Part. payée' },
+  partially_paid: { variant: 'yellow', label: 'En-cours de paiement' },
 }
 
 export default function DocumentsPage() {

@@ -250,6 +250,7 @@ export default function CompanyProfilePage() {
   const [email,        setEmail]        = useState('')
   const [address,      setAddress]      = useState('')
   const [nif,          setNif]          = useState('')
+  const [rib,          setRib]          = useState('')
   const [activity,     setActivity]     = useState('')
   const [logoFile,     setLogoFile]     = useState(null)
   const [logoPreview,  setLogoPreview]  = useState(null)
@@ -272,6 +273,7 @@ export default function CompanyProfilePage() {
           setEmail(u.professional_email || u.email || '')
           setAddress(u.company_address || '')
           setNif(u.nif || '')
+          setRib(u.rib || '')
           setActivity(u.activity || '')
           if (u.logo_path) setLogoPreview(storageUrl(u.logo_path))
           if (u.signature_path) setSigPreview(storageUrl(u.signature_path))
@@ -285,6 +287,7 @@ export default function CompanyProfilePage() {
           setEmail(user.professional_email || user.email || '')
           setAddress(user.company_address || '')
           setNif(user.nif || '')
+          setRib(user.rib || '')
           setActivity(user.activity || '')
           if (user.logo_path) setLogoPreview(storageUrl(user.logo_path))
           if (user.signature_path) setSigPreview(storageUrl(user.signature_path))
@@ -310,6 +313,7 @@ export default function CompanyProfilePage() {
         professional_email: email.trim(),
         company_address:    address.trim(),
         nif:                nif.trim(),
+        rib:                rib.trim(),
         activity:           activity || 'Autre',
         name:               user?.name || '',
         phone:              user?.phone || '',
@@ -422,6 +426,21 @@ export default function CompanyProfilePage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <Field label="Adresse" value={address} onChange={setAddress} placeholder="Rue, numéro, ville..." />
             <Field label="NIF" value={nif} onChange={setNif} placeholder="Numéro d'Identification Fiscale" />
+          </div>
+
+          {/* RIB : affiché sur les documents dont la case « Afficher le RIB » est cochée */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '13px', fontWeight: '500', color: '#666' }}>RIB (coordonnées bancaires)</label>
+            <textarea
+              value={rib}
+              onChange={e => setRib(e.target.value)}
+              maxLength={150}
+              rows={3}
+              placeholder={'Banque, titulaire, numéro de compte / IBAN…'}
+              style={{ padding: '11px 12px', borderRadius: '8px', border: '1.5px solid #e0e0e0', fontSize: '15px', fontWeight: '500', color: '#111', backgroundColor: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.5' }}
+            />
+            <span style={{ fontSize: '12px', color: '#888', textAlign: 'right' }}>{rib.length}/150</span>
+            <span style={{ fontSize: '12px', color: '#888' }}>Un seul RIB par entreprise. Il s'imprime sur les documents où vous cochez « Afficher le RIB ».</span>
           </div>
 
           {/* Ligne 4 : Secteur d'activité + Signature */}

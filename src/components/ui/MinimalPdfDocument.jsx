@@ -22,6 +22,8 @@ import {
 } from '@react-pdf/renderer'
 import { getTextColor, accentToBoxBg, accentToSubtotalBg, getSecondaryColor, getSecondaryTextColor, mixWithWhite } from './pdfColorUtils'
 import { withFont, resolveFontFamily } from './pdfFonts'
+import { ExtrasPdf, PaymentRowsPdf, PaymentRowsHtml } from './DocumentExtras'
+import { documentExtras, displayStatus } from '../../utils/documentExtras'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -181,7 +183,7 @@ function fmtDate(d) {
 }
 
 function statusLabel(s) {
-  const m = { paid: 'Payée', partially_paid: 'Part. payée', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }
+  const m = { paid: 'Payée', partially_paid: 'En-cours de paiement', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }
   return m[s] || s || '—'
 }
 
@@ -464,8 +466,11 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
   // La dernière page accueille également les totaux, le montant en lettres et
   // les signatures. Lui réserver moins de lignes évite que react-pdf crée une
   // page de débordement vide avant la suite du tableau.
+  const extras = documentExtras(doc, profile)
   const ITEMS_PER_PAGE = 20
-  const ITEMS_ON_LAST_PAGE = 6
+  // Note / RIB : on réserve leur place sur la dernière page
+  const ITEMS_ON_LAST_PAGE = extras.reserve ? Math.max(3, 6 - extras.reserve) : 6
+  const ITEMS_SINGLE_PAGE = extras.reserve ? Math.max(ITEMS_ON_LAST_PAGE, ITEMS_PER_PAGE - 4 - extras.reserve) : ITEMS_PER_PAGE
 
   // Aplatir tous les items avec leur catégorie
   const flatItems = []
@@ -477,7 +482,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
   // Découper : les pages ordinaires peuvent contenir 20 lignes, mais la dernière
   // est volontairement limitée à 10 lignes pour garder la zone finale sur page.
   const pageSlices = []
-  const lastPageItems = flatItems.length > ITEMS_PER_PAGE
+  const lastPageItems = flatItems.length > ITEMS_SINGLE_PAGE
     ? flatItems.slice(-ITEMS_ON_LAST_PAGE)
     : []
   const itemsBeforeLastPage = lastPageItems.length > 0
@@ -623,7 +628,7 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
                 <View style={S.footerZone}>
                   <View style={S.paymentBox}>
                     <Text style={[S.paymentTitle, { color: '#111' }]}>Paiement</Text>
-                    <Text style={S.paymentDetail}>Statut : <Text style={{ fontFamily: fontBold }}>{statusLabel(doc.status)}</Text></Text>
+                    <Text style={S.paymentDetail}>Statut : <Text style={{ fontFamily: fontBold }}>{statusLabel(displayStatus(doc))}</Text></Text>
                     {!!doc.due_date && (
                       <Text style={S.paymentDetail}>Échéance : <Text style={{ fontFamily: fontBold }}>{fmtDate(doc.due_date)}</Text></Text>
                     )}
@@ -653,10 +658,17 @@ export function MinimalPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
                         <Text style={S.totalFinalValue}>{fmt(total)}</Text>
                       </View>
                     </View>
+                    <View style={{ paddingHorizontal: 10, paddingBottom: 6 }}><PaymentRowsPdf payment={extras.payment} currency={currency} rate={conversionRate || 1} fontChoice={fontChoice} size={9} color={"#111"} /></View>
                   </View>
                 </View>
               )}
             </View>
+
+            {isLastPage && (
+              <View style={{ marginHorizontal: 15 }}>
+                <ExtrasPdf note={extras.note} rib={extras.rib} color="#111" fontChoice={fontChoice} />
+              </View>
+            )}
 
             {/* Montant en lettres — uniquement sur la dernière page */}
             {isLastPage && (

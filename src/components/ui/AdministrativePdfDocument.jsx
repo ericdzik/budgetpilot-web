@@ -2,6 +2,8 @@ import { Document, Page, View, Text, Image, StyleSheet, pdf } from '@react-pdf/r
 import { getTextColor, mixWithWhite } from './pdfColorUtils'
 import { amountToWords } from './MinimalPdfDocument'
 import { withFont } from './pdfFonts'
+import { ExtrasPdf, PaymentRowsPdf, PaymentRowsHtml } from './DocumentExtras'
+import { documentExtras, displayStatus } from '../../utils/documentExtras'
 
 const money = value => Math.round(Number(value) || 0).toLocaleString('fr-FR').replace(/\u202f/g, '.')
 const date = value => value ? new Date(value).toLocaleDateString('fr-FR') : '—'
@@ -68,17 +70,21 @@ export function AdministrativePdfDocument({ doc, profile, logoDataUrl, signature
   }, {})
   const categories = Object.entries(grouped)
   const showCategorySubtotal = categories.length > 1
-  const ItemRow = ({ children, style }) => <View style={[S.row, style]}>{children}</View>
-  const Cell = ({ children, width, align = 'left', last = false }) => <View style={[S.cell, { width }, last && { borderRightWidth: 0 }]}><Text style={[S.cellText, { textAlign: align }]}>{children}</Text></View>
-  const TotalLabel = ({ children }) => <View style={S.totalsLabel}><Text style={S.totalsLabelText}>{children}</Text></View>
-  const TotalValue = ({ children, bold = false }) => <View style={S.totalsValue}><Text style={[S.totalsValueText, bold && S.totalsValueTextBold]}>{children}</Text></View>
+  // Compact quand il y a une note, un RIB ou des lignes de paiement : tout doit tenir sans page presque vide
+  const ex = documentExtras(doc, profile)
+  const compact = !!(ex.note || ex.rib || ex.payment)
+  const pad = compact ? 3.5 : 6
+  const ItemRow = ({ children, style }) => <View style={[S.row, compact && { minHeight: 19 }, style]}>{children}</View>
+  const Cell = ({ children, width, align = 'left', last = false }) => <View style={[S.cell, { width }, last && { borderRightWidth: 0 }]}><Text style={[S.cellText, { padding: pad, textAlign: align }]}>{children}</Text></View>
+  const TotalLabel = ({ children }) => <View style={S.totalsLabel}><Text style={[S.totalsLabelText, { padding: pad }]}>{children}</Text></View>
+  const TotalValue = ({ children, bold = false }) => <View style={S.totalsValue}><Text style={[S.totalsValueText, { padding: pad }, bold && S.totalsValueTextBold]}>{children}</Text></View>
   return <Document><Page size="A4" style={S.page}>
     <View style={[S.header, { borderBottomColor: brand }]}>
       {logoDataUrl && <Image src={logoDataUrl} style={S.logo} />}
       <View style={S.company}><Text style={[S.companyName, { color: brand }]}>{company}</Text><Text style={S.companyDetail}>{profile?.company_address || ''}</Text><Text style={S.companyDetail}>{profile?.professional_phone || profile?.phone || ''} {profile?.email ? `· ${profile.email}` : ''}</Text></View>
     </View>
-    <Text style={S.title}>{doc.type === 'quote' ? 'DEVIS' : 'FACTURE'}</Text>
-    <View style={S.info}>
+    <Text style={[S.title, compact && { marginTop: 14, marginBottom: 8 }]}>{doc.type === 'quote' ? 'DEVIS' : 'FACTURE'}</Text>
+    <View style={[S.info, compact && { marginBottom: 10, lineHeight: 1.45 }]}>
       <Text><Text style={S.infoLabel}>Client : </Text>{client.name || '—'}</Text>
       {!!doc.title && <Text><Text style={S.infoLabel}>Objet : </Text>{doc.title}</Text>}
       <Text><Text style={S.infoLabel}>Période : </Text>{date(doc.issue_date || doc.created_at)}</Text>
@@ -93,10 +99,15 @@ export function AdministrativePdfDocument({ doc, profile, logoDataUrl, signature
       {discount > .01 && <ItemRow style={{ backgroundColor: '#fafafa' }}><TotalLabel>REMISE</TotalLabel><TotalValue>- {money(discount)} {currency}</TotalValue></ItemRow>}
       {doc.has_tva && <ItemRow style={{ backgroundColor: '#fafafa' }}><TotalLabel>TVA 18%</TotalLabel><TotalValue>{money(tva)} {currency}</TotalValue></ItemRow>}
       <ItemRow style={{ borderBottomWidth: 0, backgroundColor: mixWithWhite(brand, .13) }}><TotalLabel>TTC</TotalLabel><TotalValue bold>{money(total)} {currency}</TotalValue></ItemRow>
+      {ex.payment && <>
+        <ItemRow style={{ backgroundColor: '#fafafa' }}><TotalLabel>DÉJÀ PAYÉ</TotalLabel><TotalValue>{money(ex.payment.paid * conversionRate)} {currency}</TotalValue></ItemRow>
+        <ItemRow style={{ borderBottomWidth: 0, backgroundColor: '#fafafa' }}><TotalLabel>RESTE À PAYER</TotalLabel><TotalValue bold>{money(ex.payment.remaining * conversionRate)} {currency}</TotalValue></ItemRow>
+      </>}
     </View>
-    <Text style={S.words}>Arrêtée la présente {doc.type === 'quote' ? 'proposition' : 'facture'} à la somme de : {amountToWords(total, currency)}.</Text>
-    <Text style={S.signatureDate}>Fait le {date(doc.issue_date || doc.created_at)}</Text>
-    <View style={S.signatureRow}>
+    <Text style={[S.words, compact && { marginTop: 10 }]}>Arrêtée la présente {doc.type === 'quote' ? 'proposition' : 'facture'} à la somme de : {amountToWords(total, currency)}.</Text>
+    <ExtrasPdf {...ex} color={brand} fontChoice={fontChoice} marginTop={compact ? 6 : 10} />
+    <Text style={[S.signatureDate, compact && { marginTop: 8 }]}>Fait le {date(doc.issue_date || doc.created_at)}</Text>
+    <View style={[S.signatureRow, compact && { marginTop: 6 }]}>
       <View style={S.signatureCol}>
         <Text style={[S.signatureLabel, { color: brand }]}>ÉMETTEUR</Text>
         <View style={{ height: 8 }} />
