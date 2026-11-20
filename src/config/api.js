@@ -1,6 +1,7 @@
 import axios from 'axios'
 import useTrackingAuthStore from '../store/trackingAuthStore'
 import useAdminAuthStore from '../store/adminAuthStore'
+import { getActiveCompanyId } from '../store/companyContext'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://172.20.10.12:8000/api'
 
@@ -49,6 +50,13 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+
+  // Entreprise active. Sans en-tête pour la liste des entreprises : elle doit rester
+  // joignable même si l'entreprise mémorisée n'existe plus.
+  const companyId = getActiveCompanyId()
+  if (companyId && !config.url?.startsWith('/companies')) {
+    config.headers['X-Company-Id'] = companyId
   }
   return config
 })

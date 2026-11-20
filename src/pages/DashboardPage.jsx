@@ -16,6 +16,8 @@ import PeriodDropdown from '../components/ui/PeriodDropdown'
 import StartChecklistCard from '../components/gamification/StartChecklistCard'
 import FinancialHealthCard from '../components/gamification/FinancialHealthCard'
 import NotificationBell from '../components/gamification/NotificationBell'
+import useCan from '../hooks/useCan'
+import { useActiveCompany } from '../store/companyStore'
 
 // ─── Flags de session (hors React, persistants pendant la session) ────────────
 const _session = {
@@ -34,6 +36,10 @@ const currentYear = new Date().getFullYear()
 
 export default function DashboardPage() {
   const navigate = useNavigate()
+  const can = useCan()
+  const activeCompany = useActiveCompany()
+  // Équipe : dirigeant et profils autorisés à la voir
+  const canSeeTeam = can('members.view')
   const { user: authUser } = useAuthStore()
   const { activeCurrency, initFromUser } = useCurrencyStore()
   const [stats, setStats] = useState(null)
@@ -421,7 +427,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Boutons bas — en dehors du conteneur bordé */}
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '20px' }}>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '20px', flexWrap: 'wrap' }}>
                   <button
                     onClick={() => navigate('/stats')}
                     style={{
@@ -457,6 +463,32 @@ export default function DashboardPage() {
                     }}
                   >
                     Clients
+                  </button>
+                  {canSeeTeam && activeCompany && (
+                    <button
+                      onClick={() => navigate(`/team/${activeCompany.id}`)}
+                      style={{
+                        padding: '14px 32px',
+                        backgroundColor: '#fff', color: '#333',
+                        border: '1.5px solid #e0e0e0', borderRadius: '20px',
+                        fontSize: '16px', fontWeight: '600', cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Mon équipe
+                    </button>
+                  )}
+                  <button
+                    onClick={() => navigate('/join-company')}
+                    style={{
+                      padding: '14px 32px',
+                      backgroundColor: '#fff', color: '#333',
+                      border: '1.5px solid #e0e0e0', borderRadius: '20px',
+                      fontSize: '16px', fontWeight: '600', cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Rejoindre une entreprise
                   </button>
                   <button
                     style={{

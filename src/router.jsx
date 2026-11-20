@@ -49,15 +49,23 @@ import RevenuePage from './pages/RevenuePage'
 import HistoryPage from './pages/HistoryPage'
 import StatsPage from './pages/StatsPage'
 import SubscriptionPage from './pages/SubscriptionPage'
+import CheckoutPage from './pages/CheckoutPage'
 import SettingsPage from './pages/SettingsPage'
 import ProfilePage from './pages/ProfilePage'
 import PersonalProfilePage from './pages/PersonalProfilePage'
 import CompanyProfilePage from './pages/CompanyProfilePage'
+import TeamPage from './pages/TeamPage'
+import InviteTeamPage from './pages/InviteTeamPage'
+import JoinCompanyPage from './pages/JoinCompanyPage'
+import ActivityPage from './pages/ActivityPage'
+import CompaniesPage from './pages/CompaniesPage'
+import ConsolidatedPage from './pages/ConsolidatedPage'
 import FaqPage from './pages/FaqPage'
 import TermsPage from './pages/TermsPage'
 import ContactPage from './pages/ContactPage'
 import ReferralPage from './pages/ReferralPage'
 import ProgressPage from './pages/ProgressPage'
+import JoinInvitationPage from './pages/JoinInvitationPage'
 
 // Route protégée app Budget Pilot
 function ProtectedRoute({ children }) {
@@ -126,6 +134,8 @@ export const router = createBrowserRouter([
       </PublicRoute>
     ),
   },
+  // Lien d'invitation : publique, on voit l'invitation avant de se connecter
+  { path: '/join', element: <JoinInvitationPage /> },
   // Register gère ses propres étapes plein écran
   {
     path: '/register',
@@ -147,12 +157,19 @@ export const router = createBrowserRouter([
       { path: 'history', element: <HistoryPage /> },
       { path: 'stats', element: <StatsPage /> },
       { path: 'subscription', element: <SubscriptionPage /> },
+      { path: 'subscription/checkout', element: <CheckoutPage /> },
       { path: 'referral', element: <ReferralPage /> },
       { path: 'progress', element: <ProgressPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'profile/personal', element: <PersonalProfilePage /> },
       { path: 'profile/company', element: <CompanyProfilePage /> },
+      { path: 'companies', element: <CompaniesPage /> },
+      { path: 'join-company', element: <JoinCompanyPage /> },
+      { path: 'team/:id', element: <TeamPage /> },
+      { path: 'team/:id/invite', element: <InviteTeamPage /> },
+      { path: 'team/:id/activity', element: <ActivityPage /> },
+      { path: 'consolidated', element: <ConsolidatedPage /> },
       { path: 'faq', element: <FaqPage /> },
       { path: 'terms', element: <TermsPage /> },
       { path: 'contact', element: <ContactPage /> },

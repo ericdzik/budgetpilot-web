@@ -19,6 +19,8 @@ import { amountToWords } from './MinimalPdfDocument'
 import { STORAGE_BASE_URL } from '../../config/constants'
 import { getTextColor, accentToBoxBg, accentToSubtotalBg, getSecondaryColor, mixWithWhite } from './pdfColorUtils'
 import { withFont, resolveFontFamily } from './pdfFonts'
+import { ExtrasPdf, ExtrasHtml, PaymentRowsPdf, PaymentRowsHtml } from './DocumentExtras'
+import { documentExtras, displayStatus, fitLastPage } from '../../utils/documentExtras'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -40,7 +42,7 @@ function fmtDate(d) {
 }
 
 function statusLabel(s) {
-  return { paid: 'Payée', partially_paid: 'Part. payée', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }[s] || s || '—'
+  return { paid: 'Payée', partially_paid: 'En-cours de paiement', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }[s] || s || '—'
 }
 
 function toNum(v) { return isNaN(parseFloat(v)) ? 0 : parseFloat(v) }
@@ -286,8 +288,11 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
     }
   })
 
+  // Note / RIB : place réservée sur la dernière page
+  const extras = documentExtras(doc, profile)
+
   // Découper en pages
-  const pages = []
+  let pages = []
   let remaining = [...flatRows]
   let isFirstPage = true
   while (remaining.length > 0) {
@@ -297,6 +302,7 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
     isFirstPage = false
   }
   if (pages.length === 0) pages.push([])
+  pages = fitLastPage(pages, 10, extras.reserve)
 
   // Composant réutilisable : header tableau
   const TableHeader = () => (
@@ -410,7 +416,7 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
                   <View style={S.bottomZone}>
                     <View style={S.paymentBox}>
                       <Text style={[S.paymentTitle, { color: '#111' }]}>Paiement</Text>
-                      <Text style={S.paymentDetail}>Statut : {statusLabel(doc.status)}</Text>
+                      <Text style={S.paymentDetail}>Statut : {statusLabel(displayStatus(doc))}</Text>
                       {!!doc.due_date && <Text style={S.paymentDetail}>Échéance : {fmtDate(doc.due_date)}</Text>}
                     </View>
                     <View style={S.totalsBox}>
@@ -436,6 +442,7 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
                         <Text style={S.totalTTCLabel}>TOTAL TTC :</Text>
                         <Text style={S.totalTTCValue}>{fmt(total)}</Text>
                       </View>
+                      <PaymentRowsPdf payment={extras.payment} currency={currency} rate={conversionRate || 1} fontChoice={fontChoice} size={11} color={labelColor} />
                       <View style={{ marginTop: 4 }}>
                         <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Oblique', color: '#444', textAlign: 'right' }}>
                           Arrêtée la présente facture à la somme de : {amountToWords(total, currency)}
@@ -443,6 +450,8 @@ export function ClassicPdfDocument({ doc, profile, qrDataUrl, logoDataUrl, signa
                       </View>
                     </View>
                   </View>
+
+                  <ExtrasPdf note={extras.note} rib={extras.rib} color={labelColor} fontChoice={fontChoice} />
                 </>
               )}
 
@@ -512,7 +521,7 @@ export function ClassicTemplate({ doc, profile, currency = 'XOF', conversionRate
   const showCatSubtotal = Object.keys(grouped).length > 1
 
   const fmtD = d => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' }) } catch { return d } }
-  const sL   = s => ({ paid: 'Payée', partially_paid: 'Part. payée', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }[s] || s || '—')
+  const sL   = s => ({ paid: 'Payée', partially_paid: 'En-cours de paiement', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }[s] || s || '—')
 
   return (
     <div style={{
@@ -612,7 +621,7 @@ export function ClassicTemplate({ doc, profile, currency = 'XOF', conversionRate
       <div style={{ display: 'flex', marginTop: 20, gap: 16 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 'bold', fontSize: 12, marginBottom: 5, color: '#111' }}>Paiement</div>
-          <div style={{ fontSize: 11, color: labelColor }}>Statut : {sL(doc.status)}</div>
+          <div style={{ fontSize: 11, color: labelColor }}>Statut : {sL(displayStatus(doc))}</div>
           {doc.due_date && <div style={{ fontSize: 11, color: labelColor }}>Échéance : {fmtD(doc.due_date)}</div>}
         </div>
         <div style={{ flex: 1 }}>
@@ -630,11 +639,14 @@ export function ClassicTemplate({ doc, profile, currency = 'XOF', conversionRate
             <span style={{ fontSize: 14, fontWeight: 'bold', color: labelColor }}>TOTAL TTC :</span>
             <span style={{ fontSize: 14, fontWeight: 'bold', minWidth: 90, textAlign: 'right', color: labelColor }}>{fmt(total)}</span>
           </div>
+          <PaymentRowsHtml payment={documentExtras(doc, profile).payment} currency={currency} rate={conversionRate || 1} size={12} color={labelColor} />
           <div style={{ marginTop: 4, fontSize: 10, color: '#444', fontStyle: 'italic', textAlign: 'right' }}>
             Arrêtée la présente facture à la somme de : {amountToWords(total, currency)}
           </div>
         </div>
       </div>
+
+      <ExtrasHtml {...documentExtras(doc, profile)} color={labelColor} size={10} />
 
       {/* FOOTER */}
       <div style={{ marginTop: 'auto', paddingTop: 24 }}>

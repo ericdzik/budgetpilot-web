@@ -9,8 +9,10 @@ import EmptyState from '../components/ui/EmptyState'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import { revenueService } from '../services/revenueService'
 import { formatCurrency, formatDate } from '../utils/formatters'
+import useCan from '../hooks/useCan'
 
 export default function RevenuePage() {
+  const can = useCan()
   const navigate = useNavigate()
   const [revenues, setRevenues] = useState([])
   const [loading, setLoading] = useState(true)
@@ -134,12 +136,14 @@ export default function RevenuePage() {
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button
+                        {can('ledger.delete') && (
+<button
                           onClick={(e) => { e.stopPropagation(); setDeleteId(revenue.id) }}
                           className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
+)}
                       </div>
                     </td>
                   </tr>

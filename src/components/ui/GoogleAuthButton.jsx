@@ -1,3 +1,4 @@
+import { pendingInvite } from '../../utils/pendingInvite'
 import { useGoogleLogin } from '@react-oauth/google'
 import { toast } from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
@@ -52,7 +53,7 @@ export default function GoogleAuthButton({ label = 'Continuer avec Google', styl
         }
 
         toast.success('Connexion réussie 🎉')
-        navigate('/dashboard')
+        navigate(pendingInvite.nextPath())
       } catch (err) {
         const msg = err.response?.data?.message || 'Erreur lors de la connexion Google'
         toast.error(msg)

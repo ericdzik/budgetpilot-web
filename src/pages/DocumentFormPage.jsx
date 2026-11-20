@@ -96,6 +96,7 @@ export default function DocumentFormPage() {
   const [discount, setDiscount] = useState(0)
   const [taxPercent, setTaxPercent] = useState(0)
   const [notes, setNotes] = useState('')
+  const [showRib, setShowRib] = useState(false)
   const [docTitle, setDocTitle] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('Espèces')
 
@@ -117,6 +118,7 @@ export default function DocumentFormPage() {
         setDiscountType(doc.discount_type || 'percentage')
         setTaxPercent(doc.tax_percent || 0)
         setNotes(doc.notes || '')
+        setShowRib(!!doc.show_rib)
         setDocTitle(doc.title || '')
         // Client
         const client = doc.client
@@ -168,7 +170,7 @@ export default function DocumentFormPage() {
       setClientNif(''); setClientAddress(''); setClientSector('')
       setSelectedClient(null)
       setItems([newItem()])
-      setDiscount(0); setTaxPercent(0); setNotes('')
+      setDiscount(0); setTaxPercent(0); setNotes(''); setShowRib(false)
       setDocTitle('')
       setPaymentMethod('Espèces'); setDiscountType('percentage')
 
@@ -398,7 +400,7 @@ export default function DocumentFormPage() {
     setClientNif(''); setClientAddress(''); setClientSector('')
     setSelectedClient(null)
     setItems([newItem()])
-    setDiscount(0); setTaxPercent(0); setNotes('')
+    setDiscount(0); setTaxPercent(0); setNotes(''); setShowRib(false)
     setDocTitle('')
     setPaymentMethod('Espèces')
     setDiscountType('percentage')
@@ -463,6 +465,7 @@ export default function DocumentFormPage() {
         discount_type: discountType,
         tax_percent: Number(taxPercent),
         notes: notes.trim() || null,
+        show_rib: showRib,
         title: docTitle.trim() || null,
         ...(isInvoice ? { payment_method: paymentMethod } : {}),
         items: items.map((it) => ({
@@ -925,8 +928,18 @@ export default function DocumentFormPage() {
             <div>
               <label style={{ fontSize: '14px', fontWeight: '600', color: '#111', marginBottom: '8px', display: 'block' }}>Ajouter une description</label>
               <textarea placeholder="Ajouter une note ou une remarque" value={notes}
-                onChange={(e) => setNotes(e.target.value)} rows={6}
+                onChange={(e) => setNotes(e.target.value)} rows={6} maxLength={250}
                 style={{ ...inputStyle, backgroundColor: BG_BLUE_LIGHT, resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.5' }} />
+              <div style={{ textAlign: 'right', fontSize: '12px', color: '#666', marginTop: '4px' }}>{notes.length}/250</div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', fontSize: '14px', color: '#111', cursor: 'pointer' }}>
+                <input type="checkbox" checked={showRib} onChange={(e) => setShowRib(e.target.checked)} />
+                Afficher le RIB sur ce document
+              </label>
+              {showRib && !user?.rib && (
+                <div style={{ fontSize: '12px', color: '#B26A00', marginTop: '4px' }}>
+                  Aucun RIB enregistré : ajoutez-le dans « Informations entreprise ».
+                </div>
+              )}
             </div>
           </div>
         </div>

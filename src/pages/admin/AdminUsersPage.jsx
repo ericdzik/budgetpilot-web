@@ -467,6 +467,7 @@ export default function AdminUsersPage() {
                 { label: 'Inscription', key: 'created_at' },
                 { label: 'Clients', key: 'clients_count' },
                 { label: 'Docs', key: 'docs_count' },
+                { label: 'Entreprises', key: null },
                 { label: 'Dernière activité', key: 'last_activity_at' },
                 { label: 'Risque churn', key: null },
                 { label: '', key: null },
@@ -532,6 +533,7 @@ export default function AdminUsersPage() {
                   <td style={{ padding: '14px 16px', color: '#555', textAlign: 'center' }}>
                     {((u.documents_count ?? 0) + (u.expenses_count ?? 0) + (u.revenues_count ?? 0))}
                   </td>
+                  <td style={{ padding: '14px 16px', color: '#555', textAlign: 'center' }}>{u.companies_count ?? 1}</td>
                   <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                     {u.last_activity_at ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>

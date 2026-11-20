@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef } from 'react'
+import { remainingTime } from '../utils/subscriptionTime'
+import { useState, useEffect } from 'react'
 import { Zap, Check, Circle, X } from 'lucide-react'
-import { toast } from 'react-hot-toast'
 import { subscriptionService } from '../services/subscriptionService'
 import UserBadge from '../components/ui/UserBadge'
 import { BADGE_TIERS } from '../components/gamification/celebrations'
 import useAuthStore from '../store/authStore'
 import useCurrencyStore from '../store/currencyStore'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import {
   getSubscriptionPrice,
   formatSubscriptionPrice,
@@ -105,12 +106,26 @@ function CycleButton({ label, price, oldPrice, perMonth, selected, onSelect }) {
 export default function SubscriptionPage() {
   const { user, setUser } = useAuthStore()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedPro, setSelectedPro]     = useState('yearly')
   const [selectedBasic, setSelectedBasic] = useState('yearly')
-  const [paying, setPaying] = useState(false)
   const [showRenewalBanner, setShowRenewalBanner] = useState(false)
+
+  // Retour de la page de paiement SEMOA : la confirmation arrive du serveur
+  // quelques secondes plus tard, on recharge le statut une fois
+  useEffect(() => {
+    if (searchParams.get('payment') !== 'return') return undefined
+    toast('Paiement en cours de validation…')
+    const timer = setTimeout(() => {
+      subscriptionService.getStatus().then(({ data }) => {
+        setStatus(data)
+        if (data?.status === 'active') toast.success('Abonnement activé')
+      }).catch(() => {})
+    }, 4000)
+    return () => clearTimeout(timer)
+  }, [searchParams])
 
   useEffect(() => {
     subscriptionService.getStatus()
@@ -161,26 +176,12 @@ export default function SubscriptionPage() {
   const planLabel = currentPlan === 'pro' ? 'pro' : currentPlan === 'basic' ? 'basic' : 'gratuit'
 
   // Conversion jours → mois si > 30 (comme mobile)
-  const daysDisplay = daysLeft !== null
-    ? daysLeft > 30
-      ? `${Math.floor(daysLeft / 30)} mois restants`
-      : `${daysLeft} jour${daysLeft !== 1 ? 's' : ''} restant${daysLeft !== 1 ? 's' : ''}`
-    : null
+  const remaining = remainingTime(status?.next_billing_at)
+  const daysDisplay = daysLeft !== null && !remaining.isEmpty ? remaining.label : null
 
-  const handleSubscribe = async (plan, billing) => {
-    setPaying(true)
-    try {
-      const res = await subscriptionService.initiate({ plan, billing_cycle: billing })
-      if (res.data?.bill_url) {
-        window.open(res.data.bill_url, '_blank')
-      } else {
-        toast.success('Abonnement initié avec succès')
-      }
-    } catch {
-      toast.error("Impossible d'initier le paiement")
-    } finally {
-      setPaying(false)
-    }
+  // Parcours de paiement KKiaPay (récapitulatif, méthode, résultat)
+  const handleSubscribe = (plan, billing) => {
+    navigate(`/subscription/checkout?plan=${plan}&cycle=${billing}`)
   }
 
   // ── Prix statiques par devise active (fallback USD) ──
@@ -311,12 +312,14 @@ export default function SubscriptionPage() {
             {/* Jours/mois restants — seulement en mode premium actif */}
             {isPremium && daysDisplay !== null && (
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexShrink: 0 }}>
-                <span style={{ fontSize: '40px', fontWeight: '800', color: '#1E88E5', lineHeight: 1 }}>
-                  {daysLeft > 30 ? Math.floor(daysLeft / 30) : daysLeft}
-                </span>
-                <span style={{ fontSize: '14px', color: '#888', lineHeight: 1.3 }}>
-                  {daysLeft > 30 ? 'mois' : 'jours'}<br />restants
-                </span>
+                {remaining.parts.map((p, i) => (
+                  <span key={p.unit} style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginLeft: i ? '10px' : 0 }}>
+                    <span style={{ fontSize: remaining.parts.length > 1 ? '32px' : '40px', fontWeight: '800', color: '#1E88E5', lineHeight: 1 }}>{p.value}</span>
+                    <span style={{ fontSize: '14px', color: '#888', lineHeight: 1.3 }}>
+                      {p.unit}{i === remaining.parts.length - 1 && <><br />{p.value > 1 ? 'restants' : 'restant'}</>}
+                    </span>
+                  </span>
+                ))}
               </div>
             )}
 
@@ -495,7 +498,6 @@ export default function SubscriptionPage() {
                 {/* Bouton */}
                 <button
                   onClick={() => handleSubscribe('pro', selectedPro)}
-                  disabled={paying}
                   style={{
                     width: '100%', padding: '14px',
                     backgroundColor: '#fff', color: '#1E88E5',
@@ -503,7 +505,7 @@ export default function SubscriptionPage() {
                     fontSize: '16px', fontWeight: '700', cursor: 'pointer',
                   }}
                 >
-                  {paying ? 'Chargement...' : 'Continuer'}
+                  Continuer
                 </button>
               </div>
             </div>
@@ -572,7 +574,6 @@ export default function SubscriptionPage() {
               {/* Bouton */}
               <button
                 onClick={() => handleSubscribe('basic', selectedBasic)}
-                disabled={paying}
                 style={{
                   width: '100%', padding: '14px',
                   backgroundColor: '#1E88E5', color: '#fff',
@@ -580,7 +581,7 @@ export default function SubscriptionPage() {
                   fontSize: '16px', fontWeight: '700', cursor: 'pointer',
                 }}
               >
-                {paying ? 'Chargement...' : 'Continuer'}
+                Continuer
               </button>
             </div>
 

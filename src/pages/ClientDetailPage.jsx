@@ -11,6 +11,7 @@ import PeriodDropdown from '../components/ui/PeriodDropdown'
 import usePremiumGate from '../hooks/usePremiumGate'
 import LoyalClientBadge from '../components/gamification/LoyalClientBadge'
 import { isLoyalClient } from '../components/gamification/loyalClient'
+import useCan from '../hooks/useCan'
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const PRIMARY = '#1E88E5'
@@ -176,6 +177,7 @@ function EditDrawer({ open, onClose, client, onSaved }) {
 
 // ─── Page principale ──────────────────────────────────────────────────────────
 export default function ClientDetailPage() {
+  const can = useCan()
   const { id } = useParams()
   const navigate = useNavigate()
   const [client, setClient] = useState(null)
@@ -316,9 +318,11 @@ export default function ClientDetailPage() {
                   <button onClick={() => setEditOpen(true)} style={{ width:36, height:36, borderRadius:'50%', background:PRIMARY, border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
                     <Pencil size={16} color="#fff" />
                   </button>
-                  <button onClick={() => setShowDeleteConfirm(true)} style={{ width:36, height:36, borderRadius:'50%', background:PRIMARY, border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  {can('clients.delete') && (
+<button onClick={() => setShowDeleteConfirm(true)} style={{ width:36, height:36, borderRadius:'50%', background:PRIMARY, border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
                     <Trash2 size={16} color="#fff" />
                   </button>
+)}
                 </div>
               </div>
 

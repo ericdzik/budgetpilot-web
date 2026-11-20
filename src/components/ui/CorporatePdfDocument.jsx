@@ -36,6 +36,8 @@ import { amountToWords } from './MinimalPdfDocument'
 import { STORAGE_BASE_URL } from '../../config/constants'
 import { getTextColor, accentToBoxBg, accentToSubtotalBg, getSecondaryColor, mixWithWhite } from './pdfColorUtils'
 import { withFont, resolveFontFamily } from './pdfFonts'
+import { ExtrasPdf, ExtrasHtml, PaymentRowsPdf, PaymentRowsHtml } from './DocumentExtras'
+import { documentExtras, displayStatus } from '../../utils/documentExtras'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -57,7 +59,7 @@ function fmtDate(d) {
 }
 
 function statusLabel(s) {
-  return { paid: 'Payée', partially_paid: 'Part. payée', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }[s] || s || '—'
+  return { paid: 'Payée', partially_paid: 'En-cours de paiement', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }[s] || s || '—'
 }
 
 function toNum(v) { return isNaN(parseFloat(v)) ? 0 : parseFloat(v) }
@@ -235,7 +237,7 @@ const PAGE_BODY_H = 660  // hauteur utile du bodyRow par page
  * qui tiennent dans PAGE_BODY_H. Retourne un tableau de pages, chacune = liste d'items.
  * La dernière page inclut les totaux → moins de lignes.
  */
-function sliceItemsIntoPages(groupEntries) {
+function sliceItemsIntoPages(groupEntries, extraH = 0) {
   // Aplatit tous les items avec leur catégorie
   const flat = []
   groupEntries.forEach(([cat, items]) => {
@@ -251,7 +253,7 @@ function sliceItemsIntoPages(groupEntries) {
     const rowH = row.__subtotal ? SUBTOTAL_H : ROW_H
     const isLast = idx === flat.length - 1
     // Réserver de la place pour les totaux sur la dernière page
-    const reserveH = isLast ? TOTALS_H : 0
+    const reserveH = isLast ? TOTALS_H + extraH : 0
     if (usedH + rowH + reserveH > PAGE_BODY_H && current.length > 0) {
       pages.push(current)
       current = []
@@ -333,7 +335,8 @@ export function CorporatePdfDocument({ doc, profile, qrDataUrl, logoDataUrl, sig
   const groupEntries = Object.entries(grouped)
 
   // Découper en pages
-  const pageSlices = sliceItemsIntoPages(groupEntries)
+  const extras = documentExtras(doc, profile)
+  const pageSlices = sliceItemsIntoPages(groupEntries, extras.payment ? 36 : 0) // la note et le RIB sont dans la colonne de gauche
   const totalPages = pageSlices.length
 
   // ── Composant réutilisable : colonne gauche ──────────────────────────────
@@ -349,13 +352,15 @@ export function CorporatePdfDocument({ doc, profile, qrDataUrl, logoDataUrl, sig
       {isLastPage && (
         <View style={{ marginTop: 240 }}>
           <Text style={[S.paymentTitle, { color: '#111' }]}>Paiement</Text>        <Text style={S.paymentDetail}>
-            {'Statut : '}<Text style={{ fontFamily: fontBold }}>{statusLabel(doc.status)}</Text>
+            {'Statut : '}<Text style={{ fontFamily: fontBold }}>{statusLabel(displayStatus(doc))}</Text>
           </Text>
           {!!doc.due_date && (
             <Text style={S.paymentDetail}>
               {'Échéance : '}<Text style={{ fontFamily: fontBold }}>{fmtDate(doc.due_date)}</Text>
             </Text>
           )}
+          {/* Note et RIB : colonne de gauche (limites de saisie : note 250, RIB 150 caractères) */}
+          <ExtrasPdf note={extras.note} rib={extras.rib} color={labelColor} fontChoice={fontChoice} size={8} marginTop={8} />
           <Text style={[S.sigTitle, { marginTop: 40 }]}>Signature émetteur</Text>
           <View style={S.sigImgBox}>
             {signatureDataUrl ? <Image src={signatureDataUrl} style={S.sigImg} /> : null}
@@ -405,6 +410,7 @@ export function CorporatePdfDocument({ doc, profile, qrDataUrl, logoDataUrl, sig
           <Text style={S.totalFinalLabel}>TOTAL :</Text>
           <Text style={S.totalFinalValue}>{fmt(total)}</Text>
         </View>
+        <PaymentRowsPdf payment={extras.payment} currency={currency} rate={conversionRate || 1} fontChoice={fontChoice} size={9} color={labelColor} />
         <Text style={S.wordsText}>Arrêtée la présente facture à la somme de : {amountToWords(total, currency)}</Text>
       </View>
     </View>
@@ -552,7 +558,7 @@ export function CorporateTemplate({ doc, profile, currency = 'XOF', conversionRa
     try { return new Date(d).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' }) }
     catch { return d }
   }
-  const sL = s => ({ paid: 'Payée', partially_paid: 'Part. payée', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }[s] || s || '—')
+  const sL = s => ({ paid: 'Payée', partially_paid: 'En-cours de paiement', sent: 'Envoyée', overdue: 'En retard', draft: 'Brouillon' }[s] || s || '—')
 
   const LEFT = 185  // px — largeur colonne gauche dans l'aperçu HTML
 
@@ -607,13 +613,14 @@ export function CorporateTemplate({ doc, profile, currency = 'XOF', conversionRa
           <div style={{ marginTop: 240 }}>
             <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 4, color: '#111' }}>Paiement</div>
             <div style={{ fontSize: 12, color: labelColor, marginTop: 2 }}>
-              Statut : <strong>{sL(doc.status)}</strong>
+              Statut : <strong>{sL(displayStatus(doc))}</strong>
             </div>
             {doc.due_date && (
               <div style={{ fontSize: 12, color: labelColor, marginTop: 2 }}>
                 Échéance : <strong>{fmtD(doc.due_date)}</strong>
               </div>
             )}
+            <ExtrasHtml {...documentExtras(doc, profile)} color={labelColor} size={8} marginTop={8} />
             {/* Signature émetteur — juste en dessous */}
             <div style={{ fontSize: 12, color: '#111', marginTop: 40, marginBottom: 6 }}>Signature émetteur</div>
             <div style={{ height: 40, display: 'flex', alignItems: 'flex-start' }}>
@@ -691,6 +698,7 @@ export function CorporateTemplate({ doc, profile, currency = 'XOF', conversionRa
                 <span style={{ fontSize: 13, fontWeight: 'bold', color: labelColor }}>TOTAL :</span>
                 <span style={{ fontSize: 17, fontWeight: 'bold', color: labelColor }}>{fmt(total)}</span>
               </div>
+              <PaymentRowsHtml payment={documentExtras(doc, profile).payment} currency={currency} rate={conversionRate || 1} size={9} color={labelColor} />
               <div style={{ fontSize: 8, color: '#555', fontStyle: 'italic', marginTop: 4, textAlign: 'right' }}>
                 Arrêtée la présente facture à la somme de : {amountToWords(total, currency)}
               </div>

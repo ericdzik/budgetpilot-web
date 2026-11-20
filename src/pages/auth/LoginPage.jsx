@@ -1,3 +1,4 @@
+import { pendingInvite } from '../../utils/pendingInvite'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
@@ -61,7 +62,7 @@ export default function LoginPage() {
 
   // Détection auto du type d'identifiant
   const getIdentifierType = (val) => {
-    if (/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(val)) return 'email'
+    if (/^[\w-.]+@([\w-]+\.)+[\w-]{2,}$/.test(val)) return 'email'
     if (/^[\+]?[0-9\s\-\(\)]{8,}$/.test(val.replace(' ', ''))) return 'phone'
     return 'username'
   }
@@ -87,7 +88,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login(form.identifier, getIdentifierType(form.identifier), form.password)
-      navigate('/dashboard')
+      navigate(pendingInvite.nextPath())
     } catch (err) {
       const msg = err.response?.data?.errors?.identifier?.[0]
         || err.response?.data?.message

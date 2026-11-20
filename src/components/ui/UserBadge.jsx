@@ -1,3 +1,4 @@
+import { remainingTime } from '../../utils/subscriptionTime'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Zap } from 'lucide-react'
@@ -65,7 +66,7 @@ function Avatar({ user, size = 48, onClick }) {
 export default function UserBadge({ size = 48 }) {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const [daysLeft, setDaysLeft] = useState(null)
+  const [nextBilling, setNextBilling] = useState(null)
   const [plan, setPlan] = useState(user?.plan ?? 'freemium')
 
   const isPremium = plan === 'pro' || plan === 'basic'
@@ -83,28 +84,21 @@ export default function UserBadge({ size = 48 }) {
 
   const label = plan === 'pro' ? 'pro' : plan === 'basic' ? 'basic' : 'gratuit'
 
-  const daysDisplay = daysLeft !== null
-    ? daysLeft > 30
-      ? `${Math.floor(daysLeft / 30)} mois restants`
-      : `${daysLeft} jour${daysLeft !== 1 ? 's' : ''} restant${daysLeft !== 1 ? 's' : ''}`
-    : null
+  const remaining = remainingTime(nextBilling)
+  const daysDisplay = nextBilling && !remaining.isEmpty ? remaining.label : null
 
   useEffect(() => {
     subscriptionService.getStatus()
       .then((res) => {
         const data = res.data
         setPlan(data.plan ?? 'freemium')
-        if (data.next_billing_at && data.status === 'active') {
-          const end  = new Date(data.next_billing_at)
-          const now  = new Date()
-          const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24))
-          setDaysLeft(diff > 0 ? diff : 0)
-        }
+        if (data.next_billing_at && data.status === 'active') setNextBilling(data.next_billing_at)
       })
       .catch(() => {
         setPlan(user?.plan ?? 'freemium')
       })
-  }, [])
+    // Recharger quand le plan change (abonnement payé dans le site)
+  }, [user?.plan])
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '40px' }}>

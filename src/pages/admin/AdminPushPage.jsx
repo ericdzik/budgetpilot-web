@@ -71,6 +71,7 @@ function Chips({ items, value, onChange }) {
 function targetLabel(campaign) {
   const { target_type: type, target_value: value } = campaign
   if (type === 'all') return 'Tous'
+  if (type === 'auto') return 'Automatique'
   if (type === 'plan') return `Abonnement ${PLANS.find((p) => p.key === value)?.label ?? value}`
   if (type === 'platform') return PLATFORMS.find((p) => p.key === value)?.label ?? value
   return value

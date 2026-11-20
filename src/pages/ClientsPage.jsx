@@ -16,6 +16,7 @@ import PeriodDropdown from '../components/ui/PeriodDropdown'
 import usePremiumGate from '../hooks/usePremiumGate'
 import LoyalClientBadge from '../components/gamification/LoyalClientBadge'
 import { isLoyalClient } from '../components/gamification/loyalClient'
+import useCan from '../hooks/useCan'
 
 const PERIOD_OPTIONS = [
   { value: 'year', label: 'Cette année' },
@@ -208,6 +209,7 @@ function ClientDrawer({ open, onClose, onSaved, editClient = null }) {
 }
 
 function ClientPanel({ clientId, onEdit, onDelete }) {
+  const can = useCan()
   const navigate = useNavigate()
   const [client, setClient]               = useState(null)
   const [stats, setStats]                 = useState(null)
@@ -294,9 +296,11 @@ function ClientPanel({ clientId, onEdit, onDelete }) {
             <button onClick={() => onEdit(client)} style={{ width:44, height:44, borderRadius:'50%', background:PRIMARY, border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
               <Pencil size={18} color="#fff" />
             </button>
-            <button onClick={() => onDelete(client.id)} style={{ width:44, height:44, borderRadius:'50%', background:PRIMARY, border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            {can('clients.delete') && (
+<button onClick={() => onDelete(client.id)} style={{ width:44, height:44, borderRadius:'50%', background:PRIMARY, border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
               <Trash2 size={18} color="#fff" />
             </button>
+)}
           </div>
         </div>
 

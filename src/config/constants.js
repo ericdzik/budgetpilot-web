@@ -13,7 +13,7 @@ export const DOCUMENT_STATUSES = {
   draft: 'Brouillon',
   sent: 'Envoyée',
   paid: 'Payée',
-  partially_paid: 'Part. payée',
+  partially_paid: 'En-cours de paiement',
   overdue: 'En retard',
 }
 
@@ -38,6 +38,12 @@ export const EXPENSE_CATEGORIES = [
   'Assurance',
   'Taxes',
   'Autres',
+]
+
+// Secteurs proposés pour une entreprise (création et profil entreprise)
+export const COMPANY_SECTORS = [
+  'Agriculture', 'Artisanat', 'Commerce', 'Construction', 'Éducation', 'Finance', 'Immobilier',
+  'Industrie', 'Informatique', 'Restauration', 'Santé', 'Services', 'Transport', 'Autre',
 ]
 
 export const BUSINESS_SECTORS = [
