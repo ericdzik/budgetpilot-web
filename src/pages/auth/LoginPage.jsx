@@ -62,7 +62,7 @@ export default function LoginPage() {
 
   // Détection auto du type d'identifiant
   const getIdentifierType = (val) => {
-    if (/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(val)) return 'email'
+    if (/^[\w-.]+@([\w-]+\.)+[\w-]{2,}$/.test(val)) return 'email'
     if (/^[\+]?[0-9\s\-\(\)]{8,}$/.test(val.replace(' ', ''))) return 'phone'
     return 'username'
   }
