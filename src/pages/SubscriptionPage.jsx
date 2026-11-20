@@ -1,3 +1,4 @@
+import { remainingTime } from '../utils/subscriptionTime'
 import { useState, useEffect } from 'react'
 import { Zap, Check, Circle, X } from 'lucide-react'
 import { subscriptionService } from '../services/subscriptionService'
@@ -175,11 +176,8 @@ export default function SubscriptionPage() {
   const planLabel = currentPlan === 'pro' ? 'pro' : currentPlan === 'basic' ? 'basic' : 'gratuit'
 
   // Conversion jours → mois si > 30 (comme mobile)
-  const daysDisplay = daysLeft !== null
-    ? daysLeft > 30
-      ? `${Math.floor(daysLeft / 30)} mois restants`
-      : `${daysLeft} jour${daysLeft !== 1 ? 's' : ''} restant${daysLeft !== 1 ? 's' : ''}`
-    : null
+  const remaining = remainingTime(status?.next_billing_at)
+  const daysDisplay = daysLeft !== null && !remaining.isEmpty ? remaining.label : null
 
   // Parcours de paiement KKiaPay (récapitulatif, méthode, résultat)
   const handleSubscribe = (plan, billing) => {
@@ -314,12 +312,14 @@ export default function SubscriptionPage() {
             {/* Jours/mois restants — seulement en mode premium actif */}
             {isPremium && daysDisplay !== null && (
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexShrink: 0 }}>
-                <span style={{ fontSize: '40px', fontWeight: '800', color: '#1E88E5', lineHeight: 1 }}>
-                  {daysLeft > 30 ? Math.floor(daysLeft / 30) : daysLeft}
-                </span>
-                <span style={{ fontSize: '14px', color: '#888', lineHeight: 1.3 }}>
-                  {daysLeft > 30 ? 'mois' : 'jours'}<br />restants
-                </span>
+                {remaining.parts.map((p, i) => (
+                  <span key={p.unit} style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginLeft: i ? '10px' : 0 }}>
+                    <span style={{ fontSize: remaining.parts.length > 1 ? '32px' : '40px', fontWeight: '800', color: '#1E88E5', lineHeight: 1 }}>{p.value}</span>
+                    <span style={{ fontSize: '14px', color: '#888', lineHeight: 1.3 }}>
+                      {p.unit}{i === remaining.parts.length - 1 && <><br />{p.value > 1 ? 'restants' : 'restant'}</>}
+                    </span>
+                  </span>
+                ))}
               </div>
             )}
 
